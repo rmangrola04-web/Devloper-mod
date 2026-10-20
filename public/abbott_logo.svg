@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80">
+  <defs>
+    <linearGradient id="abbottGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#002F6C" />
+      <stop offset="100%" stop-color="#001838" />
+    </linearGradient>
+    <linearGradient id="blueAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#009FE3" />
+      <stop offset="100%" stop-color="#0077C8" />
+    </linearGradient>
+  </defs>
+
+  <!-- Abbott Symbol: Emblem Box with stylized 'a' ribbon curve -->
+  <g transform="translate(4, 8)">
+    <rect width="64" height="64" rx="14" fill="url(#abbottGrad)" />
+    <!-- Outer accent curve -->
+    <path d="M 46 20 C 46 14 36 14 30 14 C 20 14 14 22 14 34 C 14 46 22 54 34 54 C 44 54 48 48 48 42 L 40 42 C 40 46 36 48 32 48 C 24 48 20 42 20 34 C 20 26 25 20 32 20 C 38 20 40 24 40 27 L 40 54 L 46 54 Z" fill="#ffffff" />
+    <path d="M 33 26 C 26 26 22 30 22 36 C 22 42 26 46 33 46 C 40 46 41 40 41 36 C 41 30 38 26 33 26 Z" fill="url(#blueAccent)" />
+  </g>
+
+  <!-- Abbott Brand Wordmark -->
+  <text x="80" y="52" font-family="'Plus Jakarta Sans', 'Segoe UI', Arial, Helvetica, sans-serif" font-size="44" font-weight="900" letter-spacing="-1.5" fill="#002F6C">
+    Abbott
+  </text>
+</svg>

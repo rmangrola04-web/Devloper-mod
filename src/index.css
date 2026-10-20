@@ -1,0 +1,775 @@
+@import "tailwindcss";
+
+:root {
+  --bg-main: #F4F6F9;
+  --bg-sidebar: #1e3d6b; /* Professional Light-Dark Blue Theme */
+  --bg-header: rgba(255, 255, 255, 0.96);
+  --bg-card: #FFFFFF;
+  --bg-elevated: #F1F5F9;
+  --bg-input: #FFFFFF;
+  --bg-input-focus: #FFFFFF;
+  
+  --text-main: #0B132A;
+  --text-muted: #64748B;
+  --text-sidebar: #FFFFFF;
+  --text-header: #0B132A;
+  --text-heading: #0B132A;
+  --text-label: #334155;
+  
+  --border-subtle: #E2E8F0;
+  --border-card: #E2E8F0;
+  --border-sidebar: #2b5288;
+  --border-header: #E2E8F0;
+  --border-input: #CBD5E1;
+  --border-focus: #1e3d6b;
+
+  /* 4K Multi-stage 3D Card Shadows with Top Specular Glow */
+  --shadow-card: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-card-hover: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 20px 35px -5px rgba(0, 0, 0, 0.09), 0 8px 16px rgba(0, 0, 0, 0.05);
+}
+
+/* 1. Light Grey Theme Mode - Executive Light Slate Grey Palette */
+html[data-theme="light-grey"],
+body[data-theme="light-grey"],
+.light-grey {
+  --bg-main: #E2E8F0; /* Soft Executive Slate Light Grey Background */
+  --bg-sidebar: #2D3748; /* Dark Charcoal Slate Sidebar */
+  --bg-header: #EDF2F7; /* Light Metallic Header */
+  --bg-card: #F8FAFC; /* Crisp Silver Card */
+  --bg-elevated: #CBD5E1;
+  --bg-input: #FFFFFF;
+  
+  --text-main: #1A202C; /* High Contrast Dark Charcoal Text */
+  --text-muted: #4A5568;
+  --text-sidebar: #FFFFFF;
+  --text-header: #1A202C;
+  --text-heading: #1A202C;
+  --text-label: #2D3748;
+  
+  --border-subtle: #CBD5E1;
+  --border-card: #CBD5E1;
+  --border-header: #CBD5E1;
+  --border-input: #A0AEC0;
+  
+  --shadow-card: inset 0 1px 0 0 rgba(255, 255, 255, 0.9), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: inset 0 1px 0 0 rgba(255, 255, 255, 1), 0 10px 24px rgba(0, 0, 0, 0.09);
+}
+
+/* Light Grey specific surface overrides */
+html[data-theme="light-grey"] body,
+body[data-theme="light-grey"] {
+  background-color: #E2E8F0 !important;
+  color: #1A202C !important;
+}
+
+html[data-theme="light-grey"] header,
+body[data-theme="light-grey"] header {
+  background-color: #EDF2F7 !important;
+  border-bottom-color: #CBD5E1 !important;
+  color: #1A202C !important;
+}
+
+html[data-theme="light-grey"] aside,
+body[data-theme="light-grey"] aside {
+  background-color: #2D3748 !important;
+  background: #2D3748 !important;
+  border-right-color: #4A5568 !important;
+}
+
+/* 2. Dark Theme Mode - Tech Slate Dark Palette */
+html[data-theme="dark"],
+body[data-theme="dark"],
+.dark {
+  --bg-main: #0F172A;
+  --bg-sidebar: #020617;
+  --bg-header: #1E293B;
+  --bg-card: #1E293B;
+  --bg-elevated: #334155;
+  --bg-input: #0F172A;
+  
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-sidebar: #FFFFFF;
+  --text-header: #F8FAFC;
+  --text-heading: #F8FAFC;
+  --text-label: #CBD5E1;
+  
+  --border-subtle: #334155;
+  --border-card: #334155;
+  --border-header: #334155;
+  --border-input: #475569;
+  
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4);
+  --shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.6);
+}
+
+
+
+/* Base Body Styles with Tech 4K Glow Gradient & Anti-Aliased Typography */
+html, body, #root {
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+  width: 100% !important;
+}
+
+body {
+  background-color: var(--bg-main) !important;
+  color: var(--text-main) !important;
+  font-family: 'Plus Jakarta Sans', 'Poppins', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.dark body, 
+
+.dark .widget-card:hover, .dark .card:hover {
+  border-color: rgba(56, 189, 248, 0.45) !important;
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.2), 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 25px rgba(14, 165, 233, 0.22) !important;
+  transform: translateY(-2px);
+}
+
+/* Modern Enterprise 3D Card Elevation */
+.widget-card, .card, div[class*="rounded-lg border"] {
+  background-color: var(--bg-card);
+  border-color: var(--border-card);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.widget-card:hover, .card:hover {
+  box-shadow: var(--shadow-card-hover);
+  transform: translateY(-2px);
+}
+
+/* Sidebar & Navigation - Professional Light-Dark Blue Surface (#1e3d6b) */
+aside, .sidebar, 
+[class*="fixed inset-y-0 left-0"], 
+[class*="fixed inset-0 z-50"] nav,
+.dark aside, .dark .sidebar,
+.dark [class*="fixed inset-y-0 left-0"],
+.dark [class*="fixed inset-0 z-50"] nav {
+  background-color: #1e3d6b !important;
+  background: #1e3d6b !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #FFFFFF !important;
+}
+
+html.light aside, html.light .sidebar,
+body.light aside, body.light .sidebar {
+  background-color: #1e3d6b !important;
+  background: #1e3d6b !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #FFFFFF !important;
+}
+
+.fixed.inset-y-0.left-0 {
+  background-color: #1e3d6b !important;
+  background: #1e3d6b !important;
+}
+
+/* Sidebar Logo & Brand Title Contrast */
+aside h1, aside h2, aside h3, .sidebar h1, .sidebar h2, .sidebar h3,
+aside span, aside p, .sidebar span, .sidebar p {
+  color: #FFFFFF !important;
+}
+
+aside div:has(> .rounded-xl) p, aside div:has(> .rounded-xl) span,
+aside div:has(> svg) p, aside div:has(> svg) span {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Clean Sidebar Menu Styling & Alignment */
+aside .space-y-1 button, .sidebar .nav-link,
+.dark aside .space-y-1 button, .dark .sidebar .nav-link {
+  color: #FFFFFF !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+aside .space-y-1 svg, .sidebar .nav-link svg {
+  flex-shrink: 0 !important;
+}
+
+/* Clean hover feedback for sidebar nav links */
+aside .space-y-1 button:hover, .sidebar .nav-link:hover {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+  color: #FFFFFF !important;
+}
+
+/* Active Menu Item with clear highlight */
+aside .space-y-1 button.bg-blue-600,
+aside .space-y-1 button[class*="bg-blue-600"],
+.sidebar .nav-link.active {
+  background-color: #2563eb !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35) !important;
+}
+
+/* Sidebar Notification Badges / Counters High Contrast & Right Alignment (Strictly targeted to count badges) */
+aside button span.badge, aside a span.badge,
+.sidebar button span.badge, .sidebar a span.badge,
+aside span.bg-green-500, aside span.bg-emerald-500, aside span.bg-amber-500,
+.sidebar span.bg-green-500, .sidebar span.bg-emerald-500, .sidebar span.bg-amber-500,
+aside span[class*="rounded-full"], .sidebar span[class*="rounded-full"] {
+  background: #10B981 !important;
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+  padding: 0.15rem 0.5rem !important;
+  border-radius: 9999px !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  margin-left: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 22px !important;
+  text-align: center !important;
+}
+
+/* Header & Mobile Header Container Restoration */
+header {
+  background-color: var(--bg-header) !important;
+  border-bottom: 1px solid var(--border-header) !important;
+  color: var(--text-header) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  min-height: 64px !important;
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+header h1, header h2, header div {
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* Mobile Bottom Navigation & Main Content Padding Fix (Mobile Only) */
+@media (max-width: 768px) {
+  main, .main-content, [class*="flex-1 overflow-auto"], [class*="flex-1 overflow-y-auto"] {
+    padding-bottom: 95px !important;
+  }
+
+  /* Clean Mobile Dock / Bottom Navigation Styling (Light & Dark Mode) */
+  nav[class*="bottom"], [class*="fixed bottom-0"], .mobile-bottom-nav, .mobile-bottom-dock {
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    transform: none !important;
+    margin: 0 auto !important;
+    z-index: 9999 !important;
+    background: rgba(15, 23, 42, 0.94) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-top: 1px solid rgba(56, 189, 248, 0.35) !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    box-shadow: 0 -4px 25px rgba(0, 0, 0, 0.6), 0 0 20px rgba(14, 165, 233, 0.3) !important;
+    color: #FFFFFF !important;
+    display: flex !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    height: 64px !important;
+    padding: 0 4px !important;
+    border-radius: 0 !important;
+  }
+}
+
+/* STRICT DESKTOP & LAPTOP HIDE RULE FOR MOBILE BOTTOM NAVIGATION BAR */
+@media (min-width: 769px) {
+  nav[class*="bottom"],
+  [class*="fixed bottom-0"],
+  .mobile-bottom-nav,
+  .mobile-bottom-dock,
+  div.mobile-bottom-nav,
+  div.mobile-bottom-dock {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    z-index: -9999 !important;
+  }
+
+  main, .main-content, [class*="flex-1 overflow-auto"], [class*="flex-1 overflow-y-auto"] {
+    padding-bottom: 0 !important;
+  }
+}
+
+/* Dark mode explicit overrides for mobile bottom nav with sky blue tech glow */
+.dark nav[class*="bottom"], .dark [class*="fixed bottom-0"], .dark .mobile-bottom-nav, .dark .mobile-bottom-dock,
+
+
+.dark nav[class*="bottom"] button, .dark nav[class*="bottom"] a,
+.dark [class*="fixed bottom-0"] button, .dark [class*="fixed bottom-0"] a,
+.dark .mobile-bottom-dock button,
+
+
+.dark nav[class*="bottom"] svg, .dark [class*="fixed bottom-0"] svg, .dark .mobile-bottom-dock svg,
+
+
+html:not(.dark) nav[class*="bottom"], html:not(.dark) [class*="fixed bottom-0"], html:not(.dark) .mobile-bottom-nav, html:not(.dark) .mobile-bottom-dock {
+  background: #0F172A !important;
+  background-color: #0F172A !important;
+  border-top: 1px solid rgba(56, 189, 248, 0.4) !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  box-shadow: 0 -4px 28px rgba(0, 0, 0, 0.75), 0 0 20px rgba(14, 165, 233, 0.35) !important;
+}
+
+html:not(.dark) nav[class*="bottom"] button, html:not(.dark) nav[class*="bottom"] a,
+html:not(.dark) [class*="fixed bottom-0"] button, html:not(.dark) [class*="fixed bottom-0"] a,
+html:not(.dark) .mobile-bottom-dock button {
+  color: #FFFFFF !important;
+}
+
+html:not(.dark) nav[class*="bottom"] button span, html:not(.dark) [class*="fixed bottom-0"] button span,
+html:not(.dark) .mobile-bottom-dock button span {
+  color: #CBD5E1 !important;
+}
+
+html:not(.dark) nav[class*="bottom"] button.active, html:not(.dark) nav[class*="bottom"] a.active,
+html:not(.dark) [class*="fixed bottom-0"] button[class*="bg-"], html:not(.dark) [class*="fixed bottom-0"] a[class*="bg-"],
+html:not(.dark) .mobile-bottom-dock button[class*="bg-"] {
+  color: #FFFFFF !important;
+  background: linear-gradient(135deg, #0EA5E9, #2563EB) !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4) !important;
+}
+
+html:not(.dark) nav[class*="bottom"] button[class*="bg-"] span,
+html:not(.dark) .mobile-bottom-dock button[class*="bg-"] span {
+  color: #FFFFFF !important;
+  font-weight: 700 !important;
+}
+
+html:not(.dark) nav[class*="bottom"] svg, html:not(.dark) [class*="fixed bottom-0"] svg,
+html:not(.dark) .mobile-bottom-dock svg {
+  color: #38BDF8 !important;
+  filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.6)) !important;
+}
+
+nav[class*="bottom"] button, nav[class*="bottom"] a,
+[class*="fixed bottom-0"] button, [class*="fixed bottom-0"] a,
+.mobile-bottom-dock button {
+  color: #FFFFFF !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  font-size: 10px !important;
+  padding: 4px 6px !important;
+  border-radius: 0.75rem !important;
+  touch-action: manipulation !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+nav[class*="bottom"] svg, [class*="fixed bottom-0"] svg, .mobile-bottom-dock svg {
+  color: #38BDF8 !important;
+  width: 20px !important;
+  height: 20px !important;
+  margin-bottom: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Summary Card Text Contrast on Mobile & Desktop */
+.card h3, .card h4, .card p, .card span,
+[class*="card"] h3, [class*="card"] h4, [class*="card"] p {
+  color: inherit;
+}
+
+/* Dark mode overrides for sidebar and bottom navigation bars */
+.dark aside, .dark .sidebar, 
+.dark [class*="fixed inset-y-0 left-0"], 
+.dark [class*="fixed inset-0 z-50"] nav,
+.dark nav[class*="bottom"],
+.dark [class*="fixed bottom-0"] {
+  background: #1E293B !important;
+  background-color: #1E293B !important;
+  border-color: #334155 !important;
+  color: #F8FAFC !important;
+}
+
+.dark aside button, .dark aside a, 
+.dark .sidebar button, .dark .sidebar a,
+.dark nav button, .dark nav a {
+  color: #F1F5F9 !important;
+}
+
+.dark aside svg, .dark .sidebar svg, .dark nav svg {
+  color: #FCD34D !important;
+}
+.dark .bg-white,
+.dark .dark\:bg-\[\#242c3d\],
+.dark .dark\:bg-\[\#131d36\],
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-blue-50,
+.dark .bg-amber-50,
+.dark .bg-purple-50,
+.dark .bg-emerald-50 {
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+}
+
+.dark .bg-slate-900,
+.dark .bg-slate-800,
+.dark .bg-slate-950 {
+  background-color: var(--bg-elevated) !important;
+  color: var(--text-main) !important;
+}
+
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-blue-900,
+.dark .text-blue-950,
+.dark .text-amber-900,
+.dark .text-amber-950,
+.dark .text-purple-900,
+.dark .text-purple-950,
+.dark .text-emerald-900,
+.dark .text-emerald-950 {
+  color: var(--text-main) !important;
+}
+
+.dark .text-slate-400,
+.dark .text-slate-300 {
+  color: var(--text-muted) !important;
+}
+
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .dark\:border-\[\#3e4859\],
+.dark .border-blue-200,
+.dark .border-amber-200,
+.dark .border-purple-200,
+.dark .border-emerald-200 {
+  border-color: var(--border-card) !important;
+}
+
+/* Modern Card Standardization */
+.widget-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1rem !important;
+  min-height: 135px !important;
+  height: 100% !important;
+  border-radius: 1rem !important;
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-card);
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  color: var(--text-main);
+}
+
+.widget-card:hover {
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--border-focus);
+}
+
+.widget-main-stat {
+  font-size: 1.85rem !important;
+  font-weight: 800 !important;
+  font-family: 'Outfit', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+  line-height: 1 !important;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  color: var(--text-heading);
+  letter-spacing: -0.02em;
+}
+
+.dark .widget-main-stat {
+  color: #FFFFFF !important;
+  text-shadow: 0 0 12px rgba(255, 255, 255, 0.25);
+}
+
+/* Form Controls (Inputs, Selects, Textareas) */
+input, textarea, select {
+  background-color: var(--bg-input);
+  color: var(--text-main);
+  border: 1px solid var(--border-input);
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.85rem;
+  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+input:focus, textarea:focus, select:focus {
+  background-color: var(--bg-input-focus);
+  border-color: var(--border-focus);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2), inset 0 1px 1px rgba(0, 0, 0, 0.02);
+}
+
+input::placeholder, textarea::placeholder {
+  color: #94A3B8 !important;
+  opacity: 1 !important;
+}
+
+/* High Contrast Dropdown Option Items */
+option, select option {
+  background-color: var(--bg-card) !important;
+  color: var(--text-main) !important;
+  font-weight: 600;
+}
+
+.dark select option, html[data-theme="dark"] select option {
+  background-color: #1E293B !important;
+  color: #F8FAFC !important;
+}
+
+html[data-theme="light-grey"] select option,
+html.light select option,
+body.light select option {
+  background-color: #FFFFFF !important;
+  color: #0F172A !important;
+}
+
+/* Tables */
+table thead {
+  background-color: var(--bg-elevated);
+  color: var(--text-heading);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+table tbody tr {
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.15s ease;
+  color: var(--text-main);
+}
+
+table tbody tr:hover {
+  background-color: var(--bg-elevated);
+}
+
+/* Custom Scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Responsive Container Polish */
+@media (max-width: 768px) {
+  .widget-card {
+    min-height: auto !important;
+    padding: 0.875rem !important;
+  }
+}
+
+/* मोबाइल स्क्रीन के लिए विशेष स्टाइल */
+@media screen and (max-width: 768px) {
+  /* एंट्री डिटेल्स को लिस्ट या कार्ड फॉर्मेट में दिखाना */
+  .entry-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid #e9ecef;
+  }
+}
+
+/* ==========================
+   Light Mode & Dark Mode Theming
+   ========================== */
+
+/* 1. Dark Mode Specifications (.dark / data-theme="dark") */
+html.dark body, body.dark, html[data-theme="dark"] body {
+  background-color: #0F172A !important;
+  color: #F8FAFC !important;
+}
+
+html.dark .card, html.dark .widget-card, body.dark .card, body.dark .widget-card,
+html[data-theme="dark"] .card, html[data-theme="dark"] .widget-card {
+  background-color: #1E293B !important;
+  border: 1px solid #334155 !important;
+  color: #F8FAFC !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+html.dark .card h1, html.dark .card h2, html.dark .card h3, html.dark .card h4, html.dark .card h5, html.dark .card h6,
+html.dark .card p, html.dark .card span, html.dark .card label, html.dark .metric-value,
+html[data-theme="dark"] .card h1, html[data-theme="dark"] .card h2, html[data-theme="dark"] .card h3,
+html[data-theme="dark"] .card p, html[data-theme="dark"] .card span, html[data-theme="dark"] .card label {
+  color: #F8FAFC !important;
+}
+
+/* 2. Light Mode Specifications (.light / .light-grey / data-theme="light") */
+html.light body, body.light, html[data-theme="light-grey"] body, body[data-theme="light-grey"] {
+  background-color: #F1F5F9 !important;
+  color: #0F172A !important;
+}
+
+html.light .card, html.light .widget-card, body.light .card, body.light .widget-card,
+html[data-theme="light-grey"] .card, html[data-theme="light-grey"] .widget-card {
+  background-color: #FFFFFF !important;
+  border: 1px solid #CBD5E1 !important;
+  color: #0F172A !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light .card h1, html.light .card h2, html.light .card h3, html.light .card h4, html.light .card h5, html.light .card h6,
+html.light .card p, html.light .card span, html.light .card label, html.light .metric-value,
+html[data-theme="light-grey"] .card h1, html[data-theme="light-grey"] .card h2, html[data-theme="light-grey"] .card h3,
+html[data-theme="light-grey"] .card p, html[data-theme="light-grey"] .card span, html[data-theme="light-grey"] .card label {
+  color: #0F172A !important;
+}
+
+/* Color Palette Accents */
+.status-badge-blue, .accent-sky-blue {
+    background-color: rgba(56, 189, 248, 0.15) !important;
+    color: #38BDF8 !important;
+    border: 1px solid #38BDF8 !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    font-weight: bold !important;
+}
+
+.status-badge-amber, .accent-golden-amber {
+    background-color: rgba(251, 191, 36, 0.15) !important;
+    color: #FBBF24 !important;
+    border: 1px solid #FBBF24 !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    font-weight: bold !important;
+}
+
+.status-badge-green, .accent-mint-green {
+    background-color: rgba(52, 211, 153, 0.15) !important;
+    color: #34D399 !important;
+    border: 1px solid #34D399 !important;
+    padding: 4px 8px !important;
+    border-radius: 6px !important;
+    font-weight: bold !important;
+}
+
+.status-badge-orange { 
+    background-color: rgba(251, 146, 60, 0.15) !important; 
+    color: #FB923C !important; 
+    border: 1px solid #FB923C !important; 
+}
+
+/* Sidebar Styling - Consistent Light-Dark Blue #1e3d6b */
+.sidebar, aside {
+    background-color: #1e3d6b !important;
+    background: #1e3d6b !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+html.light .sidebar, body.light .sidebar,
+html.light aside, body.light aside {
+    background-color: #1e3d6b !important;
+    background: #1e3d6b !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.sidebar .nav-link, aside .nav-link {
+    color: #FFFFFF !important;
+    border-radius: 8px !important;
+    margin: 4px 8px !important;
+}
+html.light .sidebar .nav-link, body.light .sidebar .nav-link,
+html.light aside .nav-link, body.light aside .nav-link {
+    color: #FFFFFF !important;
+}
+
+.sidebar .nav-link.active, aside .nav-link.active {
+    background-color: #2563eb !important;
+    color: #FFFFFF !important;
+    font-weight: bold !important;
+}
+
+/* High Contrast Small Cards & Badges in Dark Mode */
+
+
+
+
+
+
+.force-light-text { color: #000000 !important; }
+
+/* Multi-Page A4 Print Engine & Page-Break Isolation Rules */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 6mm;
+  }
+
+  /* Reset body and container bounds to allow multi-page flow without clipping */
+  html, body, #root, main, #master-logs-container, #taxInvoicePrintArea {
+    background: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+    position: relative !important;
+  }
+
+  /* Strict Page Break Isolation per Tax Invoice Page */
+  .tax-invoice-page {
+    page-break-before: always !important;
+    break-before: page !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    margin: 0 auto !important;
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+    width: 100% !important;
+    max-width: 281mm !important;
+    box-sizing: border-box !important;
+    padding: 4mm !important;
+    min-height: 188mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    clear: both !important;
+  }
+
+  .tax-invoice-page:first-child {
+    page-break-before: auto !important;
+    break-before: auto !important;
+  }
+
+  .tax-invoice-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+}
+
+
+

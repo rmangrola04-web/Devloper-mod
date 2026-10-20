@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Abbott WMS" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><text x='50%' y='55%' font-size='50' font-weight='bold' fill='%23f97316' text-anchor='middle' dominant-baseline='middle'>W</text></svg>" />
+    <link rel="manifest" href="data:application/manifest+json,{
+      %22name%22: %22Remix Integrated Central Hub Indore - WMS%22,
+      %22short_name%22: %22Abbott WMS%22,
+      %22description%22: %22Warehouse Management System for Integrated Central Hub Indore%22,
+      %22start_url%22: %22/%22,
+      %22display%22: %22standalone%22,
+      %22background_color%22: %22%230f172a%22,
+      %22theme_color%22: %22%230f172a%22,
+      %22icons%22: [
+        {
+          %22src%22: %22data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%230f172a'/%3E%3Ctext x='50%' y='55%' font-size='250' font-weight='bold' fill='%23f97316' text-anchor='middle' dominant-baseline='middle'%3EW%3C/text%3E%3C/svg%3E%22,
+          %22sizes%22: %22512x512%22,
+          %22type%22: %22image/svg+xml%22
+        }
+      ]
+    }" />
+    <title>Remix Integrated Central Hub Indore - WMS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+      (function() {
+        try {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+          document.documentElement.removeAttribute('data-theme');
+        } catch (e) {}
+      })();
+    </script>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      html, body {
+        background-color: #f8fafc;
+        color: #0f172a;
+        margin: 0;
+        padding: 0;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+
+      /* Mobile Navigation Bar */
+      @media screen and (max-width: 768px) {
+        .mobile-bottom-dock, .mobile-bottom-nav, nav[class*="bottom"], [class*="fixed bottom-0"] {
+          position: fixed !important;
+          bottom: 0 !important;
+          left: 0 !important;
+          right: 0 !important;
+          width: 100% !important;
+          max-width: 100vw !important;
+          transform: none !important;
+          margin: 0 auto !important;
+          background: #0F172A !important;
+          background-color: #0F172A !important;
+          color: #FFFFFF !important;
+          border-top: 1px solid rgba(56, 189, 248, 0.4) !important;
+          border-left: none !important;
+          border-right: none !important;
+          border-bottom: none !important;
+          border-radius: 0 !important;
+          box-shadow: 0 -4px 28px rgba(0, 0, 0, 0.75), 0 0 20px rgba(14, 165, 233, 0.35) !important;
+          backdrop-filter: blur(14px) !important;
+          -webkit-backdrop-filter: blur(14px) !important;
+          display: flex !important;
+          justify-content: space-around !important;
+          align-items: center !important;
+          z-index: 99999 !important;
+        }
+
+        /* Pure white text with sky-blue glowing icons - never gray or mixed */
+        .mobile-bottom-dock *, .mobile-bottom-nav *, nav[class*="bottom"] * {
+          color: #FFFFFF !important;
+        }
+
+        .mobile-bottom-dock button, .mobile-bottom-nav button, nav[class*="bottom"] button {
+          min-width: 44px !important;
+          min-height: 44px !important;
+          padding: 4px 4px !important;
+          touch-action: manipulation !important;
+          flex: 1 !important;
+          max-width: none !important;
+          color: #FFFFFF !important;
+          background: transparent !important;
+        }
+
+        .mobile-bottom-dock button span, .mobile-bottom-nav button span, nav[class*="bottom"] button span {
+          color: #CBD5E1 !important;
+        }
+
+        .mobile-bottom-dock button[class*="bg-"], .mobile-bottom-nav button[class*="bg-"], nav[class*="bottom"] button[class*="bg-"] {
+          background: linear-gradient(135deg, #0EA5E9, #2563EB) !important;
+          color: #FFFFFF !important;
+          box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4) !important;
+        }
+
+        .mobile-bottom-dock button[class*="bg-"] span, .mobile-bottom-nav button[class*="bg-"] span {
+          color: #FFFFFF !important;
+          font-weight: 700 !important;
+        }
+
+        .mobile-bottom-dock svg, .mobile-bottom-nav svg, nav[class*="bottom"] svg {
+          color: #38BDF8 !important;
+          fill: none !important;
+          filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.6)) !important;
+        }
+
+        /* Remove unwanted white container wrappers */
+        .mobile-nav div, .bottom-nav div, [class*="nav"] div {
+          background: transparent !important;
+        }
+
+        /* Prevent content overlap with bottom dock */
+        body, .main-content, .dashboard-container, main {
+          padding-bottom: 95px !important;
+        }
+      }
+
+      /* =========================================================================
+         Strict Landscape A4 Print Layout for Outward Tax Invoice & Stock Transfer Note
+         ========================================================================= */
+      @page {
+        size: A4 landscape;
+        margin: 4mm;
+      }
+
+      @media print {
+        /* 1. Global Print Reset: Natural Printable A4 Landscape Dimensions */
+        html, body {
+          width: 100% !important;
+          max-width: 100% !important;
+          height: auto !important;
+          min-height: auto !important;
+          max-height: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #ffffff !important;
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          overflow: visible !important;
+        }
+
+        /* 2. Disable All Overflow Scrollbars & Scrolling Indicators */
+        *, *::before, *::after {
+          scrollbar-width: none !important;
+          -ms-overflow-style: none !important;
+          box-sizing: border-box !important;
+        }
+        *::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+          background: transparent !important;
+        }
+
+        /* 3. Disable All Interactive UI Elements, Buttons & Application Chrome */
+        header, nav, aside, footer:not(.tax-invoice-footer):not(#taxInvoiceFooter),
+        button, input, select, textarea, [role="button"],
+        .mobile-bottom-dock, .mobile-bottom-nav, nav[class*="bottom"],
+        [class*="fixed bottom-0"], [class*="mobile-bottom"],
+        .sidebar, [class*="sidebar"], [class*="Sidebar"], .app-header,
+        .print\:hidden, .print-hidden, [data-print="hidden"],
+        .toast, [role="alert"], [role="status"],
+        .modal-backdrop, .fixed.inset-0:not(:has(#taxInvoicePrintArea)) {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
+          height: 0 !important;
+          width: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important;
+        }
+
+        /* Modal wrapper unconstrain during printouts */
+        .fixed.inset-0:has(#taxInvoicePrintArea),
+        [class*="fixed inset-0"]:has(#taxInvoicePrintArea),
+        div:has(> #taxInvoicePrintArea) {
+          position: static !important;
+          inset: auto !important;
+          background: transparent !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          overflow: visible !important;
+          display: block !important;
+          max-width: none !important;
+          width: 297mm !important;
+          height: 210mm !important;
+        }
+
+        /* Hide all page content by default, display ONLY the Tax Invoice */
+        body * {
+          visibility: hidden;
+        }
+        #taxInvoicePrintArea,
+        #taxInvoicePrintArea *,
+        .tax-invoice-page,
+        .tax-invoice-page * {
+          visibility: visible !important;
+        }
+
+        /* 4. Natural Document Flow for Tax Invoice Page Container matching Live System Screen View */
+        #taxInvoicePrintArea,
+        .tax-invoice-page,
+        .tax-invoice-container,
+        #invoiceMainContainer {
+          position: relative !important;
+          top: auto !important;
+          left: auto !important;
+          right: auto !important;
+          bottom: auto !important;
+          width: 100% !important;
+          max-width: 289mm !important;
+          min-height: auto !important;
+          height: auto !important;
+          max-height: none !important;
+          margin: 0 auto !important;
+          padding: 2.5mm 3.5mm !important;
+          box-sizing: border-box !important;
+          background: #ffffff !important;
+          background-color: #ffffff !important;
+          color: #0f172a !important;
+          border: none !important;
+          outline: none !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          overflow: visible !important;
+          page-break-before: auto !important;
+          page-break-after: auto !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          z-index: 1 !important;
+        }
+
+        /* 5. Natural Document Flow for Tax Invoice Header */
+        #taxInvoiceHeader,
+        .tax-invoice-header {
+          position: static !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          background: #ffffff !important;
+          border-bottom: 2px solid #0f172a !important;
+          padding-bottom: 2.5mm !important;
+          margin-bottom: 3mm !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+
+        /* 6. Natural Document Flow for Tax Invoice Footer (Terms, Authorization, Signatory) */
+        #taxInvoiceFooter,
+        .tax-invoice-footer,
+        .footer-table {
+          position: static !important;
+          width: 100% !important;
+          box-sizing: border-box !important;
+          background: #ffffff !important;
+          border-top: 1px solid #cbd5e1 !important;
+          padding-top: 2.5mm !important;
+          margin-top: 3mm !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+
+        /* Ensure address and text details never get cut off on edges */
+        .party-details,
+        .section-box,
+        [class*="party-details"],
+        #taxInvoicePrintArea p,
+        #taxInvoicePrintArea div,
+        #taxInvoicePrintArea td {
+          word-break: break-word !important;
+          overflow-wrap: break-word !important;
+        }
+
+        /* Ensure Table and Data Elements do not force page overflow or scrollbars */
+        #taxInvoicePrintArea table,
+        .items-table,
+        .summary-table {
+          width: 100% !important;
+          border-collapse: collapse !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        #taxInvoicePrintArea tr,
+        #taxInvoicePrintArea td,
+        #taxInvoicePrintArea th,
+        .items-table tr,
+        .items-table td,
+        .items-table th,
+        .summary-table tr,
+        .summary-table td,
+        #taxInvoiceFooter tr,
+        #taxInvoiceFooter td,
+        #taxInvoiceFooter div,
+        .footer-table tr,
+        .footer-table td,
+        #taxInvoicePrintArea > div:last-child * {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          page-break-after: auto !important;
+        }
+        #taxInvoicePrintArea th,
+        #taxInvoicePrintArea td {
+          padding: 2.5px 3px !important;
+          font-size: 7.5pt !important;
+          line-height: 1.25 !important;
+        }
+        #taxInvoicePrintArea .overflow-x-auto {
+          overflow: visible !important;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-[#f8fafc] text-[#1e293b] antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Helper function to safely print with a 500ms delay ensuring DOM is fully rendered
+      window.safePrintInvoice = function() {
+        setTimeout(() => {
+          window.print();
+        }, 500);
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,9 @@
+/* Headings fix */
+h1, h2, h3, h4, h5, h6, .card-header, .section-title {
+  color: #b58b00 !important; /* Light Brown / Gold Tone */
+}
+
+/* Dark mode headings */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5, .dark h6, .dark .card-header, .dark .section-title {
+  color: #d97706 !important; /* Softer Light Brown/Amber for dark mode */
+}

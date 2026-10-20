@@ -1,0 +1,111 @@
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [isVehicleLocked, setIsVehicleLocked] = useState(false);
+  const [fromLoc, setFromLoc] = useState('INDORE HUB');
+  const [toLoc, setToLoc] = useState('');
+  const [transporter, setTransporter] = useState(transporters[0] || 'DHTC');
+  const [operator, setOperator] = useState(supervisors[0] || 'Rahul Mangrola');
+  const [startTime, setStartTime] = useState(() => new Date().toTimeString().substring(0, 5));
+  const [startTime1, setStartTime1] = useState(() => new Date().toTimeString().substring(0, 5));
+  const [startTime2, setStartTime2] = useState(() => new Date().toTimeString().substring(0, 5));
+
+  // Shuttle Sequence States
+  const [shuttleSteps, setShuttleSteps] = useState<ShuttleStep[]>([]);
+  const [shuttleUnit, setShuttleUnit] = useState('AIL');
+  const [shuttleDock, setShuttleDock] = useState('Dock 5');
+  const [shuttleDest, setShuttleDest] = useState(loadLocations[0] || '');
+
+  const addShuttleStep = () => {
+    setShuttleSteps([
+      ...shuttleSteps,
+      {
+        id: `STEP-${Date.now()}`,
+        unit: shuttleUnit,
+        bayNo: shuttleDock,
+        destination: shuttleDest,
+        cases: 0,
+        status: 'PENDING'
+      }
+    ]);
+  };
+
+  const removeShuttleStep = (id: string) => {
+    setShuttleSteps(shuttleSteps.filter(s => s.id !== id));
+  };
+
+  // Find waiting shuttles
+  const waitingShuttles = loadEntries.filter(l => l.status === 'SHUTTLE TRANSIT' && l.shuttleSteps && l.currentStepIndex !== undefined && l.currentStepIndex < l.shuttleSteps.length);
+
+
+  const handlePickCurrentTime1 = () => {
+    setStartTime1(new Date().toTimeString().substring(0, 5));
+  };
+  const handlePickCurrentTime2 = () => {
+    setStartTime2(new Date().toTimeString().substring(0, 5));
+  };
+
+  // Loading Cases
+  const [totalCasesLoad, setTotalCasesLoad] = useState<string>('');
+
+  // Dual Loading State
+  const [company1, setCompany1] = useState('AHPL');
+  const [bayNo1, setBayNo1] = useState('Dock 1');
+  const [supervisor1, setSupervisor1] = useState(supervisors[0] || '');
+  const [dest1A, setDest1A] = useState('');
+  const [cases1A, setCases1A] = useState('');
+  const [dest1B, setDest1B] = useState('');
+  const [cases1B, setCases1B] = useState('');
+
+  const [company2, setCompany2] = useState('AIL');
+  const [bayNo2, setBayNo2] = useState('Dock 7');
+  const [supervisor2, setSupervisor2] = useState(supervisors[0] || '');
+  const [dest2A, setDest2A] = useState('');
+  const [cases2A, setCases2A] = useState('');
+  const [dest2B, setDest2B] = useState('');
+  const [cases2B, setCases2B] = useState('');
+  
+  React.useEffect(() => {
+    if (DOCK_CONFIG[company1] && !DOCK_CONFIG[company1].includes(bayNo1)) {
+        setBayNo1(DOCK_CONFIG[company1][0]);
+    }
+  }, [company1]);
+  
+  React.useEffect(() => {
+    if (DOCK_CONFIG[company2] && !DOCK_CONFIG[company2].includes(bayNo2)) {
+        setBayNo2(DOCK_CONFIG[company2][0]);
+    }
+  }, [company2]);
+
+  // Auto-calculation effect
+  React.useEffect(() => {
+    if (opType === 'LOADING' && unit === 'BOTH') {
+      const c1A = Number(cases1A) || 0;
+      const c1B = Number(cases1B) || 0;
+      const c2A = Number(cases2A) || 0;
+      const c2B = Number(cases2B) || 0;
+      const sum = c1A + c1B + c2A + c2B;
+      setTotalCasesLoad(sum > 0 ? sum.toString() : '');
+    }
+  }, [cases1A, cases1B, cases2A, cases2B, unit, opType]);
+
+  React.useEffect(() => {
+    if (loadLocations.length > 0) {
+      if (!dest1A) setDest1A(loadLocations[0]);
+      if (!dest1B) setDest1B(loadLocations[1] || loadLocations[0]);
+      if (!dest2A) setDest2A(loadLocations[0]);
+      if (!dest2B) setDest2B(loadLocations[1] || loadLocations[0]);
+    }
+  }, [loadLocations]);
+
+
+  // Unloading Cases & Damaged fields (Total Cases, Damaged Cases, and Optional Damaged Value)
+  const [totalCasesUnload, setTotalCasesUnload] = useState<string>('');
+  const [damagedCases, setDamagedCases] = useState<string>('');
+  const [damagedValue, setDamagedValue] = useState<string>('');
+  const [unloadingPodStatus, setUnloadingPodStatus] = useState('POD Clean');
+
+  const dockList = DOCK_CONFIG[unit] || DOCK_CONFIG['AHPL'];
+
+  // Handle unit change
+  const handleUnitChange = (newUnit: string) => {
+    setUnit(newUnit);
+    const available = DOCK_CONFIG[newUnit] || DOCK_CONFIG['AHPL'];

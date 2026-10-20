@@ -1,0 +1,6 @@
+{
+  "summary": "Complete, standalone web application and source code for the Packing Material & Thermocol module with full 100% Firebase Firestore real-time persistence across all sections (packing_inwards, packing_outwards, packing_master, packing_audits, and thermocol_packing), dual-division invoice sequence reset, 239-column SAP IRN CSV export, and field-level audit logs.",
+  "updatedAt": "2026-10-14T08:03:52.124920927Z",
+  "requestFeedback": true,
+  "userFacing": true
+}

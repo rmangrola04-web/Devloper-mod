@@ -1,0 +1,301 @@
+            </h2>
+            <span className="text-[10px] bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-bold px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800">
+              Step 1: Start
+            </span>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-2.5">
+            {/* Link Arrived Vehicle from Gate */}
+            <div className="bg-blue-50/70 dark:bg-slate-900/90 p-2.5 rounded border border-blue-200 dark:border-slate-700 space-y-1">
+              <label className="block text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1">
+                <LinkIcon className="w-3 h-3" /> Select Vehicle from Security Gate
+              </label>
+              <select
+                value={selectedGateId}
+                onChange={(e) => handleGateSelect(e.target.value)}
+                className="w-full bg-white dark:bg-slate-800 border border-blue-300 dark:border-slate-600 rounded p-1.5 text-xs font-bold text-slate-800 dark:text-slate-100"
+              >
+                <option value="">-- Choose Arrived Vehicle (Auto-Fill) --</option>
+                {waitingShuttles.map(s => (
+                  <option key={s.id} value={`SHUTTLE_${s.id}`}>
+                    🚚 [SHUTTLE WAITING] {s.vehicleNo} | Next: {s.shuttleSteps![s.currentStepIndex!].unit} ({s.shuttleSteps![s.currentStepIndex!].bayNo})
+                  </option>
+                ))}
+                {pendingGateLogs.map((veh) => (
+                  <option key={veh.id} value={veh.id}>
+                    🚛 {veh.vehicle} | {veh.transporter || 'Transp'} | {veh.purpose} ({veh.purpose === 'Loading' ? `To: ${veh.toLoc}` : `From: ${veh.fromLoc}`})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Operation Type */}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider mb-1">
+                Operation Activity *
+              </label>
+              <select
+                value={opType}
+                onChange={(e) => {
+                  const val = e.target.value as 'LOADING' | 'UNLOADING';
+                  setOpType(val);
+                  if (val === 'LOADING') {
+                    setFromLoc('INDORE HUB');
+                    setToLoc(loadLocations[0] || 'MUMBAI');
+                  } else {
+                    setFromLoc(unloadLocations[0] || 'DEWAS FACTORY');
+                    setToLoc('INDORE HUB');
+                  }
+                }}
+                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-blue-600 dark:text-blue-400"
+              >
+                <option value="LOADING">⬆ START LOADING (Status: LOADING IN-PROGRESS)</option>
+                <option value="UNLOADING">⬇ START UNLOADING (Status: UNLOADING IN-PROGRESS)</option>
+              </select>
+            </div>
+
+            
+            {/* SHUTTLE ROUTE BUILDER */}
+            {unit === 'SHUTTLE' && (
+              <div className="bg-purple-50/50 dark:bg-purple-900/20 p-3 rounded-lg border border-purple-200 dark:border-purple-800 space-y-3">
+                <h4 className="text-[11px] font-bold text-purple-800 dark:text-purple-300 uppercase tracking-wider border-b border-purple-200 dark:border-purple-800 pb-1 flex justify-between items-center">
+                  <span>Sequence-Based Shuttle Logistics</span>
+                  <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Multi-Dock</span>
+                </h4>
+                
+                <div className="space-y-2">
+                  {shuttleSteps.map((step, idx) => (
+                    <div key={step.id} className="bg-white dark:bg-slate-800 p-2 rounded border border-purple-100 dark:border-purple-800/50 flex items-center justify-between shadow-sm">
+                      <div className="flex-1">
+                        <div className="text-[10px] font-bold text-slate-500 mb-0.5">Step {idx + 1}</div>
+                        <div className="flex items-center gap-2 text-xs font-bold text-slate-700 dark:text-slate-200">
+                          <span className="text-purple-600 dark:text-purple-400 uppercase">{step.unit}</span>
+                          <span>→</span>
+                          <span>{step.bayNo}</span>
+                          <span>→</span>
+                          <span>{step.destination}</span>
+                        </div>
+                      </div>
+                      <button type="button" onClick={() => removeShuttleStep(step.id)} className="text-red-500 hover:text-red-700 p-1">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-200 dark:border-slate-700 space-y-2 mt-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-500 mb-0.5">Company</label>
+                      <select value={shuttleUnit} onChange={e => setShuttleUnit(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1 text-xs">
+                        <option value="AIL">AIL</option>
+                        <option value="AHPL">AHPL</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-500 mb-0.5">Dock No.</label>
+                      <select value={shuttleDock} onChange={e => setShuttleDock(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1 text-xs">
+                        {DOCK_CONFIG[shuttleUnit] && DOCK_CONFIG[shuttleUnit].map(d => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[9px] font-bold text-slate-500 mb-0.5">Destination</label>
+                      <select value={shuttleDest} onChange={e => setShuttleDest(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1 text-xs uppercase">
+                        {loadLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <button type="button" onClick={addShuttleStep} className="w-full bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold py-1.5 rounded text-xs transition border border-purple-200">
+                    + Add Step to Route
+                  </button>
+                </div>
+              </div>
+            )}
+
+
+            {/* LOADING: Cases Loaded Field */}
+            {opType === 'LOADING' && (
+              <div className="bg-amber-50/60 dark:bg-amber-950/20 p-2.5 rounded border border-amber-200 dark:border-amber-900/50 space-y-1">
+                <label className="block text-[10px] font-bold text-amber-800 dark:text-amber-300 uppercase tracking-wider">
+                  Total Cases Loaded <span className="text-slate-400 font-normal lowercase">(optional)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={totalCasesLoad}
+                  onChange={(e) => setTotalCasesLoad(e.target.value)}
+                  placeholder="e.g. 150 (Optional)"
+                  readOnly={unit === 'BOTH'}
+                  className={`w-full bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 rounded p-1.5 text-xs font-bold text-amber-700 dark:text-amber-300 ${unit === 'BOTH' ? 'opacity-70 cursor-not-allowed bg-slate-100 dark:bg-slate-800' : ''}`}
+                />
+              </div>
+            )}
+
+            {/* DUAL LOADING SECTION (Visible only if BOTH and LOADING) */}
+            {opType === 'LOADING' && unit === 'BOTH' && (
+              <div className="bg-blue-50/50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800 space-y-3">
+                <h4 className="text-[11px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider border-b border-blue-200 dark:border-blue-800 pb-1">
+                  Dual Loading Configuration
+                </h4>
+                
+                {/* Block 1 */}
+                <div className="space-y-3 bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-700 shadow-sm">
+                  <div className="flex justify-between items-center pb-1 border-b border-slate-100 dark:border-slate-700">
+                    <span className="text-[11px] font-bold text-blue-600 dark:text-blue-400 uppercase">Block 1: First Loading</span>
+                  </div>
+                  
+                  {/* Company, Dock & Supervisor */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Company</label>
+                      <select value={company1} onChange={e => setCompany1(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        <option value="AHPL">AHPL</option>
+                        <option value="AIL">AIL</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Assigned Dock</label>
+                      <select value={bayNo1} onChange={e => setBayNo1(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        {(DOCK_CONFIG[company1] || []).map(dock => {
+                           const isOccupied = loadEntries.some(d => d.bayNo === dock && d.status?.includes('IN-PROGRESS'));
+                           return <option key={dock} value={dock} disabled={isOccupied}>{dock} {isOccupied ? '(Occupied)' : ''}</option>;
+                        })}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Supervisor</label>
+                      <select value={supervisor1} onChange={e => setSupervisor1(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {supervisors.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Location 1 */}
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Destination 1</label>
+                    </div>
+                    <div className="grid grid-cols-[1fr,100px] gap-2">
+                      <select value={dest1A} onChange={e => setDest1A(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase">
+                        {loadLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                      </select>
+                      <input type="number" min="0" value={cases1A} onChange={e => setCases1A(e.target.value)} placeholder="Cases" className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 text-center" />
+                    </div>
+                  </div>
+                  
+                  {/* Location 2 */}
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-200 dark:border-slate-700 space-y-2 mt-2">
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Destination 2</label>
+                    <div className="grid grid-cols-[1fr,100px] gap-2">
+                      <select value={dest1B} onChange={e => setDest1B(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase">
+                        <option value="">-- Optional --</option>
+                        {loadLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                      </select>
+                      <input type="number" min="0" value={cases1B} onChange={e => setCases1B(e.target.value)} placeholder="Cases" className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 text-center" />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                    <div className="w-full">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-semibold text-slate-500">Start Time</label>
+                        <button type="button" onClick={handlePickCurrentTime1} className="text-[10px] text-blue-600 dark:text-blue-400 hover:underline font-bold">⚡ Pick Current Time</button>
+                      </div>
+                      <input type="time" value={startTime1} onChange={e => setStartTime1(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-slate-800 dark:text-slate-200" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Block 2 */}
+                <div className="space-y-3 bg-white dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-700 shadow-sm mt-3">
+                  <div className="flex justify-between items-center pb-1 border-b border-slate-100 dark:border-slate-700">
+                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase">Block 2: Additional Loading</span>
+                  </div>
+                  
+                  {/* Company, Dock & Supervisor */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Company</label>
+                      <select value={company2} onChange={e => setCompany2(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        <option value="AIL">AIL</option>
+                        <option value="AHPL">AHPL</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Assigned Dock</label>
+                      <select value={bayNo2} onChange={e => setBayNo2(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                        {(DOCK_CONFIG[company2] || []).map(dock => {
+                           const isOccupied = loadEntries.some(d => d.bayNo === dock && d.status?.includes('IN-PROGRESS'));
+                           return <option key={dock} value={dock} disabled={isOccupied}>{dock} {isOccupied ? '(Occupied)' : ''}</option>;
+                        })}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-500 mb-1">Supervisor</label>
+                      <select value={supervisor2} onChange={e => setSupervisor2(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+                        {supervisors.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Location 1 */}
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-200 dark:border-slate-700 space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Destination 1</label>
+                    </div>
+                    <div className="grid grid-cols-[1fr,100px] gap-2">
+                      <select value={dest2A} onChange={e => setDest2A(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase">
+                        {loadLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                      </select>
+                      <input type="number" min="0" value={cases2A} onChange={e => setCases2A(e.target.value)} placeholder="Cases" className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 text-center" />
+                    </div>
+                  </div>
+                  
+                  {/* Location 2 */}
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-2 rounded border border-slate-200 dark:border-slate-700 space-y-2 mt-2">
+                    <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400">Destination 2</label>
+                    <div className="grid grid-cols-[1fr,100px] gap-2">
+                      <select value={dest2B} onChange={e => setDest2B(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200 uppercase">
+                        <option value="">-- Optional --</option>
+                        {loadLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+                      </select>
+                      <input type="number" min="0" value={cases2B} onChange={e => setCases2B(e.target.value)} placeholder="Cases" className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 text-center" />
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                    <div className="w-full">
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="block text-[10px] font-semibold text-slate-500">Start Time</label>
+                        <button type="button" onClick={handlePickCurrentTime2} className="text-[10px] text-amber-600 dark:text-amber-400 hover:underline font-bold">⚡ Pick Current Time</button>
+                      </div>
+                      <input type="time" value={startTime2} onChange={e => setStartTime2(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded p-1.5 text-xs font-bold text-slate-800 dark:text-slate-200" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+
+            {/* UNLOADING: Total Cases + Optional Damaged Cases + Optional Damaged Value */}
+            {opType === 'UNLOADING' && (
+              <div className="space-y-2">
+                <div className="bg-blue-50/60 dark:bg-blue-950/20 p-2.5 rounded border border-blue-200 dark:border-blue-900/50 space-y-1">
+                  <label className="block text-[10px] font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider">
+                    Total Cases Unloaded *
+                  </label>
+                  <input
+                    type="number"
+                    value={totalCasesUnload}
+                    onChange={(e) => setTotalCasesUnload(e.target.value)}
+                    placeholder="Enter total cases (e.g. 200)"
+                    className="w-full bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 rounded p-1.5 text-xs font-bold text-blue-700 dark:text-blue-300"
+                  />
+                </div>
+
+                {/* Optional Damaged Cases & Value fields */}
+                <div className="bg-rose-50/60 dark:bg-rose-950/20 p-2.5 rounded border border-rose-200 dark:border-rose-900/50 space-y-1.5">
+                  <div className="flex items-center gap-1 text-rose-700 dark:text-rose-400 font-bold text-[10px] uppercase tracking-wider">
+                    <AlertTriangle className="w-3 h-3" />

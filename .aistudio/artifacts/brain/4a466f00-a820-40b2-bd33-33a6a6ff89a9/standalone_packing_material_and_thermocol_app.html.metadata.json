@@ -1,0 +1,5 @@
+{
+  "summary": "Complete, standalone single-file HTML/JS web application for 'Packing Material & Thermocol' connected directly to Firebase Firestore (ich-indore-v3). Includes complete Firebase v10 SDK integration, real-time onSnapshot listeners for packing_inwards, packing_outwards, packing_master, and packing_audits, addDoc/setDoc persistence, AIL/AHPL multi-division queues, custom sequence reset, FIFO stock calculation, printable GST tax invoices, and 239-column SAP IRN CSV export.",
+  "updatedAt": "2026-10-14T08:17:15.892863845Z",
+  "userFacing": true
+}

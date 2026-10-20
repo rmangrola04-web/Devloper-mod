@@ -1,0 +1,8 @@
+{
+  "name": "Remix Integrated Central Hub Indore - WMS",
+  "description": "Warehouse Management System for Integrated Central Hub Indore with Loading/Unloading tracking, Gate movements, Transporter \u0026 Vehicle Type master import, and reports.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

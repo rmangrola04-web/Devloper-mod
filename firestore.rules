@@ -1,0 +1,137 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /ich_operations/{operationId} {
+      allow read, write: if true;
+    }
+
+    match /ich_security_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    match /ich_plan_entries/{planId} {
+      allow read, write: if true;
+    }
+
+    match /ich_archived_plan_entries/{archivedId} {
+      allow read, write: if true;
+    }
+
+    match /ich_tracking_records/{recordId} {
+      allow read, write: if true;
+    }
+
+    match /ich_users/{userId} {
+      allow read, write: if true;
+    }
+
+    match /ich_master_transporters/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /ich_master_vehicle_types/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /ich_master_load_locations/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /ich_master_unload_locations/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /ich_master_supervisors/{itemId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_inwards/{inwardId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_invoices/{invoiceId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_products/{productId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_parties/{partyId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_transporters/{transporterId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_demands/{demandId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_audits/{auditId} {
+      allow read, write: if true;
+    }
+
+    match /ich_th_sequences/{sequenceId} {
+      allow read, write: if true;
+    }
+
+    match /thermocol_packing/{docId} {
+      allow read, write: if true;
+    }
+
+    match /thermocol_packing/{path=**} {
+      allow read, write: if true;
+    }
+
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    match /customers/{customerId} {
+      allow read, write: if true;
+    }
+
+    match /products/{productId} {
+      allow read, write: if true;
+    }
+
+    match /inwardStock/{stockId} {
+      allow read, write: if true;
+    }
+
+    match /transportMaster/{transporterId} {
+      allow read, write: if true;
+    }
+
+    match /packing_inwards/{inwardId} {
+      allow read, write: if true;
+    }
+
+    match /packing_outwards/{outwardId} {
+      allow read, write: if true;
+    }
+
+    match /packing_customers/{customerId} {
+      allow read, write: if true;
+    }
+
+    match /packing_transporters/{transporterId} {
+      allow read, write: if true;
+    }
+
+    match /packing_audits/{auditId} {
+      allow read, write: if true;
+    }
+
+    match /packing_master/{docId} {
+      allow read, write: if true;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

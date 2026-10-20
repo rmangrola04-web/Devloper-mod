@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Packing Material & Thermocol Portal - Indore WMS</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Firebase v10 JS SDK (Compat Mode for Single-File HTML Browser Compatibility) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      .print-only { display: block !important; }
+      body { background: white; color: black; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 shadow-md sticky top-0 z-40 no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div className="p-2 bg-indigo-600 rounded-lg shadow-sm">
+            <i data-lucide="package" class="w-6 h-6 text-white"></i>
+          </div>
+          <div>
+            <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+              <span>Packing Material & Thermocol Portal</span>
+              <span id="syncBadge" class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700 font-mono">
+                ● Live Firebase Sync
+              </span>
+            </h1>
+            <p class="text-xs text-slate-400">
+              Firebase Project: <span class="font-mono text-indigo-400">ich-indore-v3</span> | DB Collections: <span class="font-mono text-indigo-300">packing_inwards</span>, <span class="font-mono text-indigo-300">packing_outwards</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Division & Navigation -->
+        <div class="flex items-center space-x-3">
+          <!-- Division Switcher -->
+          <div class="flex bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs font-bold">
+            <button id="btnAIL" onclick="switchCompany('AIL')" class="px-3 py-1.5 rounded-md bg-indigo-600 text-white transition-colors">
+              AIL (Abbott India)
+            </button>
+            <button id="btnAHPL" onclick="switchCompany('HPL')" class="px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">
+              AHPL (Abbott Healthcare)
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation Bar -->
+  <nav class="bg-white border-b border-slate-200 shadow-xs no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex space-x-2 py-2 overflow-x-auto text-xs font-bold">
+        <button id="tabOutward" onclick="setActiveTab('outward')" class="px-4 py-2 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-2">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i> New Outward Order
+        </button>
+        <button id="tabChallans" onclick="setActiveTab('challans')" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-2">
+          <i data-lucide="file-text" class="w-4 h-4"></i> Generated Invoices / Challans (<span id="countInvoices">0</span>)
+        </button>
+        <button id="tabInwards" onclick="setActiveTab('inwards')" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-2">
+          <i data-lucide="warehouse" class="w-4 h-4"></i> Inward Stock Ledger (<span id="countInwards">0</span>)
+        </button>
+        <button id="tabAudits" onclick="setActiveTab('audits')" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-2">
+          <i data-lucide="shield-check" class="w-4 h-4"></i> Invoice Audit Trail (<span id="countAudits">0</span>)
+        </button>
+        <button id="tabCleanup" onclick="setActiveTab('cleanup')" class="px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center gap-2">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Sequence Reset & Cleanup
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main View Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- Action Bar -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-4 no-print">
+      <div>
+        <h2 id="viewHeading" class="text-base font-extrabold text-slate-800">New Outward Invoice Generation</h2>
+        <p id="viewSubheading" class="text-xs text-slate-500">Generate GST delivery challans with auto-sequence numbering and real-time Firestore sync.</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="exportSAPCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> Export 239-Column SAP IRN
+        </button>
+      </div>
+    </div>
+
+    <!-- VIEW 1: OUTWARD ORDER GENERATION FORM -->
+    <div id="secOutward" class="space-y-6">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+        <div class="border-b pb-3 flex items-center justify-between">
+          <h3 class="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+            <i data-lucide="file-text" class="w-4 h-4 text-indigo-600"></i> Order & Consignee Details
+          </h3>
+          <span class="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200">
+            Series: <span id="lblCurrentInvNo">AILICH-392/26</span>
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-bold">
+          <div>
+            <label class="text-slate-700 block mb-1">Invoice Number (Auto)</label>
+            <input type="text" id="inpInvNo" readonly class="w-full bg-slate-100 border rounded-lg px-3 py-2 font-mono text-indigo-900" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Invoice Date *</label>
+            <input type="date" id="inpInvDate" class="w-full bg-white border rounded-lg px-3 py-2 text-slate-800" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">City Filter *</label>
+            <select id="selCity" onchange="filterPartiesByCity()" class="w-full bg-white border rounded-lg px-3 py-2 text-slate-900 cursor-pointer">
+              <option value="ALL">-- All Cities --</option>
+              <option value="Indore">📍 Indore</option>
+              <option value="Dewas">📍 Dewas</option>
+              <option value="Pithampur">📍 Pithampur</option>
+              <option value="Hyderabad">📍 Hyderabad</option>
+              <option value="Mumbai">📍 Mumbai</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Sold To Party (Client) *</label>
+            <select id="selParty" onchange="onPartySelected()" class="w-full bg-white border rounded-lg px-3 py-2 text-slate-900 cursor-pointer">
+              <option value="">-- Select Client --</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Party Address & Details Preview -->
+        <div id="boxPartyInfo" class="hidden bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
+          <p id="txtPartyName" class="font-extrabold text-slate-900"></p>
+          <p id="txtPartyAddress" class="text-slate-600 text-[11px]"></p>
+          <p id="txtPartyGstin" class="font-mono text-slate-700 text-[11px]"></p>
+        </div>
+
+        <!-- Dispatch Details -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs font-bold border-t pt-4">
+          <div>
+            <label class="text-slate-700 block mb-1">Transporter Name</label>
+            <input type="text" id="inpTransName" placeholder="e.g. VRL Logistics" class="w-full bg-white border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Vehicle Number</label>
+            <input type="text" id="inpVehicleNo" placeholder="e.g. MP-09-AB-1234" class="w-full bg-white border rounded-lg px-3 py-2 uppercase font-mono" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">LR Number</label>
+            <input type="text" id="inpLrNo" placeholder="e.g. LR-9910" class="w-full bg-white border rounded-lg px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">LR Date</label>
+            <input type="date" id="inpLrDate" class="w-full bg-white border rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="border-t pt-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-extrabold text-slate-900 uppercase">Dispatch Line Items</h4>
+            <button onclick="addOrderRow()" class="bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 flex items-center gap-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add Line
+            </button>
+          </div>
+
+          <div class="overflow-x-auto border rounded-lg">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead class="bg-slate-100 font-bold uppercase text-[10px] text-slate-700 border-b">
+                <tr>
+                  <th class="p-2">#</th>
+                  <th class="p-2">Product Description</th>
+                  <th class="p-2">HSN Code</th>
+                  <th class="p-2 text-right">Dispatch Qty (Pcs)</th>
+                  <th class="p-2 text-right">Rate (₹)</th>
+                  <th class="p-2 text-right">Taxable (₹)</th>
+                  <th class="p-2 text-right">Tax Rate</th>
+                  <th class="p-2 text-right">Total (₹)</th>
+                  <th class="p-2 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody id="tblOrderRows" class="divide-y text-xs">
+                <!-- Dynamically Rendered Order Rows -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Total Calculations Summary -->
+          <div class="bg-slate-50 border rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-bold">
+            <div>
+              <p class="text-slate-500">Amount in Words:</p>
+              <p id="txtAmountInWords" class="text-slate-900 font-extrabold text-sm">Rupees Zero Only</p>
+            </div>
+            <div class="text-right space-y-1">
+              <p>Total Taxable: <span id="lblTotalTaxable" class="font-mono text-indigo-900">₹0.00</span></p>
+              <p>Total Tax (GST): <span id="lblTotalGst" class="font-mono text-amber-700">₹0.00</span></p>
+              <p class="text-sm font-extrabold text-slate-900">Grand Total: <span id="lblGrandTotal" class="font-mono text-emerald-700">₹0.00</span></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="border-t pt-4 flex justify-end">
+          <button onclick="saveAndGenerateInvoice()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-bold text-xs shadow-md flex items-center gap-2 cursor-pointer">
+            <i data-lucide="check-circle" class="w-4 h-4"></i> Generate & Sync Invoice
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: GENERATED INVOICES / CHALLANS TABLE -->
+    <div id="secChallans" class="hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b flex items-center justify-between bg-slate-50">
+          <h3 class="text-sm font-bold text-slate-800">Generated Stock Transfer Invoices & Delivery Challans</h3>
+          <span class="text-xs font-mono text-slate-500">Connected to <span class="font-bold text-indigo-600">packing_outwards</span></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="bg-slate-100 font-bold uppercase text-[10px] text-slate-700 border-b">
+              <tr>
+                <th class="p-3">Invoice No</th>
+                <th class="p-3">Division</th>
+                <th class="p-3">Date</th>
+                <th class="p-3">Client / Party Name</th>
+                <th class="p-3 text-right">Total Qty</th>
+                <th class="p-3 text-right">Grand Total</th>
+                <th class="p-3 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody id="tblInvoicesList" class="divide-y text-xs">
+              <!-- Dynamically Populated from Firestore -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: INWARD STOCK LEDGER -->
+    <div id="secInwards" class="hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="flex items-center justify-between border-b pb-3">
+          <h3 class="text-sm font-bold text-slate-800">Record Inward Stock Entry</h3>
+          <span class="text-xs font-mono text-slate-500">Synced with <span class="font-bold text-emerald-600">packing_inwards</span></span>
+        </div>
+
+        <!-- Inward Quick Entry Form -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-bold">
+          <div>
+            <label class="text-slate-700 block mb-1">GR Number *</label>
+            <input type="text" id="inwGrNo" value="GR-2026-01" class="w-full border rounded-lg px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Receiving Date *</label>
+            <input type="date" id="inwRecdDate" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Supplier Invoice No *</label>
+            <input type="text" id="inwInvNo" value="SUP-INV-8901" class="w-full border rounded-lg px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Product Description *</label>
+            <input type="text" id="inwProduct" value="Thermocol Box 25L" class="w-full border rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Inward Quantity (Pcs) *</label>
+            <input type="number" id="inwQty" value="500" class="w-full border rounded-lg px-3 py-2 font-mono" />
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">Unit Rate (₹) *</label>
+            <input type="number" id="inwRate" value="150" class="w-full border rounded-lg px-3 py-2 font-mono" />
+          </div>
+          <div class="sm:col-span-2 flex items-end justify-end">
+            <button onclick="saveInwardEntry()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2 rounded-lg font-bold text-xs shadow-sm flex items-center gap-1.5 cursor-pointer">
+              <i data-lucide="plus" class="w-4 h-4"></i> Record Inward Stock
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Inward Ledger Table -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-slate-50">
+          <h4 class="text-xs font-bold text-slate-800">Current Inward Stock Lots & Live Available Balance</h4>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="bg-slate-100 font-bold uppercase text-[10px] text-slate-700 border-b">
+              <tr>
+                <th class="p-3">GR No</th>
+                <th class="p-3">Recd Date</th>
+                <th class="p-3">Supplier Invoice</th>
+                <th class="p-3">Product Description</th>
+                <th class="p-3 text-right">Inward Qty</th>
+                <th class="p-3 text-right">Available Qty</th>
+                <th class="p-3 text-right">Rate (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="tblInwardsList" class="divide-y text-xs">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 4: AUDIT LOG -->
+    <div id="secAudits" class="hidden space-y-4">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b bg-slate-50 flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-800">Invoice Audit Trail & Modification History</h3>
+          <span class="text-xs font-mono text-slate-500">Synced with <span class="font-bold text-purple-600">packing_audits</span></span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left border-collapse">
+            <thead class="bg-slate-100 font-bold uppercase text-[10px] text-slate-700 border-b">
+              <tr>
+                <th class="p-3">Timestamp</th>
+                <th class="p-3">Invoice No</th>
+                <th class="p-3">Action</th>
+                <th class="p-3">User</th>
+                <th class="p-3">Details</th>
+              </tr>
+            </thead>
+            <tbody id="tblAuditsList" class="divide-y text-xs">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 5: SEQUENCE RESET & CLEANUP -->
+    <div id="secCleanup" class="hidden space-y-6 max-w-2xl mx-auto">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div class="border-b pb-3 flex items-center gap-2">
+          <i data-lucide="rotate-ccw" class="w-5 h-5 text-indigo-600"></i>
+          <h3 class="text-sm font-bold text-slate-800">Master Invoice Sequence Configurator</h3>
+        </div>
+        <div class="space-y-3 text-xs font-bold">
+          <div>
+            <label class="text-slate-700 block mb-1">AIL Next Invoice Sequence Number</label>
+            <input type="number" id="inpSeqAIL" value="392" class="w-full border rounded-lg px-3 py-2 font-mono text-sm" />
+            <p class="text-[10px] text-slate-400 mt-1 font-normal">Sample: AILICH-392/26</p>
+          </div>
+          <div>
+            <label class="text-slate-700 block mb-1">AHPL Next Invoice Sequence Number</label>
+            <input type="number" id="inpSeqAHPL" value="1" class="w-full border rounded-lg px-3 py-2 font-mono text-sm" />
+            <p class="text-[10px] text-slate-400 mt-1 font-normal">Sample: AHPLICH-001/26</p>
+          </div>
+          <div class="pt-2 flex justify-end">
+            <button onclick="saveSequences()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg font-bold shadow-sm">
+              Save Sequence Configurations
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- PRINTABLE TAX INVOICE MODAL -->
+  <div id="mdlPrintInvoice" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-8 space-y-6 my-8">
+      <div class="flex items-center justify-between border-b pb-4 no-print">
+        <h3 class="text-sm font-bold text-slate-800">Print Preview - Delivery Challan / Tax Invoice</h3>
+        <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="bg-indigo-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1">
+            <i data-lucide="printer" class="w-4 h-4"></i> Print
+          </button>
+          <button onclick="closePrintModal()" class="text-slate-400 hover:text-slate-600">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="printContainer" class="border border-slate-900 p-6 space-y-4 font-sans text-xs text-slate-900">
+        <!-- Dynamically Rendered Printable Invoice Document -->
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION SCRIPT & FIREBASE INTEGRATION -->
+  <script>
+    // Explicit Indore WMS v3 Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyB5OKNxpdv2mgRkCt0o1svM8MLoS2zKb8A",
+      authDomain: "ich-indore-v3.firebaseapp.com",
+      projectId: "ich-indore-v3",
+      storageBucket: "ich-indore-v3.firebasestorage.app",
+      messagingSenderId: "300004032729",
+      appId: "1:300004032729:web:ff8b48d345f8fa9189bec8"
+    };
+
+    // Initialize Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.firestore();
+
+    // App Global State
+    let activeCompany = 'AIL';
+    let invoicesState = [];
+    let inwardsState = [];
+    let auditsState = [];
+    let sequenceAIL = 392;
+    let sequenceAHPL = 1;
+
+    // Default Products Master
+    const defaultProducts = [
+      { id: 'p1', name: 'Thermocol Box 25L', hsnCode: '39239090', price: 150.00 },
+      { id: 'p2', name: 'Thermocol Box 15L', hsnCode: '39239090', price: 110.00 },
+      { id: 'p3', name: 'Corner Guard Heavy', hsnCode: '39239090', price: 45.00 },
+      { id: 'p4', name: 'EPS Outer Shipper 10kg', hsnCode: '39239090', price: 210.00 }
+    ];
+
+    // Numbers to Words Currency Helper
+    function numberToWordsINR(amount) {
+      const words = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+      const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+      function convertTwoDigits(n) {
+        if (n < 20) return words[n];
+        return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + words[n % 10] : '');
+      }
+
+      function convertThreeDigits(n) {
+        const hundred = Math.floor(n / 100);
+        const rest = n % 100;
+        let str = '';
+        if (hundred) str += words[hundred] + ' Hundred';
+        if (rest) str += (str ? ' ' : '') + convertTwoDigits(rest);
+        return str;
+      }
+
+      const rounded = Math.floor(Math.abs(amount));
+      if (rounded === 0) return 'Rupees Zero Only';
+
+      let result = '';
+      const crore = Math.floor(rounded / 10000000);
+      const lakh = Math.floor((rounded % 10000000) / 100000);
+      const thousand = Math.floor((rounded % 100000) / 1000);
+      const remainder = rounded % 1000;
+
+      if (crore) result += convertThreeDigits(crore) + ' Crore ';
+      if (lakh) result += convertTwoDigits(lakh) + ' Lakh ';
+      if (thousand) result += convertTwoDigits(thousand) + ' Thousand ';
+      if (remainder) result += convertThreeDigits(remainder);
+
+      return ('Rupees ' + result.trim() + ' Only').replace(/\s+/g, ' ');
+    }
+
+    // Switch Division Company
+    function switchCompany(comp) {
+      activeCompany = comp;
+      document.getElementById('btnAIL').className = comp === 'AIL' ? 'px-3 py-1.5 rounded-md bg-indigo-600 text-white transition-colors' : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors';
+      document.getElementById('btnAHPL').className = comp === 'HPL' ? 'px-3 py-1.5 rounded-md bg-indigo-600 text-white transition-colors' : 'px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors';
+      updateInvoiceSequenceDisplay();
+    }
+
+    function updateInvoiceSequenceDisplay() {
+      const seq = activeCompany === 'AIL' ? sequenceAIL : sequenceAHPL;
+      const invNo = activeCompany === 'AIL' ? `AILICH-${seq}/26` : `AHPLICH-${String(seq).padStart(3, '0')}/26`;
+      document.getElementById('inpInvNo').value = invNo;
+      document.getElementById('lblCurrentInvNo').textContent = invNo;
+    }
+
+    // Set Active UI Tab
+    function setActiveTab(tab) {
+      ['secOutward', 'secChallans', 'secInwards', 'secAudits', 'secCleanup'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      if (tab === 'outward') document.getElementById('secOutward').classList.remove('hidden');
+      if (tab === 'challans') document.getElementById('secChallans').classList.remove('hidden');
+      if (tab === 'inwards') document.getElementById('secInwards').classList.remove('hidden');
+      if (tab === 'audits') document.getElementById('secAudits').classList.remove('hidden');
+      if (tab === 'cleanup') document.getElementById('secCleanup').classList.remove('hidden');
+    }
+
+    // REAL-TIME FIRESTORE LISTENERS
+    function initFirestoreListeners() {
+      // 1. Inwards Snapshot
+      db.collection('packing_inwards').onSnapshot(snap => {
+        inwardsState = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        document.getElementById('countInwards').textContent = inwardsState.length;
+        renderInwardsTable();
+      });
+
+      // 2. Outwards / Invoices Snapshot
+      db.collection('packing_outwards').onSnapshot(snap => {
+        invoicesState = snap.docs.map(doc => {
+          const data = doc.data();
+          return { invNo: data.invNo || doc.id, ...data };
+        });
+        document.getElementById('countInvoices').textContent = invoicesState.length;
+        renderInvoicesTable();
+      });
+
+      // 3. Audits Snapshot
+      db.collection('packing_audits').onSnapshot(snap => {
+        auditsState = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        document.getElementById('countAudits').textContent = auditsState.length;
+        renderAuditsTable();
+      });
+
+      // 4. Sequences Snapshot
+      db.collection('packing_master').doc('sequences').onSnapshot(docSnap => {
+        if (docSnap.exists) {
+          const d = docSnap.data();
+          if (d.seqAIL !== undefined) sequenceAIL = d.seqAIL;
+          if (d.seqHPL !== undefined) sequenceAHPL = d.seqHPL;
+          document.getElementById('inpSeqAIL').value = sequenceAIL;
+          document.getElementById('inpSeqAHPL').value = sequenceAHPL;
+          updateInvoiceSequenceDisplay();
+        }
+      });
+    }
+
+    // Render Inwards Table
+    function renderInwardsTable() {
+      const tbody = document.getElementById('tblInwardsList');
+      if (!inwardsState.length) {
+        tbody.innerHTML = `<tr><td colSpan="7" class="p-4 text-center text-slate-400 italic">No inward stock records found in Firestore.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = inwardsState.map(i => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono font-bold">${i.grNo || '-'}</td>
+          <td class="p-3">${i.recdDate || '-'}</td>
+          <td class="p-3 font-mono">${i.invNo || '-'}</td>
+          <td class="p-3 font-bold">${i.productName || i.productDescription || '-'}</td>
+          <td class="p-3 text-right font-mono">${i.qty || i.initialQty || 0} Pcs</td>
+          <td class="p-3 text-right font-mono font-bold text-emerald-700">${i.availableQty ?? (i.qty || 0)} Pcs</td>
+          <td class="p-3 text-right font-mono">₹${Number(i.rate || i.price || 0).toFixed(2)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Invoices Table
+    function renderInvoicesTable() {
+      const tbody = document.getElementById('tblInvoicesList');
+      if (!invoicesState.length) {
+        tbody.innerHTML = `<tr><td colSpan="7" class="p-4 text-center text-slate-400 italic">No generated invoices found in Firestore.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = invoicesState.map(inv => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono font-bold text-indigo-600">${inv.invNo}</td>
+          <td class="p-3 font-semibold">${inv.company || 'AIL'}</td>
+          <td class="p-3">${inv.date || '-'}</td>
+          <td class="p-3 font-bold">${inv.partyName || '-'}</td>
+          <td class="p-3 text-right font-mono">${inv.totalQty || 0} Pcs</td>
+          <td class="p-3 text-right font-mono font-bold text-emerald-700">₹${inv.grandTotal || '0.00'}</td>
+          <td class="p-3 text-center">
+            <button onclick="previewInvoiceDoc('${inv.invNo}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded text-[11px] font-bold">
+              Print
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Render Audits Table
+    function renderAuditsTable() {
+      const tbody = document.getElementById('tblAuditsList');
+      if (!auditsState.length) {
+        tbody.innerHTML = `<tr><td colSpan="5" class="p-4 text-center text-slate-400 italic">No audit trail records logged yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = auditsState.map(a => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono text-[11px] text-slate-500">${new Date(a.timestamp || Date.now()).toLocaleString()}</td>
+          <td class="p-3 font-mono font-bold text-indigo-600">${a.invNo || '-'}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">${a.action || 'LOG'}</span></td>
+          <td class="p-3 font-bold">${a.userName || 'Supervisor'}</td>
+          <td class="p-3 text-slate-600">${a.details || '-'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Save Inward Stock Entry directly to Firestore
+    async function saveInwardEntry() {
+      const grNo = document.getElementById('inwGrNo').value.trim();
+      const recdDate = document.getElementById('inwRecdDate').value;
+      const invNo = document.getElementById('inwInvNo').value.trim();
+      const productName = document.getElementById('inwProduct').value.trim();
+      const qty = parseInt(document.getElementById('inwQty').value) || 0;
+      const rate = parseFloat(document.getElementById('inwRate').value) || 0;
+
+      if (!grNo || !recdDate || !productName || qty <= 0) {
+        alert('Please fill all required inward fields with valid positive quantity!');
+        return;
+      }
+
+      const docId = `inw_${Date.now()}`;
+      const payload = {
+        id: docId,
+        grNo,
+        recdDate,
+        invNo,
+        productName,
+        qty,
+        availableQty: qty,
+        rate,
+        price: rate,
+        company: activeCompany,
+        timestamp: new Date().toISOString()
+      };
+
+      try {
+        await db.collection('packing_inwards').doc(docId).set(payload);
+        alert('Inward stock entry successfully saved to Firestore!');
+      } catch (err) {
+        console.error('Error saving inward entry:', err);
+        alert('Failed to save inward entry to Firestore: ' + err.message);
+      }
+    }
+
+    // Dynamic Order Row Builder
+    function addOrderRow() {
+      const tbody = document.getElementById('tblOrderRows');
+      const rowIdx = tbody.children.length;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="p-2 text-center font-bold text-slate-400">${rowIdx + 1}</td>
+        <td class="p-2">
+          <select onchange="recalculateTotals()" class="w-full border rounded p-1 text-xs font-bold sel-product">
+            ${defaultProducts.map(p => `<option value="${p.id}" data-rate="${p.price}" data-hsn="${p.hsnCode}">${p.name}</option>`).join('')}
+          </select>
+        </td>
+        <td class="p-2 font-mono text-slate-600 row-hsn">39239090</td>
+        <td class="p-2 text-right">
+          <input type="number" min="1" value="100" oninput="recalculateTotals()" class="w-20 border rounded p-1 text-right font-mono inp-qty" />
+        </td>
+        <td class="p-2 text-right">
+          <input type="number" step="0.5" value="150" oninput="recalculateTotals()" class="w-20 border rounded p-1 text-right font-mono inp-rate" />
+        </td>
+        <td class="p-2 text-right font-mono font-bold row-taxable">₹15,000.00</td>
+        <td class="p-2 text-right font-mono">18% IGST</td>
+        <td class="p-2 text-right font-mono font-bold text-emerald-700 row-total">₹17,700.00</td>
+        <td class="p-2 text-center">
+          <button onclick="this.closest('tr').remove(); recalculateTotals();" class="text-red-500 hover:text-red-700 font-bold">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+      recalculateTotals();
+    }
+
+    function recalculateTotals() {
+      const tbody = document.getElementById('tblOrderRows');
+      let totalTaxable = 0;
+      let totalGst = 0;
+
+      Array.from(tbody.children).forEach(tr => {
+        const sel = tr.querySelector('.sel-product');
+        const hsnCell = tr.querySelector('.row-hsn');
+        const qtyInp = tr.querySelector('.inp-qty');
+        const rateInp = tr.querySelector('.inp-rate');
+        const taxableCell = tr.querySelector('.row-taxable');
+        const totalCell = tr.querySelector('.row-total');
+
+        const opt = sel.options[sel.selectedIndex];
+        if (opt) hsnCell.textContent = opt.getAttribute('data-hsn') || '39239090';
+
+        const q = parseFloat(qtyInp?.value) || 0;
+        const r = parseFloat(rateInp?.value) || 0;
+        const taxable = q * r;
+        const gst = taxable * 0.18;
+        const grand = taxable + gst;
+
+        if (taxableCell) taxableCell.textContent = `₹${taxable.toFixed(2)}`;
+        if (totalCell) totalCell.textContent = `₹${grand.toFixed(2)}`;
+
+        totalTaxable += taxable;
+        totalGst += gst;
+      });
+
+      const grandTotal = totalTaxable + totalGst;
+      document.getElementById('lblTotalTaxable').textContent = `₹${totalTaxable.toFixed(2)}`;
+      document.getElementById('lblTotalGst').textContent = `₹${totalGst.toFixed(2)}`;
+      document.getElementById('lblGrandTotal').textContent = `₹${grandTotal.toFixed(2)}`;
+      document.getElementById('txtAmountInWords').textContent = numberToWordsINR(grandTotal);
+    }
+
+    // Save Generated Invoice directly to Firestore
+    async function saveAndGenerateInvoice() {
+      const invNo = document.getElementById('inpInvNo').value;
+      const invDate = document.getElementById('inpInvDate').value;
+      const partyName = document.getElementById('selParty').value || 'Standard Consignee Party';
+      const transName = document.getElementById('inpTransName').value || 'Direct Logistics';
+      const vehicleNo = document.getElementById('inpVehicleNo').value || 'MP-09-AB-1234';
+      const lrNo = document.getElementById('inpLrNo').value || 'LR-9910';
+      const lrDate = document.getElementById('inpLrDate').value || invDate;
+
+      const tbody = document.getElementById('tblOrderRows');
+      const items = [];
+      let totalQty = 0;
+
+      Array.from(tbody.children).forEach(tr => {
+        const sel = tr.querySelector('.sel-product');
+        const q = parseFloat(tr.querySelector('.inp-qty')?.value) || 0;
+        const r = parseFloat(tr.querySelector('.inp-rate')?.value) || 0;
+        if (q > 0) {
+          const opt = sel.options[sel.selectedIndex];
+          items.push({
+            productName: opt ? opt.text : 'Thermocol Item',
+            qty: q,
+            rate: r,
+            amount: q * r,
+            gst: q * r * 0.18,
+            total: q * r * 1.18
+          });
+          totalQty += q;
+        }
+      });
+
+      if (!items.length) {
+        alert('Please add at least one line item with positive quantity!');
+        return;
+      }
+
+      const grandTotalNum = items.reduce((s, i) => s + i.total, 0);
+      const safeId = invNo.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      const invoicePayload = {
+        invNo,
+        company: activeCompany,
+        date: invDate,
+        partyName,
+        transName,
+        vehicleNo,
+        lrNo,
+        lrDate,
+        items,
+        totalQty,
+        grandTotal: grandTotalNum.toFixed(2),
+        totalInWords: numberToWordsINR(grandTotalNum),
+        timestamp: new Date().toISOString()
+      };
+
+      const auditPayload = {
+        id: `aud_${Date.now()}`,
+        invNo,
+        action: 'CREATE',
+        userName: 'Operations Supervisor',
+        timestamp: new Date().toISOString(),
+        details: `Generated Tax Invoice ${invNo} for ${partyName} with Grand Total ₹${grandTotalNum.toFixed(2)}`
+      };
+
+      try {
+        // Atomic Batch write
+        const batch = db.batch();
+        batch.set(db.collection('packing_outwards').doc(safeId), invoicePayload);
+        batch.set(db.collection('packing_audits').doc(auditPayload.id), auditPayload);
+        
+        // Update Sequence
+        const nextSeq = activeCompany === 'AIL' ? sequenceAIL + 1 : sequenceAHPL + 1;
+        const seqUpdate = activeCompany === 'AIL' ? { seqAIL: nextSeq } : { seqHPL: nextSeq };
+        batch.set(db.collection('packing_master').doc('sequences'), seqUpdate, { merge: true });
+
+        await batch.commit();
+        alert(`Invoice ${invNo} successfully saved to Firebase Firestore! Survives page refresh.`);
+        previewInvoiceDoc(invNo);
+      } catch (err) {
+        console.error('Failed to save invoice to Firestore:', err);
+        alert('Failed to save invoice to Firestore: ' + err.message);
+      }
+    }
+
+    // Save Sequence Override
+    async function saveSequences() {
+      const seqAIL = parseInt(document.getElementById('inpSeqAIL').value) || 392;
+      const seqAHPL = parseInt(document.getElementById('inpSeqAHPL').value) || 1;
+
+      try {
+        await db.collection('packing_master').doc('sequences').set({
+          seqAIL,
+          seqHPL: seqAHPL,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+        alert('Master sequence configurations saved to Firestore!');
+      } catch (err) {
+        alert('Error saving sequences: ' + err.message);
+      }
+    }
+
+    // Export 239-Column SAP IRN CSV
+    function exportSAPCSV() {
+      if (!invoicesState.length) {
+        alert('No generated invoices available in Firestore to export.');
+        return;
+      }
+
+      const headers = new Array(239).fill('');
+      headers[0] = 'Barcode';
+      headers[1] = 'Version';
+      headers[3] = 'TaxScheme';
+      headers[4] = 'SupplyType';
+      headers[8] = 'DocumentType';
+      headers[9] = 'DocumentNumber';
+      headers[10] = 'DocumentDate';
+      headers[11] = 'SellerGstin';
+      headers[12] = 'SellerLegalName';
+      headers[13] = 'BuyerGstin';
+      headers[14] = 'BuyerLegalName';
+      headers[24] = 'TotalInvoiceValue';
+      headers[25] = 'TotalInvoiceValueInWords';
+
+      const rows = [headers];
+      let srNo = 1;
+
+      invoicesState.forEach(inv => {
+        (inv.items || [{ productName: 'Thermocol Item', qty: inv.totalQty || 1, rate: 100, total: inv.grandTotal }]).forEach(it => {
+          const r = new Array(239).fill('');
+          r[0] = String(srNo++);
+          r[1] = '1.1';
+          r[3] = 'GST';
+          r[4] = 'TAX';
+          r[8] = 'INV';
+          r[9] = inv.invNo;
+          r[10] = inv.date || '';
+          r[11] = '23AABCA1234F1ZP';
+          r[12] = 'Abbott India / Healthcare';
+          r[13] = '23UNREGISTERED';
+          r[14] = inv.partyName || '';
+          r[24] = String(inv.grandTotal || '0.00');
+          r[25] = inv.totalInWords || numberToWordsINR(parseFloat(inv.grandTotal || 0));
+          rows.push(r);
+        });
+      });
+
+      const csvStr = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+      const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `SAP_IRN_Invoices_Export_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    }
+
+    // Preview Printable Invoice Document
+    function previewInvoiceDoc(invNo) {
+      const inv = invoicesState.find(i => i.invNo === invNo) || { invNo, date: new Date().toISOString().split('T')[0], partyName: 'Consignee Party', grandTotal: '17700.00', items: [] };
+      const container = document.getElementById('printContainer');
+      container.innerHTML = `
+        <div class="flex justify-between items-center border-b pb-4">
+          <h2 class="text-base font-bold uppercase">TAX INVOICE / DELIVERY CHALLAN</h2>
+          <p class="font-mono font-bold text-indigo-700">${inv.invNo}</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4 border-b pb-4">
+          <div>
+            <p class="font-bold text-slate-500 uppercase text-[10px]">Consignor Details:</p>
+            <p class="font-bold">Abbott India Limited / Healthcare</p>
+            <p>Peer Karadiya Warehouse, Indore MP</p>
+            <p>GSTIN: 23AABCA1234F1ZP</p>
+          </div>
+          <div>
+            <p class="font-bold text-slate-500 uppercase text-[10px]">Consignee Details:</p>
+            <p class="font-bold">${inv.partyName}</p>
+            <p>Vehicle: ${inv.vehicleNo || '-'}</p>
+            <p>LR No: ${inv.lrNo || '-'}</p>
+          </div>
+        </div>
+        <table class="w-full text-left border border-slate-900 border-collapse">
+          <thead class="bg-slate-100 border-b border-slate-900 font-bold uppercase text-[10px]">
+            <tr>
+              <th class="p-2 border-r border-slate-900">Item Description</th>
+              <th class="p-2 border-r border-slate-900 text-right">Qty</th>
+              <th class="p-2 border-r border-slate-900 text-right">Rate</th>
+              <th class="p-2 text-right">Total (₹)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-900 text-xs">
+            ${(inv.items || []).map(it => `
+              <tr>
+                <td class="p-2 border-r border-slate-900 font-bold">${it.productName}</td>
+                <td class="p-2 border-r border-slate-900 text-right font-mono">${it.qty} Pcs</td>
+                <td class="p-2 border-r border-slate-900 text-right font-mono">${Number(it.rate).toFixed(2)}</td>
+                <td class="p-2 text-right font-mono font-bold">${Number(it.total || it.amount).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="bg-slate-50 border border-slate-900 p-3">
+          <p class="text-slate-500 font-bold text-[10px]">Total Amount in Words:</p>
+          <p class="font-bold text-sm text-slate-900">${inv.totalInWords || numberToWordsINR(parseFloat(inv.grandTotal))}</p>
+        </div>
+      `;
+      document.getElementById('mdlPrintInvoice').classList.remove('hidden');
+    }
+
+    function closePrintModal() {
+      document.getElementById('mdlPrintInvoice').classList.add('hidden');
+    }
+
+    // Party Selection Population
+    function filterPartiesByCity() {
+      const city = document.getElementById('selCity').value;
+      const sel = document.getElementById('selParty');
+      const parties = [
+        { name: 'Abbott Healthcare Warehouse - Dewas', city: 'Dewas' },
+        { name: 'MedPlus Logistics - Indore', city: 'Indore' },
+        { name: 'Apollo Pharmacy Hub - Hyderabad', city: 'Hyderabad' },
+        { name: 'Sun Pharma Distribution - Pithampur', city: 'Pithampur' }
+      ];
+      const filtered = city === 'ALL' ? parties : parties.filter(p => p.city === city);
+      sel.innerHTML = '<option value="">-- Select Client --</option>' + filtered.map(p => `<option value="${p.name}">${p.name}</option>`).join('');
+    }
+
+    function onPartySelected() {
+      const party = document.getElementById('selParty').value;
+      const box = document.getElementById('boxPartyInfo');
+      if (party) {
+        document.getElementById('txtPartyName').textContent = party;
+        document.getElementById('txtPartyAddress').textContent = 'Plot 12, Logistics Park, MP';
+        document.getElementById('txtPartyGstin').textContent = 'GSTIN: 23AABCA9999F1ZP';
+        box.classList.remove('hidden');
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    // On Page Load Init
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('inpInvDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inwRecdDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inpLrDate').value = new Date().toISOString().split('T')[0];
+      filterPartiesByCity();
+      addOrderRow();
+      initFirestoreListeners();
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

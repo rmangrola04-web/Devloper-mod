@@ -1,0 +1,274 @@
+{
+  "entities": {
+    "Operation": {
+      "title": "Operation",
+      "description": "Loading and Unloading warehouse operations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "opType": { "type": "string" },
+        "vehicleNo": { "type": "string" },
+        "transporter": { "type": "string" },
+        "fromLoc": { "type": "string" },
+        "toLoc": { "type": "string" },
+        "unit": { "type": "string" },
+        "bayNo": { "type": "string" },
+        "status": { "type": "string" },
+        "totalCases": { "type": "number" },
+        "entryDate": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "SecurityGateEntry": {
+      "title": "SecurityGateEntry",
+      "description": "Gate security vehicle entry and exit records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "vehicle": { "type": "string" },
+        "vType": { "type": "string" },
+        "mobile": { "type": "string" },
+        "transporter": { "type": "string" },
+        "purpose": { "type": "string" },
+        "fromLoc": { "type": "string" },
+        "toLoc": { "type": "string" },
+        "dateTime": { "type": "string" },
+        "remarks": { "type": "string" },
+        "entryDate": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "PlanEntry": {
+      "title": "PlanEntry",
+      "description": "Daily and monthly warehouse vehicle planning entries",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "deliveryNo": { "type": "string" },
+        "code": { "type": "string" },
+        "unit": { "type": "string" },
+        "destination": { "type": "string" },
+        "weight": { "type": "number" },
+        "cft": { "type": "number" },
+        "vType": { "type": "string" },
+        "transporter": { "type": "string" },
+        "status": { "type": "string" },
+        "entryDate": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "TrackingRecord": {
+      "title": "TrackingRecord",
+      "description": "Vehicle dispatch tracking and transit records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invoiceNo": { "type": "string" },
+        "invoiceDate": { "type": "string" },
+        "receivingPlant": { "type": "string" },
+        "mode": { "type": "string" },
+        "transporter": { "type": "string" },
+        "lrNo": { "type": "string" },
+        "lrDate": { "type": "string" },
+        "vehicleNo": { "type": "string" },
+        "expectedDate": { "type": "string" },
+        "deliveryDate": { "type": "string" },
+        "status": { "type": "string" },
+        "entryDate": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "UserAccount": {
+      "title": "UserAccount",
+      "description": "Warehouse user accounts and authorization roles",
+      "type": "object",
+      "properties": {
+        "user": { "type": "string" },
+        "pass": { "type": "string" },
+        "role": { "type": "string" },
+        "name": { "type": "string" }
+      }
+    },
+    "MasterItem": {
+      "title": "MasterItem",
+      "description": "Master list items like transporters, vehicle types, and locations",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "order": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "ThermocolInward": {
+      "title": "ThermocolInward",
+      "description": "Inward stock lots and inventory valuation records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "company": { "type": "string" },
+        "grNo": { "type": "string" },
+        "invNo": { "type": "string" },
+        "productName": { "type": "string" },
+        "initialQty": { "type": "number" },
+        "availableQty": { "type": "number" },
+        "price": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "ThermocolInvoice": {
+      "title": "ThermocolInvoice",
+      "description": "Outward delivery challans and tax invoices",
+      "type": "object",
+      "properties": {
+        "invNo": { "type": "string" },
+        "company": { "type": "string" },
+        "date": { "type": "string" },
+        "partyName": { "type": "string" },
+        "grandTotal": { "type": "string" },
+        "totalQty": { "type": "number" },
+        "updatedAt": { "type": "string" }
+      }
+    },
+    "InvoiceAuditLog": {
+      "title": "InvoiceAuditLog",
+      "description": "Invoice modification, generation, and cancellation audit trail logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "invNo": { "type": "string" },
+        "company": { "type": "string" },
+        "action": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "partyName": { "type": "string" },
+        "productName": { "type": "string" },
+        "refundedQty": { "type": "number" },
+        "details": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/ich_operations/{operationId}": {
+      "schema": "Operation",
+      "description": "Active warehouse loading and unloading operations"
+    },
+    "/ich_security_logs/{logId}": {
+      "schema": "SecurityGateEntry",
+      "description": "Security gate entry and exit movement records"
+    },
+    "/ich_plan_entries/{planId}": {
+      "schema": "PlanEntry",
+      "description": "Daily planned warehouse dispatches"
+    },
+    "/ich_archived_plan_entries/{archivedId}": {
+      "schema": "PlanEntry",
+      "description": "Archived planning entries for historical tracking"
+    },
+    "/ich_tracking_records/{recordId}": {
+      "schema": "TrackingRecord",
+      "description": "In-transit vehicle tracking updates"
+    },
+    "/ich_users/{userId}": {
+      "schema": "UserAccount",
+      "description": "Internal warehouse operator and supervisor accounts"
+    },
+    "/ich_master_transporters/{transporterId}": {
+      "schema": "MasterItem",
+      "description": "Approved logistics transporters master"
+    },
+    "/ich_master_vehicle_types/{vehicleTypeId}": {
+      "schema": "MasterItem",
+      "description": "Standard truck and vehicle types master"
+    },
+    "/ich_master_load_locations/{locationId}": {
+      "schema": "MasterItem",
+      "description": "Warehouse loading bays and source locations"
+    },
+    "/ich_master_unload_locations/{locationId}": {
+      "schema": "MasterItem",
+      "description": "Warehouse receiving bays and destination locations"
+    },
+    "/ich_master_supervisors/{supervisorId}": {
+      "schema": "MasterItem",
+      "description": "Registered warehouse floor supervisors"
+    },
+    "/ich_th_inwards/{inwardId}": {
+      "schema": "ThermocolInward",
+      "description": "Packing material inward stock lots and live stock balances"
+    },
+    "/ich_th_invoices/{invoiceId}": {
+      "schema": "ThermocolInvoice",
+      "description": "Packing material outward delivery challans and invoices"
+    },
+    "/ich_th_products/{productId}": {
+      "schema": "MasterItem",
+      "description": "Packing material product master records"
+    },
+    "/ich_th_parties/{partyId}": {
+      "schema": "MasterItem",
+      "description": "Packing material client/party master records"
+    },
+    "/ich_th_transporters/{transporterId}": {
+      "schema": "MasterItem",
+      "description": "Packing material transporter records"
+    },
+    "/ich_th_demands/{demandId}": {
+      "schema": "MasterItem",
+      "description": "Packing material client demand quotas"
+    },
+    "/ich_th_audits/{auditId}": {
+      "schema": "InvoiceAuditLog",
+      "description": "Invoice modification, generation, and cancellation audit logs"
+    },
+    "/ich_th_sequences/{sequenceId}": {
+      "schema": "MasterItem",
+      "description": "Packing material invoice sequence numbers"
+    },
+    "/thermocol_packing/{docId}": {
+      "schema": "MasterItem",
+      "description": "Standalone Packing Material & Thermocol real-time synchronization documents collection"
+    },
+    "/customers/{customerId}": {
+      "schema": "MasterItem",
+      "description": "Active client and customer master records"
+    },
+    "/products/{productId}": {
+      "schema": "MasterItem",
+      "description": "Active product catalog and SKU master records"
+    },
+    "/inwardStock/{stockId}": {
+      "schema": "ThermocolInward",
+      "description": "Active inward stock lots and available balance records"
+    },
+    "/transportMaster/{transporterId}": {
+      "schema": "MasterItem",
+      "description": "Active logistics transport partners master"
+    },
+    "/packing_inwards/{inwardId}": {
+      "schema": "ThermocolInward",
+      "description": "Packing material inward inventory records"
+    },
+    "/packing_outwards/{outwardId}": {
+      "schema": "ThermocolInvoice",
+      "description": "Packing material outward delivery challans and invoices"
+    },
+    "/packing_customers/{customerId}": {
+      "schema": "MasterItem",
+      "description": "Packing material customer party records"
+    },
+    "/packing_transporters/{transporterId}": {
+      "schema": "MasterItem",
+      "description": "Packing material transporter records"
+    },
+    "/packing_audits/{auditId}": {
+      "schema": "InvoiceAuditLog",
+      "description": "Packing material invoice and stock audit trail logs"
+    },
+    "/packing_master/{docId}": {
+      "schema": "MasterItem",
+      "description": "Packing material configuration and counter sequences"
+    }
+  }
+}

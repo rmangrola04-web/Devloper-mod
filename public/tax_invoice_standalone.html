@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tax Invoice - Abbott India Ltd.</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 10mm;
+            background-color: #ffffff;
+        }
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9pt;
+            color: #222222;
+            background-color: #ffffff;
+            line-height: 1.2;
+        }
+        .invoice-container {
+            width: 100%;
+            max-width: 190mm;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 2mm;
+        }
+        /* Header */
+        .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+        }
+        .header-table td {
+            vertical-align: top;
+        }
+        .tax-invoice-label {
+            font-size: 8pt;
+            font-weight: bold;
+            color: #0056b3;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+        .company-name {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #111111;
+            margin-bottom: 2px;
+        }
+        .company-address {
+            font-size: 7.5pt;
+            color: #555555;
+            line-height: 1.3;
+            margin-bottom: 3px;
+        }
+        .company-gstin {
+            font-size: 7.5pt;
+            color: #333333;
+            font-weight: bold;
+        }
+        .invoice-box-right {
+            background-color: #e8f0fe;
+            border: 1px solid #b0c4de;
+            padding: 6px 10px;
+            text-align: right;
+            border-radius: 3px;
+        }
+        .invoice-no {
+            font-size: 10pt;
+            font-weight: bold;
+            color: #004085;
+            margin-bottom: 2px;
+            white-space: nowrap;
+        }
+        .invoice-date {
+            font-size: 7.5pt;
+            color: #333333;
+            margin-bottom: 2px;
+        }
+        .invoice-original {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #444444;
+        }
+
+        /* Sections Box */
+        .section-box {
+            border: 1px solid #b0c4de;
+            border-radius: 3px;
+            padding: 5px 8px;
+            margin-bottom: 5px;
+            background-color: #fcfcfc;
+        }
+        .section-title {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #555555;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+            letter-spacing: 0.3px;
+        }
+        .party-name {
+            font-size: 9pt;
+            font-weight: bold;
+            color: #111111;
+            margin-bottom: 2px;
+        }
+        .party-details {
+            font-size: 7.5pt;
+            color: #444444;
+            line-height: 1.3;
+        }
+
+        /* Items Table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+            font-size: 7.5pt;
+        }
+        .items-table th {
+            background-color: #f1f3f4;
+            color: #202124;
+            font-weight: bold;
+            text-align: center;
+            padding: 4px 3px;
+            border: 1px solid #bdc1c6;
+        }
+        .items-table td {
+            border: 1px solid #bdc1c6;
+            padding: 4px 3px;
+            vertical-align: middle;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+
+        /* Summary Boxes */
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 6px;
+        }
+        .summary-table td {
+            vertical-align: top;
+            padding: 0;
+        }
+        .box-left {
+            width: 50%;
+            padding-right: 4px;
+        }
+        .box-right {
+            width: 50%;
+            padding-left: 4px;
+        }
+        .inner-box {
+            border: 1px solid #b0c4de;
+            border-radius: 3px;
+            background-color: #fcfcfc;
+            padding: 6px 8px;
+            height: 100%;
+        }
+        .amount-words-title, .metrics-title {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #555555;
+            text-transform: uppercase;
+            margin-bottom: 3px;
+        }
+        .amount-words-value {
+            font-size: 9pt;
+            font-weight: bold;
+            color: #111111;
+        }
+        .metrics-value {
+            font-size: 7.5pt;
+            color: #333333;
+            line-height: 1.4;
+        }
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 8pt;
+        }
+        .totals-table td {
+            padding: 3px 0;
+            border-bottom: 1px dashed #e0e0e0;
+        }
+        .totals-table tr:last-child td {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 9pt;
+            color: #004085;
+            padding-top: 5px;
+        }
+
+        /* Footer Terms & Signatory */
+        .footer-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+        }
+        .footer-table td {
+            vertical-align: top;
+            padding: 5px 8px;
+            border: 1px solid #b0c4de;
+            background-color: #fcfcfc;
+            border-radius: 3px;
+        }
+        .terms-title {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #d93025;
+            margin-bottom: 3px;
+            text-transform: uppercase;
+        }
+        .terms-list {
+            font-size: 7pt;
+            color: #555555;
+            padding-left: 12px;
+            line-height: 1.3;
+        }
+        .signatory-company {
+            font-size: 7.5pt;
+            font-weight: bold;
+            color: #333333;
+            margin-bottom: 25px;
+            text-align: right;
+        }
+        .signatory-label {
+            font-size: 7.5pt;
+            color: #555555;
+            text-align: right;
+            border-top: 1px solid #bdc1c6;
+            padding-top: 3px;
+            display: inline-block;
+            float: right;
+        }
+
+        /* Print Button UI */
+        .no-print {
+            text-align: center;
+            margin: 15px 0;
+        }
+        .print-btn {
+            background-color: #0056b3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 11pt;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .print-btn:hover {
+            background-color: #004085;
+        }
+
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print">
+    <button class="print-btn" onclick="triggerPrint()">🖨️ Print Invoice Now</button>
+</div>
+
+<div class="invoice-container">
+
+    <!-- Header -->
+    <table class="header-table">
+        <tr>
+            <td style="width: 65%;">
+                <div class="tax-invoice-label">Tax Invoice</div>
+                <div class="company-name">Abbott India Ltd.</div>
+                <div class="company-address">
+                    Survey No 52/2/2, 52/2/1, 58 & 59, Village - Peer Karadiya, Kshipra Road, Tehsil - Sanwer, A.B. Road, Indore - 453771, Madhya Pradesh
+                </div>
+                <div class="company-gstin">
+                    GSTIN: 23AAACA0231P1Z1 &nbsp;|&nbsp; Contact / Email: +91 9285061000 | indore.hub@abbott.in
+                </div>
+            </td>
+            <td style="width: 35%; text-align: right;">
+                <div class="invoice-box-right">
+                    <div class="invoice-no">ICHIND/26-27/002</div>
+                    <div class="invoice-date">Invoice Date: 2026-10-01</div>
+                    <div class="invoice-original">Original for Recipient</div>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Billed To -->
+    <div class="section-box">
+        <div class="section-title">Billed To / Sold To (Party Details)</div>
+        <div class="party-name">Bajaj Packaging Pvt Ltd</div>
+        <div class="party-details">
+            Industrial Area &nbsp;|&nbsp; <strong>GSTIN / UIN:</strong> Sector 3
+        </div>
+    </div>
+
+    <!-- Dispatch & Logistics -->
+    <div class="section-box">
+        <div class="section-title">Dispatch & Logistics Credentials</div>
+        <div class="party-details">
+            <strong>Transporter:</strong> VRL Logistics Ltd (GSTIN: 29AABCV1234E1Z4) &nbsp;&nbsp;|&nbsp;&nbsp;
+            <strong>LR Number:</strong> cddd &nbsp;&nbsp;|&nbsp;&nbsp;
+            <strong>LR Date:</strong> 2026-10-01<br>
+            <strong>Vehicle No:</strong> ddd
+        </div>
+    </div>
+
+    <!-- Items Table -->
+    <table class="items-table">
+        <thead>
+            <tr>
+                <th style="width: 5%;">#</th>
+                <th style="width: 30%;">Description of Goods</th>
+                <th style="width: 10%;">HSN Code</th>
+                <th style="width: 7%;">Cases</th>
+                <th style="width: 8%;">Quantity (Pcs)</th>
+                <th style="width: 8%;">Rate (₹)</th>
+                <th style="width: 8%;">Weight (kg)</th>
+                <th style="width: 7%;">CFT</th>
+                <th style="width: 9%;">Taxable (₹)</th>
+                <th style="width: 8%;">Tax (0% Local)</th>
+                <th style="width: 10%;">Total (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="text-center">1</td>
+                <td>Standard EPS Corner Guard<br><span style="font-size: 6.5pt; color: #666;">Pack: Box of 10 (×10)</span></td>
+                <td class="text-center">39239090</td>
+                <td class="text-center">1</td>
+                <td class="text-center">10</td>
+                <td class="text-right">₹15.50</td>
+                <td class="text-right">1.20 kg</td>
+                <td class="text-center">0.15</td>
+                <td class="text-right">₹155.00</td>
+                <td class="text-center">₹0.00 (0%)</td>
+                <td class="text-right">₹155.00</td>
+            </tr>
+            <tr>
+                <td class="text-center">2</td>
+                <td>Standard EPS Corner Guard<br><span style="font-size: 6.5pt; color: #666;">Pack: Box of 10 (×10)</span></td>
+                <td class="text-center">39239090</td>
+                <td class="text-center">1</td>
+                <td class="text-center">10</td>
+                <td class="text-right">₹15.50</td>
+                <td class="text-right">1.20 kg</td>
+                <td class="text-center">0.15</td>
+                <td class="text-right">₹155.00</td>
+                <td class="text-center">₹0.00 (0%)</td>
+                <td class="text-right">₹155.00</td>
+            </tr>
+            <tr style="background-color: #f1f3f4; font-weight: bold;">
+                <td colspan="3" class="text-right">Cumulative Totals</td>
+                <td class="text-center">2 Cases</td>
+                <td class="text-center">20 Pcs</td>
+                <td class="text-center">-</td>
+                <td class="text-right">2.40 kg</td>
+                <td class="text-center">0.30 CFT</td>
+                <td class="text-right">₹310.00</td>
+                <td class="text-center">₹0.00</td>
+                <td class="text-right">₹310.00</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Bottom Summaries Layout -->
+    <table class="summary-table">
+        <tr>
+            <td class="box-left">
+                <div class="inner-box" style="margin-bottom: 5px;">
+                    <div class="amount-words-title">Total Amount in Words:</div>
+                    <div class="amount-words-value">Three Hundred Ten Rupees Only</div>
+                </div>
+                <div class="inner-box">
+                    <div class="metrics-title">Total Consignment Metrics:</div>
+                    <div class="metrics-value">
+                        <strong>Cases:</strong> 2 &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Qty:</strong> 20 Pcs &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Weight:</strong> 2.40 kg &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Volume:</strong> 0.30 CFT
+                    </div>
+                </div>
+            </td>
+            <td class="box-right">
+                <div class="inner-box">
+                    <table class="totals-table">
+                        <tr>
+                            <td>Total Taxable Value:</td>
+                            <td class="text-right"><strong>₹310.00</strong></td>
+                        </tr>
+                        <tr>
+                            <td>IGST (0% Local):</td>
+                            <td class="text-right"><strong>₹0.00</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Total Invoice Value:</td>
+                            <td class="text-right" style="font-size: 10pt; color: #004085;"><strong>₹310.00</strong></td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Footer Terms & Signatory -->
+    <table class="footer-table">
+        <tr>
+            <td style="width: 55%;">
+                <div class="terms-title">Terms & Conditions:</div>
+                <ol class="terms-list">
+                    <li>Goods once sold will not be taken back or exchanged.</li>
+                    <li>Subject to Indore jurisdiction only.</li>
+                </ol>
+            </td>
+            <td style="width: 45%; text-align: right;">
+                <div class="signatory-company">For Abbott India Ltd.</div>
+                <div class="signatory-label">Authorized Signatory</div>
+            </td>
+        </tr>
+    </table>
+
+</div>
+
+<script>
+    function triggerPrint() {
+        window.print();
+    }
+</script>
+
+</body>
+</html>
