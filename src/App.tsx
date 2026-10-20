@@ -82,6 +82,7 @@ import { FinishLoadModal } from './components/FinishLoadModal';
 import { TransportMasterModal } from './components/TransportMasterModal';
 import { LocationMasterModal } from './components/LocationMasterModal';
 import { AndroidApkModal } from './components/AndroidApkModal';
+import { InstallBanner } from './components/InstallBanner';
 
 // Views
 import { DashboardView } from './views/DashboardView';
@@ -2007,6 +2008,7 @@ export default function App() {
         />
       )}
 
+      <InstallBanner />
 
     </div>
   );
