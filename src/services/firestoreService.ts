@@ -360,16 +360,67 @@ export const deepSanitizeForFirestore = (obj: any): any => {
 };
 
 // ==========================================
-// DIRECT FIRESTORE QUERY FOR INVOICES ('ich_operations')
+// DIRECT FIRESTORE QUERY FOR INVOICES ('packing_outwards' & 'ich_operations')
 // ==========================================
-export const fetchInvoicesFromIchOperations = async (): Promise<ThermocolInvoice[]> => {
+export const fetchInvoicesFromPackingOutwards = async (): Promise<ThermocolInvoice[]> => {
   try {
-    console.log(`[Firestore Direct] Querying all invoices from collection: ${COLLECTIONS.OPERATIONS}`);
-    const colRef = collection(db, COLLECTIONS.OPERATIONS);
-    const snapshot = await getDocs(colRef);
+    console.log(`[Firestore Direct] Querying invoices from dedicated collection: ${COLLECTIONS.PACKING_OUTWARDS}`);
+    const colRef = collection(db, COLLECTIONS.PACKING_OUTWARDS);
+    const snapshot = await withTimeout(getDocs(colRef), 2500, { docs: [], empty: true, size: 0, forEach: () => {} } as any);
     const invoicesMap = new Map<string, ThermocolInvoice>();
 
-    snapshot.forEach((docSnap) => {
+    snapshot.forEach((docSnap: any) => {
+      const d = docSnap.data();
+      if (!d) return;
+      let invNo = d.invNo || docSnap.id;
+      if (/^\d{1,4}$/.test(String(invNo).trim())) return;
+      if (!invNo.includes('/') && invNo.includes('_26')) {
+        invNo = invNo.replace(/_26$/, '/26');
+      }
+      const company = d.company || (invNo.startsWith('AHPL') ? 'HPL' : 'AIL');
+      invoicesMap.set(invNo, {
+        ...d as any,
+        invNo,
+        company,
+        items: Array.isArray(d.items) ? d.items : [],
+        totalTaxable: String(d.totalTaxable || '0'),
+        totalGst: String(d.totalGst || '0'),
+        grandTotal: String(d.grandTotal || '0'),
+        totalQty: Number(d.totalQty) || 0,
+        totalCases: Number(d.totalCases) || 0,
+        date: d.date || (d.createdAt ? d.createdAt.split('T')[0] : new Date().toISOString().split('T')[0])
+      });
+    });
+
+    const result = Array.from(invoicesMap.values()).sort((a, b) => {
+      const timeA = new Date(a.date || a.createdAt || 0).getTime();
+      const timeB = new Date(b.date || b.createdAt || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+      return b.invNo.localeCompare(a.invNo);
+    });
+
+    console.log(`[Firestore Direct] Retrieved ${result.length} invoices from ${COLLECTIONS.PACKING_OUTWARDS}`);
+    return result;
+  } catch (err) {
+    console.warn('[Firestore Direct] Warning fetching from packing_outwards:', err);
+    return [];
+  }
+};
+
+export const fetchInvoicesFromIchOperations = async (): Promise<ThermocolInvoice[]> => {
+  try {
+    // 1. Try dedicated collection first (fastest, lightweight documents <3KB)
+    const outwardsInvoices = await fetchInvoicesFromPackingOutwards();
+    if (outwardsInvoices.length > 0) {
+      return outwardsInvoices;
+    }
+
+    console.log(`[Firestore Direct] Querying invoices from collection: ${COLLECTIONS.OPERATIONS}`);
+    const colRef = collection(db, COLLECTIONS.OPERATIONS);
+    const snapshot = await withTimeout(getDocs(colRef), 2500, { docs: [], empty: true, size: 0, forEach: () => {} } as any);
+    const invoicesMap = new Map<string, ThermocolInvoice>();
+
+    snapshot.forEach((docSnap: any) => {
       const d = docSnap.data();
       const id = docSnap.id;
       if (!d) return;
@@ -399,22 +450,6 @@ export const fetchInvoicesFromIchOperations = async (): Promise<ThermocolInvoice
         });
       }
     });
-
-    // Secondary fallback to packing_outwards if ich_operations yielded 0 invoices
-    if (invoicesMap.size === 0) {
-      try {
-        const snapOut = await getDocs(collection(db, COLLECTIONS.PACKING_OUTWARDS));
-        snapOut.forEach((docSnap) => {
-          const d = docSnap.data();
-          if (d && (d.invNo || d.items)) {
-            let invNo = d.invNo || docSnap.id;
-            invoicesMap.set(invNo, { ...d as any, invNo, items: Array.isArray(d.items) ? d.items : [] });
-          }
-        });
-      } catch (e) {
-        // non-blocking
-      }
-    }
 
     const result = Array.from(invoicesMap.values()).sort((a, b) => {
       const timeA = new Date(a.date || a.createdAt || 0).getTime();
@@ -451,7 +486,7 @@ export const fetchIchOperationsWithGetDocs = async (): Promise<{
   try {
     console.log(`[Firestore getDocs] Explicitly fetching all documents from collection: ${COLLECTIONS.OPERATIONS}`);
     const colRef = collection(db, COLLECTIONS.OPERATIONS);
-    const snapshot = await getDocs(colRef);
+    const snapshot = await withTimeout(getDocs(colRef), 2500, { docs: [], empty: true, size: 0, forEach: () => {} } as any);
     console.log(`[Firestore getDocs] Retrieved ${snapshot.size} documents from ${COLLECTIONS.OPERATIONS}`);
 
   const inwardsMap = new Map<string, ThermocolInward>();
@@ -2474,32 +2509,13 @@ export const subscribeToThermocolPackingStore = (
     audits?: InvoiceAuditLog[];
     sequences?: { seqAIL: number; seqHPL: number };
   }) => void,
-  onError?: (err: any) => void
+  _onError?: (err: any) => void
 ) => {
-  const colRef = collection(db, COLLECTIONS.THERMOCOL_PACKING);
-  return onSnapshot(
-    colRef,
-    (snapshot) => {
-      const result: any = {};
-      snapshot.forEach((docSnap) => {
-        const id = docSnap.id;
-        const data = docSnap.data();
-        if (id === 'inwards') result.inwards = data.items || [];
-        else if (id === 'invoices') result.invoices = data.items || [];
-        else if (id === 'products') result.products = data.items || [];
-        else if (id === 'parties') result.parties = data.items || [];
-        else if (id === 'transporters') result.transporters = data.items || [];
-        else if (id === 'demands') result.demands = data.items || [];
-        else if (id === 'audits') result.audits = data.items || [];
-        else if (id === 'sequences') result.sequences = { seqAIL: data.seqAIL || 392, seqHPL: data.seqHPL || 1 };
-      });
-      callback(result);
-    },
-    (err) => {
-      console.warn('thermocol_packing collection subscription error:', err);
-      if (onError) onError(err);
-    }
-  );
+  // CRITICAL: We deliberately avoid snapshotting the entire 'thermocol_packing' collection
+  // to prevent loading any oversized legacy documents (>1MB limit) which causes infinite loading hangs.
+  // Invoices, inwards, and master records are authoritatively loaded via dedicated collections
+  // (packing_outwards, packing_inwards, ich_operations) where each document is < 3KB.
+  return () => {};
 };
 
 export const syncThermocolPackingStateToFirestore = async (payload: {
