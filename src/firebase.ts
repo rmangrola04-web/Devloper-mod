@@ -18,8 +18,6 @@ import {
   orderBy,
   writeBatch,
   runTransaction,
-  enableNetwork,
-  disableNetwork,
   setLogLevel
 } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
@@ -53,59 +51,68 @@ if (typeof window !== 'undefined' || typeof console !== 'undefined') {
   };
 }
 
-const env = (import.meta as any).env || {};
-const runtimeConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || firebaseConfig.authDomain,
-  projectId: env.VITE_FIREBASE_PROJECT_ID || firebaseConfig.projectId,
-  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || firebaseConfig.storageBucket,
-  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseConfig.messagingSenderId,
-  appId: env.VITE_FIREBASE_APP_ID || firebaseConfig.appId,
-  firestoreDatabaseId: env.VITE_FIRESTORE_DATABASE_ID || firebaseConfig.firestoreDatabaseId
+// User's Provided wms-packing-mat Web App Configuration
+export const wmsPackingMatConfig = {
+  apiKey: "AIzaSyCx5256wp4LodJ7XnMS03MKE9rzyBWRGHc",
+  authDomain: "wms-packing-mat.firebaseapp.com",
+  projectId: "wms-packing-mat",
+  storageBucket: "wms-packing-mat.firebasestorage.app",
+  messagingSenderId: "381614472439",
+  appId: "1:381614472439:web:1fb0a65fd998c9510a67f2"
+};
+
+const activeConfig = {
+  ...wmsPackingMatConfig,
+  ...firebaseConfig,
+  apiKey: firebaseConfig.apiKey || wmsPackingMatConfig.apiKey,
+  authDomain: firebaseConfig.authDomain || wmsPackingMatConfig.authDomain,
+  projectId: firebaseConfig.projectId || wmsPackingMatConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket || wmsPackingMatConfig.storageBucket,
+  messagingSenderId: firebaseConfig.messagingSenderId || wmsPackingMatConfig.messagingSenderId,
+  appId: firebaseConfig.appId || wmsPackingMatConfig.appId,
 };
 
 export { firebaseConfig };
 
-let app: any;
-let db: any;
-let auth: any;
+// Initialize Firebase App singleton
+console.log('[Firebase] Initializing Firebase app for Indore wmsv3 with Project:', activeConfig.projectId);
+export const app = !getApps().length ? initializeApp(activeConfig) : getApp();
 
-try {
-  console.log('[Firebase] Initializing Firebase app with Project:', runtimeConfig.projectId);
-  app = !getApps().length ? initializeApp(runtimeConfig) : getApp();
-} catch (error) {
-  console.error('[Firebase Initialization Error] Failed to initialize Firebase App:', error);
-}
-
+// Explicit Named Database Initialization
+// The Firestore database is a named database in GCP/Firebase, NOT the default one.
+// Passes the exact database ID explicitly: getFirestore(app, FIRESTORE_DATABASE_ID)
 export const FIRESTORE_DATABASE_ID = 
-  (runtimeConfig.firestoreDatabaseId && runtimeConfig.firestoreDatabaseId !== '(default)')
-    ? runtimeConfig.firestoreDatabaseId
-    : "ai-studio-remixintegratedc-d62c8131-2611-40fe-b3ec-d9df328e477b";
+  (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)')
+    ? firebaseConfig.firestoreDatabaseId
+    : "ai-studio-remixintegratedc-4a466f00-a820-40b2-bd33-33a6a6ff89a9";
 
-try {
-  console.log('[Firebase] Initializing Firestore with Named Database ID:', FIRESTORE_DATABASE_ID);
-  db = getFirestore(app, FIRESTORE_DATABASE_ID);
-  console.log('[Firebase] Firestore initialized successfully.');
-} catch (error) {
-  console.error('[Firestore Initialization Error] Failed to initialize Firestore:', error);
+console.log('[Firebase] Initializing Firestore for Project:', activeConfig.projectId, 'with Named Database ID:', FIRESTORE_DATABASE_ID);
+export const db = getFirestore(app, FIRESTORE_DATABASE_ID);
+console.log('[Firebase] Firestore initialized successfully.');
+
+// Compat helper on db to support v8 / compat syntax like db.collection('packing_inwards').doc(docId).delete()
+if (!(db as any).collection) {
+  (db as any).collection = (collName: string) => {
+    const coll = collection(db, collName);
+    return {
+      doc: (docId: string) => {
+        const docRef = doc(db, collName, docId);
+        return {
+          id: docId,
+          ref: docRef,
+          get: () => getDoc(docRef),
+          set: (data: any, options?: any) => setDoc(docRef, data, options),
+          update: (data: any) => updateDoc(docRef, data),
+          delete: () => deleteDoc(docRef),
+        };
+      },
+      add: (data: any) => addDoc(coll, data),
+    };
+  };
 }
 
-try {
-  auth = getAuth(app);
-  console.log('[Firebase] Firebase Auth initialized successfully.');
-} catch (error) {
-  console.error('[Firebase Auth Initialization Error] Failed to initialize Firebase Auth:', error);
-}
-
-export { app, db, auth };
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    console.log('[Firebase Network] Browser online detected. Re-enabling Firestore network...');
-    enableNetwork(db).catch(err => console.warn('[Firebase Network] Enable network error:', err));
-  });
-  enableNetwork(db).catch(() => {});
-}
+export const auth = getAuth(app);
+console.log('[Firebase] Firebase Auth initialized successfully.');
 
 export {
   collection,
@@ -121,9 +128,7 @@ export {
   where,
   orderBy,
   writeBatch,
-  runTransaction,
-  enableNetwork,
-  disableNetwork
+  runTransaction
 };
 
 

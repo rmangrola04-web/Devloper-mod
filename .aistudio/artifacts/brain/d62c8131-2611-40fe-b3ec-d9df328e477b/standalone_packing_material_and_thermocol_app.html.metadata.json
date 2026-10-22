@@ -1,0 +1,5 @@
+{
+  "summary": "Complete standalone single-file HTML/JS web application for Packing Material & Thermocol with Inward Stock Ledger deletion functionality (window.deleteInwardEntry), real-time Firestore persistence, and AIL/AHPL multi-division management.",
+  "updatedAt": "2026-10-22T16:11:50.258Z",
+  "userFacing": true
+}

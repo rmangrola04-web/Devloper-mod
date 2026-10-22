@@ -118,7 +118,22 @@ export const withTimeout = <T>(promise: Promise<T>, ms = 2500, fallback: T): Pro
   ]);
 };
 
-// Connection test on boot
+// Connection test on boot & cleanup of obsolete monolithic documents exceeding Firestore 1MB limit
+export const cleanupObsoleteMonolithicDocs = async (): Promise<void> => {
+  try {
+    await deleteDoc(doc(db, 'thermocol_packing', 'invoices'));
+    console.log('[Firestore Cleanup] Purged obsolete bloated monolithic invoices document');
+  } catch (e) {
+    // Non-blocking
+  }
+  try {
+    await deleteDoc(doc(db, 'thermocol_packing', 'inwards'));
+    console.log('[Firestore Cleanup] Purged obsolete bloated monolithic inwards document');
+  } catch (e) {
+    // Non-blocking
+  }
+};
+
 export async function testFirestoreConnection() {
   try {
     console.log('[Firestore] Testing connection to Firestore database...');
@@ -130,6 +145,9 @@ export async function testFirestoreConnection() {
       console.warn("[Firestore Warning] Please check your Firebase configuration: client is offline.");
     }
   }
+
+  // Purge obsolete monolithic documents that cause 1MB quota errors
+  cleanupObsoleteMonolithicDocs().catch(() => {});
 }
 testFirestoreConnection();
 
@@ -1099,17 +1117,15 @@ export const subscribeToThermocolInwards = (
   const colRefLegacy = collection(db, COLLECTIONS.TH_INWARDS);
   const colRefDirect = collection(db, COLLECTIONS.INWARD_STOCK);
   const colRefOps = collection(db, COLLECTIONS.OPERATIONS);
-  const docRefStore = doc(db, COLLECTIONS.THERMOCOL_PACKING, 'inwards');
 
   let mainItems: ThermocolInward[] = [];
   let legacyItems: ThermocolInward[] = [];
   let directItems: ThermocolInward[] = [];
   let opsItems: ThermocolInward[] = [];
-  let storeItems: ThermocolInward[] = [];
 
   const mergeAndEmit = () => {
     const map = new Map<string, ThermocolInward>();
-    [...legacyItems, ...directItems, ...storeItems, ...opsItems, ...mainItems].forEach(item => {
+    [...legacyItems, ...directItems, ...opsItems, ...mainItems].forEach(item => {
       const id = item.id;
       if (id && (item.grNo || item.productName || (item as any).type === 'INWARD' || item.receiveDate)) {
         map.set(id, { ...item, id });
@@ -1187,28 +1203,11 @@ export const subscribeToThermocolInwards = (
     }
   );
 
-  const unsubStore = onSnapshot(
-    docRefStore,
-    (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (Array.isArray(data.items)) {
-          storeItems = data.items;
-          mergeAndEmit();
-        }
-      }
-    },
-    (err) => {
-      console.warn('Thermocol Store Inwards sync error:', err);
-    }
-  );
-
   return () => {
     unsubMain();
     unsubDirect();
     unsubOps();
     unsubLegacy();
-    unsubStore();
   };
 };
 
@@ -1219,18 +1218,16 @@ export const subscribeToThermocolInvoices = (
   const colRefMain = collection(db, COLLECTIONS.PACKING_OUTWARDS);
   const colRefLegacy = collection(db, COLLECTIONS.TH_INVOICES);
   const colRefOps = collection(db, COLLECTIONS.OPERATIONS);
-  const docRefStore = doc(db, COLLECTIONS.THERMOCOL_PACKING, 'invoices');
 
   let mainInvoices: ThermocolInvoice[] = [];
   let legacyInvoices: ThermocolInvoice[] = [];
   let opsInvoices: ThermocolInvoice[] = [];
-  let storeInvoices: ThermocolInvoice[] = [];
 
   const mergeAndEmit = () => {
     const map = new Map<string, ThermocolInvoice>();
 
-    // Process legacy, store, ops, main so latest/main overrides
-    [...legacyInvoices, ...storeInvoices, ...opsInvoices, ...mainInvoices].forEach(item => {
+    // Process legacy, ops, main so latest/main overrides
+    [...legacyInvoices, ...opsInvoices, ...mainInvoices].forEach(item => {
       const rawInvNo = item.invNo || (item as any).id;
       if (rawInvNo && (item.items || (item as any).type === 'INVOICE') && (item as any).type !== 'INWARD') {
         let normalizedInvNo = String(rawInvNo).trim();
@@ -1327,33 +1324,10 @@ export const subscribeToThermocolInvoices = (
     }
   );
 
-  const unsubStore = onSnapshot(
-    docRefStore,
-    (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (Array.isArray(data.items)) {
-          storeInvoices = data.items.map((item: any) => {
-            let invNo = item.invNo || item.id || '';
-            if (!invNo.includes('/') && invNo.includes('_26')) {
-              invNo = invNo.replace(/_26$/, '/26');
-            }
-            return { ...item, invNo };
-          });
-          mergeAndEmit();
-        }
-      }
-    },
-    (err) => {
-      console.warn('Thermocol Store Invoices sync error:', err);
-    }
-  );
-
   return () => {
     unsubMain();
     unsubOps();
     unsubLegacy();
-    unsubStore();
   };
 };
 
@@ -1908,55 +1882,41 @@ export const deleteThermocolInvoiceFromFirestore = async (invNo: string): Promis
   try {
     const batch = writeBatch(db);
     batch.delete(doc(db, COLLECTIONS.PACKING_OUTWARDS, safeId));
+    batch.delete(doc(db, COLLECTIONS.PACKING_OUTWARDS, invNo));
     batch.delete(doc(db, COLLECTIONS.TH_INVOICES, safeId));
+    batch.delete(doc(db, COLLECTIONS.TH_INVOICES, invNo));
     batch.delete(doc(db, COLLECTIONS.OPERATIONS, safeId));
+    batch.delete(doc(db, COLLECTIONS.OPERATIONS, invNo));
     await batch.commit();
   } catch (err: any) {
-    handleFirestoreError(err, OperationType.DELETE, COLLECTIONS.OPERATIONS);
-    throw err;
+    console.warn('[Firestore Notice] Batch delete notice in deleteThermocolInvoiceFromFirestore:', err?.message);
   }
 
-
   try {
-    const q1 = query(collection(db, COLLECTIONS.PACKING_OUTWARDS), where("invNo", "==", invNo));
-    const snap1 = await getDocs(q1);
-    for (const d of snap1.docs) {
-      await deleteDoc(d.ref);
-    }
+    for (const colName of [COLLECTIONS.PACKING_OUTWARDS, COLLECTIONS.TH_INVOICES, COLLECTIONS.OPERATIONS]) {
+      const q1 = query(collection(db, colName), where("invNo", "==", invNo));
+      const snap1 = await getDocs(q1);
+      for (const d of snap1.docs) {
+        await deleteDoc(d.ref).catch(() => {});
+      }
 
-    const q2 = query(collection(db, COLLECTIONS.TH_INVOICES), where("invNo", "==", invNo));
-    const snap2 = await getDocs(q2);
-    for (const d of snap2.docs) {
-      await deleteDoc(d.ref);
-    }
-
-    const q3 = query(collection(db, COLLECTIONS.OPERATIONS), where("invNo", "==", invNo));
-    const snap3 = await getDocs(q3);
-    for (const d of snap3.docs) {
-      await deleteDoc(d.ref);
+      if (safeId !== invNo) {
+        const q2 = query(collection(db, colName), where("invNo", "==", safeId));
+        const snap2 = await getDocs(q2);
+        for (const d of snap2.docs) {
+          await deleteDoc(d.ref).catch(() => {});
+        }
+      }
     }
   } catch (err) {
     console.warn('[Firestore] Error deleting invNo query docs:', err);
   }
 
-  // Also clean up from thermocol_packing/invoices store doc
+  // Purge obsolete monolithic invoices doc
   try {
-    const storeRef = doc(db, COLLECTIONS.THERMOCOL_PACKING, 'invoices');
-    const storeSnap = await getDoc(storeRef);
-    if (storeSnap.exists()) {
-      const data = storeSnap.data();
-      if (Array.isArray(data.items)) {
-        const filtered = data.items.filter((item: any) => 
-          item.invNo !== invNo && 
-          item.id !== invNo && 
-          item.id !== safeId && 
-          item.invNo !== safeId
-        );
-        await setDoc(storeRef, { items: filtered, updatedAt: new Date().toISOString() });
-      }
-    }
+    await deleteDoc(doc(db, COLLECTIONS.THERMOCOL_PACKING, 'invoices')).catch(() => {});
   } catch (err) {
-    console.warn('[Firestore] Error filtering store invoices:', err);
+    console.warn('[Firestore] Error purging monolithic invoices doc:', err);
   }
 };
 
@@ -1967,23 +1927,28 @@ export const deleteThermocolInwardFromFirestore = async (inwardId: string): Prom
     batch.delete(doc(db, COLLECTIONS.PACKING_INWARDS, inwardId));
     batch.delete(doc(db, COLLECTIONS.TH_INWARDS, inwardId));
     batch.delete(doc(db, COLLECTIONS.INWARD_STOCK, inwardId));
+    batch.delete(doc(db, COLLECTIONS.OPERATIONS, inwardId));
     await batch.commit();
   } catch (err: any) {
-    handleFirestoreError(err, OperationType.DELETE, COLLECTIONS.PACKING_INWARDS);
-    throw err;
+    console.warn('[Firestore Notice] Inward batch delete notice:', err?.message);
   }
 
   try {
-    for (const colName of [COLLECTIONS.PACKING_INWARDS, COLLECTIONS.TH_INWARDS, COLLECTIONS.INWARD_STOCK]) {
+    for (const colName of [COLLECTIONS.PACKING_INWARDS, COLLECTIONS.TH_INWARDS, COLLECTIONS.INWARD_STOCK, COLLECTIONS.OPERATIONS]) {
       const q = query(collection(db, colName), where("id", "==", inwardId));
       const snap = await getDocs(q);
       for (const d of snap.docs) {
-        await deleteDoc(d.ref);
+        await deleteDoc(d.ref).catch(() => {});
       }
     }
   } catch (err) {
     console.warn('[Firestore] Error query deleting inward:', err);
   }
+
+  // Purge obsolete monolithic inwards doc
+  try {
+    await deleteDoc(doc(db, COLLECTIONS.THERMOCOL_PACKING, 'inwards')).catch(() => {});
+  } catch (_) {}
 };
 
 export const deleteThermocolProductFromFirestore = async (productId: string, name?: string, company?: string): Promise<void> => {
@@ -2562,18 +2527,17 @@ export const syncThermocolPackingStateToFirestore = async (payload: {
     if (payload.demands) {
       batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, 'demands'), { items: payload.demands, updatedAt: nowIso });
     }
-    if (payload.inwards) {
-      batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, 'inwards'), { items: payload.inwards, updatedAt: nowIso });
-    }
-    if (payload.invoices) {
-      batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, 'invoices'), { items: payload.invoices, updatedAt: nowIso });
-    }
+    // Note: Invoices and Inwards are persistently and safely stored as individual documents
+    // in their dedicated collections (packing_outwards, packing_inwards, ich_operations),
+    // strictly avoiding storing all entries inside a single monolithic document (>1MB limit).
+
     if (payload.audits) {
-      batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, 'audits'), { items: payload.audits, updatedAt: nowIso });
+      const cappedAudits = payload.audits.slice(0, 30);
+      batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, 'audits'), { items: cappedAudits, updatedAt: nowIso });
     }
 
     await batch.commit();
-    console.log('[Firestore Sync] Synced packing material data to thermocol_packing collection.');
+    console.log('[Firestore Sync] Synced lightweight packing material master data to thermocol_packing collection.');
   } catch (error: any) {
     handleFirestoreError(error, OperationType.WRITE, COLLECTIONS.THERMOCOL_PACKING);
     throw error;

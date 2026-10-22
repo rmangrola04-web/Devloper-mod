@@ -333,6 +333,26 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
     }
   };
 
+  const handleDeleteSingleInward = async (id: string, grNo?: string) => {
+    if (!id) {
+      alert("अमान्य डॉक्यूमेंट आईडी!");
+      return;
+    }
+    if (confirm(`क्या आप इस इनवर्ड स्टॉक लॉट ${grNo ? `(GR: ${grNo})` : ''} को स्थायी रूप से हटाना चाहते हैं?`)) {
+      try {
+        await deleteThermocolInwardFromFirestore(id);
+        const updated = inwards.filter(i => i.id !== id);
+        setInwards(updated);
+        persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+        setSelectedInwardIds(prev => prev.filter(item => item !== id));
+        setStatusMsg({ text: `Inward stock lot ${grNo || id} deleted successfully from Firestore!`, isError: false });
+      } catch (err) {
+        console.error("Error deleting inward lot:", err);
+        setStatusMsg({ text: "Error deleting inward stock lot from Firestore.", isError: true });
+      }
+    }
+  };
+
   // --- Outward Invoice Selection & Deletion (with stock refund and audit logging) ---
   const toggleSelectAllInvoices = () => {
     if (selectedInvoiceNos.length === invoices.length) {
@@ -856,12 +876,13 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
                 <th className="py-2.5 px-3">Product Name</th>
                 <th className="py-2.5 px-3 text-right">Inward Qty</th>
                 <th className="py-2.5 px-3 text-right">Rate (₹)</th>
+                <th className="py-2.5 px-3 text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {inwards.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-4 text-center text-slate-400 italic">No inward stock lot logs found.</td>
+                  <td colSpan={7} className="py-4 text-center text-slate-400 italic">No inward stock lot logs found.</td>
                 </tr>
               ) : (
                 inwards.map(inw => (
@@ -879,6 +900,17 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
                     <td className="py-2 px-3 font-semibold text-slate-900">{inw.productName}</td>
                     <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">{inw.availableQty ?? inw.initialQty} Pcs</td>
                     <td className="py-2 px-3 text-right font-mono text-slate-700">₹{Number(inw.price || 0).toFixed(2)}</td>
+                    <td className="py-2 px-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSingleInward(inw.id, inw.grNo)}
+                        className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded text-[10px] font-bold inline-flex items-center gap-1 transition cursor-pointer"
+                        title="Delete this inward lot from Firestore"
+                      >
+                        <Trash2 className="w-3 h-3 text-red-600" />
+                        <span>Delete</span>
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}

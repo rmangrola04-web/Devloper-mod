@@ -25,8 +25,7 @@ import { Calendar,
   UserCheck,
   Timer,
   Eye,
-  EyeOff,
-  Smartphone
+  EyeOff
 } from 'lucide-react';
 import {
   UserAccount,
@@ -81,8 +80,6 @@ import { EditSecurityModal } from './components/EditSecurityModal';
 import { FinishLoadModal } from './components/FinishLoadModal';
 import { TransportMasterModal } from './components/TransportMasterModal';
 import { LocationMasterModal } from './components/LocationMasterModal';
-import { AndroidApkModal } from './components/AndroidApkModal';
-import { InstallBanner } from './components/InstallBanner';
 
 // Views
 import { DashboardView } from './views/DashboardView';
@@ -193,7 +190,6 @@ export default function App() {
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   const [isTransportModalOpen, setIsTransportModalOpen] = useState(false);
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [isAndroidModalOpen, setIsAndroidModalOpen] = useState(false);
 
   const [editingOperation, setEditingOperation] = useState<LoadUnloadEntry | null>(null);
   const [editingSecurity, setEditingSecurity] = useState<SecurityGateEntry | null>(null);
@@ -1439,22 +1435,12 @@ export default function App() {
               {isFullAccess && (
                 <button
                   onClick={() => setIsTransportModalOpen(true)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/90 px-3 py-1.5 rounded-xl text-xs font-semibold hidden sm:flex items-center gap-1.5 transition cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/90 px-3 py-1.5 rounded-xl text-xs font-semibold hidden sm:flex items-center gap-1.5 transition"
                 >
                   <Truck className="w-3.5 h-3.5 text-blue-600" />
                   <span>Transport Master</span>
                 </button>
               )}
-
-              {/* Android App / APK Modal Trigger */}
-              <button
-                onClick={() => setIsAndroidModalOpen(true)}
-                className="bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white border border-sky-400/40 px-3 py-1.5 rounded-xl text-xs font-bold hidden sm:flex items-center gap-1.5 transition shadow-sm cursor-pointer"
-                title="Android App & APK Installation"
-              >
-                <Smartphone className="w-3.5 h-3.5 text-white" />
-                <span>Android App</span>
-              </button>
 
               {/* Theme Mode Selector (Light Grey / Classic Light / Dark Tech) */}
               <div className="flex items-center bg-slate-100/90 dark:bg-slate-800 border border-slate-200/90 dark:border-slate-700 rounded-xl p-1 text-xs shadow-2xs">
@@ -1966,12 +1952,6 @@ export default function App() {
         onUpdateUnloadLocations={handleUpdateUnloadLocations}
       />
 
-      <AndroidApkModal
-        isOpen={isAndroidModalOpen}
-        onClose={() => setIsAndroidModalOpen(false)}
-        appVersion={appVersion}
-      />
-
       {editingOperation && (
         <EditOperationModal
           isOpen={true}
@@ -2008,7 +1988,6 @@ export default function App() {
         />
       )}
 
-      <InstallBanner />
 
     </div>
   );

@@ -1,42 +1,16 @@
 {
-  "name": "Remix Integrated Central Hub Indore - WMS",
-  "short_name": "Abbott WMS",
-  "description": "Enterprise Warehouse Management System for Integrated Central Hub Indore",
-  "start_url": "/",
-  "scope": "/",
+  "name": "WMS Indore Hub",
+  "short_name": "WMS Hub",
+  "start_url": ".",
   "display": "standalone",
-  "orientation": "portrait-primary",
   "background_color": "#0F172A",
-  "theme_color": "#0F172A",
-  "categories": ["business", "productivity", "utilities"],
+  "theme_color": "#0284C7",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ],
-  "shortcuts": [
-    {
-      "name": "Dashboard",
-      "short_name": "Dash",
-      "description": "Open WMS Live Dashboard",
-      "url": "/",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Gate Security",
-      "short_name": "Gate",
-      "description": "Open Gate Security Module",
-      "url": "/?view=gateSecView",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "src": "/vite.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

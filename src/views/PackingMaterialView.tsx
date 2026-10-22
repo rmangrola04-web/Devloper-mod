@@ -28,7 +28,7 @@ import {
   Package,
   Calendar
 } from 'lucide-react';
-import { db, collection, addDoc, updateDoc, doc } from '../firebase';
+import { db, collection, addDoc, updateDoc, deleteDoc, doc } from '../firebase';
 import { 
   SenderConfig, 
   ThermocolProduct, 
@@ -784,14 +784,11 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   };
 
   // Permanent Delete Invoice with Stock Reversal & Audit Log
+  // Permanent Delete Invoice with Stock Reversal & Audit Log
   const handleDeleteInvoice = async (invNo: string) => {
     const invToDelete = invoices.find(i => i.invNo === invNo);
     if (!invToDelete) {
-      alert(`Invoice ${invNo} was not found or has already been voided.`);
-      return;
-    }
-
-    if (!confirm(`Are you sure you want to permanently delete invoice ${invNo}? This will refund all dispatched stock quantities back into the available inventory ledger.`)) {
+      setEditMsg({ text: `Invoice ${invNo} was not found or has already been voided.`, isError: true });
       return;
     }
 
@@ -835,6 +832,16 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       });
     });
 
+    // Update local state immediately so UI updates instantaneously
+    const updatedInvoices = invoices.filter(i => i.invNo !== invNo);
+    const updatedAudits = [...newAuditEntries, ...invoiceAudits];
+    setInvoices(updatedInvoices);
+    setInwards(updatedInwards);
+    setInvoiceAudits(updatedAudits);
+    setEditForm(null);
+    setEditInvNo(updatedInvoices.length > 0 ? updatedInvoices[0].invNo : '');
+    persistStorage(products, parties, transporters, clientDemands, updatedInwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
+
     // Direct Firestore deletion & refund sync
     try {
       await deleteThermocolInvoiceFromFirestore(invNo);
@@ -842,10 +849,11 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       for (const aud of newAuditEntries) {
         await addThermocolAuditLog(aud);
       }
-      alert(`Invoice ${invNo} deleted successfully. Dispatched inventory has been refunded to available stock and audited.`);
-    } catch (err) {
+      setEditMsg({ text: `Invoice ${invNo} permanently deleted from Firestore and inventory refunded.`, isError: false });
+      setCsvStatusMsg({ text: `Invoice ${invNo} successfully deleted from cloud database.`, isError: false });
+    } catch (err: any) {
       console.warn('[Firestore] Error during invoice deletion sync:', err);
-      alert(`Error deleting invoice ${invNo}. Please check your connection.`);
+      setEditMsg({ text: `Error deleting invoice ${invNo} from cloud: ${err?.message || err}`, isError: true });
     }
   };
 
@@ -855,19 +863,18 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     const identifier = aud?.invNo || id;
     const targetId = aud?.id || id;
 
-    if (!confirm(`Are you sure you want to permanently delete this audit record (Invoice: ${identifier}) from history? This will permanently remove it from Firestore.`)) {
-      return;
-    }
+    // Update local state immediately
+    setInvoiceAudits(prev => prev.filter(a => a.id !== targetId && a.invNo !== identifier));
 
     try {
       await deleteThermocolAuditLogFromFirestore(targetId);
       if (aud?.invNo && aud.invNo !== targetId) {
         await deleteThermocolAuditLogFromFirestore(aud.invNo);
       }
-      alert(`Audit / cancellation history record for invoice ${identifier} deleted from Firestore.`);
-    } catch (err) {
+      setCsvStatusMsg({ text: `Audit record for invoice ${identifier} deleted from Firestore.`, isError: false });
+    } catch (err: any) {
       console.error('[Firestore] Error deleting audit log:', err);
-      alert(`Error deleting audit record for invoice ${identifier}.`);
+      setCsvStatusMsg({ text: `Error deleting audit record: ${err?.message || err}`, isError: true });
     }
   };
 
@@ -875,17 +882,19 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   const handlePurgeCancelledAudits = async () => {
     const cancelledCount = invoiceAudits.filter(a => a.action === 'CANCEL' || a.deletedAt).length;
     if (cancelledCount === 0) {
-      alert('No cancelled invoice history records to purge.');
+      setCsvStatusMsg({ text: 'No cancelled invoice history records to purge.', isError: false });
       return;
     }
-    if (confirm(`Are you sure you want to permanently delete and purge all ${cancelledCount} cancelled invoice history records from Firestore?`)) {
-      try {
-        await clearThermocolCancelledAuditsFromFirestore();
-        alert(`Purged ${cancelledCount} cancelled invoice records from Firestore.`);
-      } catch (err) {
-        console.error('[Firestore] Error purging cancelled audits:', err);
-        alert('Failed to purge records from database.');
-      }
+
+    // Update local state immediately
+    setInvoiceAudits(prev => prev.filter(a => a.action !== 'CANCEL' && !a.deletedAt));
+
+    try {
+      await clearThermocolCancelledAuditsFromFirestore();
+      setCsvStatusMsg({ text: `Purged ${cancelledCount} cancelled invoice records from Firestore.`, isError: false });
+    } catch (err: any) {
+      console.error('[Firestore] Error purging cancelled audits:', err);
+      setCsvStatusMsg({ text: `Failed to purge records: ${err?.message || err}`, isError: true });
     }
   };
 
@@ -1670,9 +1679,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     }
   };
 
-  const handleDeleteInward = async (id: string) => {
-    alert("Hard deletion of inward stock entries is permanently disabled to protect ledger integrity and prevent quantity overflows. Please use 'Write-Off' to adjust quantities.");
-  };
+  const handleDeleteInward = (id: string) => deleteInwardStockRow(id);
 
   const handleSaveEdit = async () => {
     if (!editInward) return;
@@ -1756,6 +1763,47 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       await deleteThermocolInwardFromFirestore(inw.id);
     }
   };
+
+  // User-defined real-time inward stock row deletion handler
+  const deleteInwardStockRow = async (docId: string) => {
+    if (!docId) {
+      console.warn("अमान्य डॉक्यूमेंट आईडी!");
+      return;
+    }
+    try {
+      // केवल इसी विशिष्ट रिकॉर्ड को फायरबेस से परमानेंटली डिलीट करेगा
+      await deleteDoc(doc(db, 'packing_inwards', docId));
+
+      // Also clean up companion collections so record does not reappear
+      await deleteThermocolInwardFromFirestore(docId).catch(() => {});
+
+      // लोकल स्टेट और यूआई तुरंत सिंक हो जाएगी
+      setInwards(prev => {
+        const updated = prev.filter(item => item.id !== docId);
+        persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+        return updated;
+      });
+
+      console.log("Inward stock record successfully deleted from Firestore:", docId);
+      setCsvStatusMsg({
+        text: `Inward stock lot (${docId}) permanently deleted from Firestore!`,
+        isError: false
+      });
+    } catch (err: any) {
+      console.error("Error deleting inward record:", err);
+      setCsvStatusMsg({
+        text: "डेटाबेस से डिलीट करने में विफल: " + (err?.message || String(err)),
+        isError: true
+      });
+    }
+  };
+
+  const deleteInwardEntry = deleteInwardStockRow;
+
+  useEffect(() => {
+    (window as any).deleteInwardStockRow = deleteInwardStockRow;
+    (window as any).deleteInwardEntry = deleteInwardStockRow;
+  }, [inwards, products, parties, transporters, clientDemands, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits]);
 
   const handleSaveStockEdit = async () => {
     if (!editProd) return;
@@ -3817,7 +3865,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                         <th className="py-2.5 px-2.5 text-right font-bold text-amber-300">11. Inv Value (₹)</th>
                         <th className="py-2.5 px-2.5">12. Pack</th>
                         <th className="py-2.5 px-2.5">13. Case</th>
-                        <th className="py-2.5 px-2.5 text-center">Actions</th>
+                        <th className="py-2.5 px-2.5 text-center">Actions / Delete</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -3871,7 +3919,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                               <td className="py-2 px-2.5 text-right font-mono font-bold text-blue-700">₹{invVal.toFixed(2)}</td>
                               <td className="py-2 px-2.5 text-slate-600">{inw.pack || inw.packSize || 'Box of 10'}</td>
                               <td className="py-2 px-2.5 text-slate-600 font-mono">{inw.caseCount || '10 Cases'}</td>
-                              <td className="py-2 px-2.5 text-center flex items-center justify-center">
+                              <td className="py-2 px-2.5 text-center flex items-center justify-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -3881,11 +3929,20 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                                     setInwardEditRate(String(rt));
                                     setInwardEditReason('');
                                   }}
-                                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-extrabold flex items-center gap-1 transition cursor-pointer"
+                                  className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded text-[10px] font-extrabold flex items-center gap-1 transition cursor-pointer"
                                   title="Write-Off or adjust stock quantity"
                                 >
                                   <Edit2 className="w-3 h-3 text-amber-700" />
                                   <span>Write-Off</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => (window as any).deleteInwardEntry(inw.id)}
+                                  className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 border border-red-200 rounded text-[10px] font-extrabold flex items-center gap-1 transition cursor-pointer"
+                                  title="स्थायी रूप से हटाएं (Permanently Delete from Firestore)"
+                                >
+                                  <Trash2 className="w-3 h-3 text-red-600" />
+                                  <span>Delete</span>
                                 </button>
                               </td>
                             </tr>

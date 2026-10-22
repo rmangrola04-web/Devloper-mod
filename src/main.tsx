@@ -4,15 +4,18 @@ import App from './App.tsx';
 import './index.css';
 
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        console.log('[ServiceWorker] Registered with scope:', registration.scope);
-      })
-      .catch((error) => {
-        console.warn('[ServiceWorker] Registration failed:', error);
-      });
-  });
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister();
+    }
+  }).catch(() => {});
+}
+if (typeof caches !== 'undefined') {
+  caches.keys().then((keys) => {
+    for (const key of keys) {
+      caches.delete(key);
+    }
+  }).catch(() => {});
 }
 
 window.addEventListener('unhandledrejection', (event) => {
