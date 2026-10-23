@@ -5,7 +5,7 @@ import { TaxInvoiceModalOverlay } from './TaxInvoiceModalOverlay';
 import { OutwardStockTransferInvoiceDoc } from './OutwardStockTransferInvoiceDoc';
 import { isIndoreDestination, formatDateDDMMYYYY } from './utils';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export { TaxInvoiceModalOverlay };
 
@@ -174,7 +174,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
       `₹${it.lineFinalTotal.toFixed(2)}`
     ]);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [['Sr', 'Product Description', 'HSN', 'Batch', 'Pack', 'Cases', 'Qty', 'Rate', 'Taxable', 'GST', 'Total']],
       body: tableRows,
       startY: 30,

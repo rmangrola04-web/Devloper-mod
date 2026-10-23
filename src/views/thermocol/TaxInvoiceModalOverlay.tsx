@@ -16,7 +16,7 @@ import { ThermocolInvoice } from './types';
 import { isIndoreDestination, exportSapDispatchCsvHelper, formatDateDDMMYYYY } from './utils';
 import { OutwardStockTransferInvoiceDoc } from './OutwardStockTransferInvoiceDoc';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface TaxInvoiceModalOverlayProps {
   invoice: ThermocolInvoice;
@@ -207,7 +207,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
       `₹${it.lineFinalTotal.toFixed(2)}`
     ]);
 
-    (doc as any).autoTable({
+    autoTable(doc, {
       head: [['Sr', 'Product Description', 'HSN', 'Batch', 'Pack', 'Cases', 'Qty', 'Rate', 'Taxable', 'GST', 'Total']],
       body: tableRows,
       startY: 30,

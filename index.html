@@ -131,7 +131,7 @@
          ========================================================================= */
       @page {
         size: A4;
-        margin: 10mm;
+        margin: 5mm;
       }
 
       @media print {
@@ -161,6 +161,10 @@
         /* अगर इनवॉइस लंबी है तो यह सुनिश्चित करेगा कि सामग्री कटे नहीं बल्कि अगले पेज पर चली जाए */
         .page-break {
           page-break-after: always;
+        }
+        tr, td, th {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
         }
 
         /* 2. Disable All Overflow Scrollbars & Scrolling Indicators */

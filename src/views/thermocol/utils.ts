@@ -749,8 +749,8 @@ export function generateSapDispatchCsvContent(invoices: ThermocolInvoice[]): str
       const cases = it.cases ?? (it.packSizeMultiple > 0 ? Math.ceil(it.qty / it.packSizeMultiple) : 1);
       const taxable = Number(it.taxableValue || (it.qty * it.rate)).toFixed(2);
       const igstRate = isIndore ? 0 : (it.gstRate || 18);
-      const igstAmtNum = isIndore ? 0 : (it.gstValue ?? Number((Number(taxable) * 0.18).toFixed(2)));
-      const igstAmt = igstAmtNum.toFixed(2);
+      const igstAmtNum = Number(isIndore ? 0 : (it.gstValue !== undefined && it.gstValue !== null ? Number(it.gstValue) : (Number(taxable) * 0.18)));
+      const igstAmt = Number.isNaN(igstAmtNum) ? "0.00" : igstAmtNum.toFixed(2);
       const totalLineAmt = isIndore ? taxable : (Number(taxable) + igstAmtNum).toFixed(2);
 
       // Create pristine 239-column row

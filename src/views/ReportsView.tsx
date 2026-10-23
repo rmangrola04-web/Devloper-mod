@@ -3,7 +3,7 @@ import { FileSpreadsheet, FileText, Mail, Upload, UserCheck, Truck, CheckCircle2
 import { PlanEntry, LoadUnloadEntry, SecurityGateEntry } from '../types';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { matchesWmsDateFilter, getOpRecordDate, getGateRecordDate, getPlanRecordDate, normalizeWmsDate } from '../utils/wmsDataEngine';
 
 interface ReportsViewProps {
@@ -819,7 +819,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         `${t.ailCount} AIL / ${t.ahplCount} AHPL`
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['Transporter', 'Loading Vehicles', 'Loaded Cases', 'Unloading Vehicles', 'Unloaded Cases', 'Total Ops', 'Total Cases', 'Division']],
         body: tableRows,
         startY: 28,
@@ -846,7 +846,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         ];
       });
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['Type', 'Vehicle', 'Transporter', 'Div', 'Location Stop', 'Dock', 'Supervisor', 'Cases', 'Seal No', 'In-Time', 'Exit Time', 'TAT', 'Status']],
         body: tableRows,
         startY: 28,
@@ -864,7 +864,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         p.transporter
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['Delivery No', 'Code', 'Unit', 'Destination', 'Weight', 'CFT', 'V.Type', 'Transporter']],
         body: tableRows,
         startY: 28,
@@ -884,7 +884,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({
         g.remarks
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         head: [['Purpose', 'Unit', 'GR No', 'Vehicle', 'V.Type', 'Transporter', 'Mobile', 'Route (From -> To)', 'Date Time', 'Remarks']],
         body: tableRows,
         startY: 28,
