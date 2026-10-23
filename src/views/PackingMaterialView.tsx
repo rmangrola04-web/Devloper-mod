@@ -73,6 +73,7 @@ import { DataCleanupView } from './thermocol/DataCleanupView';
 import { OutwardOrderEntryForm } from './thermocol/OutwardOrderEntryForm';
 import { InvoiceAuditLogView } from './thermocol/InvoiceAuditLogView';
 import { SynchronizedTableScroll } from '../components/SynchronizedTableScroll';
+import { normalizeWmsDate } from '../utils/wmsDataEngine';
 import {
   subscribeToAllIchOperations,
   subscribeToThermocolInwards,
@@ -903,7 +904,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   // Module E: Reports & Stock Status Calculations (Company-Wise Segregation)
   // ----------------------------------------------------
   const [reportCompanyFilter, setReportCompanyFilter] = useState<'AIL' | 'HPL' | 'ALL'>(() => selectedCompany);
-  const [reportSearch, setReportSearch] = useState('');
+  const [reportDateFilter, setReportDateFilter] = useState('');
   const [reportView, setReportView] = useState<'summary' | 'detailed'>('summary');
 
   // Sync reportCompanyFilter whenever active company changes in top switcher
@@ -911,23 +912,18 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     setReportCompanyFilter(selectedCompany);
   }, [selectedCompany]);
 
-  // Filtered invoices segregated by active company filter
+  // Filtered invoices segregated by active company filter and date filter
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
       const comp = getInvoiceCompany(inv);
       if (reportCompanyFilter !== 'ALL' && comp !== reportCompanyFilter) {
         return false;
       }
-      const s = reportSearch.toLowerCase();
-      if (!s) return true;
-      return (
-        inv.invNo.toLowerCase().includes(s) ||
-        inv.partyName.toLowerCase().includes(s) ||
-        inv.transName.toLowerCase().includes(s) ||
-        inv.vehicleNo.toLowerCase().includes(s)
-      );
+      if (!reportDateFilter) return true;
+      const invNorm = normalizeWmsDate(inv.date);
+      return invNorm === reportDateFilter || (inv.date && inv.date.includes(reportDateFilter));
     });
-  }, [invoices, reportCompanyFilter, reportSearch]);
+  }, [invoices, reportCompanyFilter, reportDateFilter]);
 
   // Aggregate Summary KPI Metrics for the filtered report invoices
   const reportMetrics = useMemo(() => {
@@ -1165,15 +1161,11 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       if (reportCompanyFilter !== 'ALL' && comp !== reportCompanyFilter) {
         return false;
       }
-      const s = reportSearch.toLowerCase();
-      if (!s) return true;
-      return (
-        aud.invNo.toLowerCase().includes(s) ||
-        aud.partyName.toLowerCase().includes(s) ||
-        aud.productName.toLowerCase().includes(s)
-      );
+      if (!reportDateFilter) return true;
+      const audNorm = normalizeWmsDate(aud.deletedAt || '');
+      return audNorm === reportDateFilter || (aud.deletedAt && aud.deletedAt.includes(reportDateFilter));
     });
-  }, [invoiceAudits, reportCompanyFilter, reportSearch]);
+  }, [invoiceAudits, reportCompanyFilter, reportDateFilter]);
 
   const exportAuditCsv = () => {
     if (filteredAudits.length === 0) {
@@ -2991,15 +2983,23 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                   </div>
 
                   <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <div className="relative w-full sm:w-64">
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1">
+                      <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="text-xs font-bold text-slate-700">तारीख चुनें:</span>
                       <input
-                        type="text"
-                        value={reportSearch}
-                        onChange={(e) => setReportSearch(e.target.value)}
-                        placeholder="Search invoice, client..."
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs outline-none"
+                        type="date"
+                        value={reportDateFilter}
+                        onChange={(e) => setReportDateFilter(e.target.value)}
+                        className="bg-transparent text-xs outline-none font-medium text-slate-800 cursor-pointer"
                       />
+                      {reportDateFilter && (
+                        <button
+                          onClick={() => setReportDateFilter('')}
+                          className="text-[10px] text-blue-600 hover:underline font-semibold cursor-pointer ml-1"
+                        >
+                          Clear
+                        </button>
+                      )}
                     </div>
                     <button
                       onClick={reportView === 'summary' ? exportSummaryCsv : exportDetailedCsv}
