@@ -21,6 +21,7 @@ export interface ThermocolProduct {
   cft: number; // Cubic feet per unit
   stock?: number;
   category?: string; // Product Category
+  updatedAt?: string;
 }
 
 export interface ThermocolParty {
@@ -40,6 +41,7 @@ export interface ThermocolTransporter {
   name: string;
   company?: 'AIL' | 'HPL';
   gstin: string;
+  updatedAt?: string;
 }
 
 export interface ClientDemand {

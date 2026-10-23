@@ -130,12 +130,12 @@
          Strict Landscape A4 Print Layout for Outward Tax Invoice & Stock Transfer Note
          ========================================================================= */
       @page {
-        size: A4 landscape;
-        margin: 4mm;
+        size: A4;
+        margin: 10mm;
       }
 
       @media print {
-        /* 1. Global Print Reset: Natural Printable A4 Landscape Dimensions */
+        /* 1. Global Print Reset: Natural Printable A4 Dimensions */
         html, body {
           width: 100% !important;
           max-width: 100% !important;
@@ -151,6 +151,16 @@
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
           overflow: visible !important;
+        }
+        .invoice-box, .invoice-container {
+          width: 100% !important;
+          max-width: 100% !important;
+          box-shadow: none !important;
+          border: none !important;
+        }
+        /* अगर इनवॉइस लंबी है तो यह सुनिश्चित करेगा कि सामग्री कटे नहीं बल्कि अगले पेज पर चली जाए */
+        .page-break {
+          page-break-after: always;
         }
 
         /* 2. Disable All Overflow Scrollbars & Scrolling Indicators */
