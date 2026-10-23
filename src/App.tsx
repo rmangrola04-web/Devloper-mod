@@ -67,7 +67,6 @@ import {
   saveUserToFirestore,
   syncMasterListToFirestore,
   fetchIchOperationsWithGetDocs,
-  withTimeout,
   COLLECTIONS
 } from './services/firestoreService';
 
@@ -279,18 +278,9 @@ export default function App() {
     const fetchStartupOps = async () => {
       try {
         console.log('[Firestore Startup] Fetching collection ich_operations via getDocs...');
-        const res = await withTimeout(fetchIchOperationsWithGetDocs(), 2000, {
-          operations: [],
-          inwards: [],
-          invoices: [],
-          audits: [],
-          products: [],
-          parties: [],
-          transporters: [],
-          demands: []
-        });
-        if (isMounted) {
-          setLoadEntries(prev => (res.operations && res.operations.length > 0) ? res.operations : (prev ?? []));
+        const res = await fetchIchOperationsWithGetDocs();
+        if (isMounted && res.operations && res.operations.length > 0) {
+          setLoadEntries(res.operations);
         }
       } catch (err) {
         console.warn('[Firestore Startup] Error fetching ich_operations with getDocs:', err);
@@ -977,21 +967,8 @@ export default function App() {
   const isSupervisor = currentUser.role === 'SUPERVISOR';
   const isFullAccess = currentUser.role === 'ADMIN' || currentUser.role === 'OPERATOR';
 
-  // 2. Main Application Screen (Resilient & Non-blocking Loading Architecture)
-  const [initialLoadBypassed, setInitialLoadBypassed] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setInitialLoadBypassed(true);
-      setPlanEntries(prev => prev ?? []);
-      setArchivedPlanEntries(prev => prev ?? []);
-      setLoadEntries(prev => prev ?? []);
-      setSecurityLogs(prev => prev ?? []);
-      setTrackingRecords(prev => prev ?? []);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const isLoaded = initialLoadBypassed || (planEntries !== null && archivedPlanEntries !== null && loadEntries !== null && securityLogs !== null && trackingRecords !== null);
+  // 2. Main Application Screen (High Density Architecture)
+  const isLoaded = loadLocations !== null && unloadLocations !== null && supervisors !== null && transporters !== null && vehicleTypes !== null && planEntries !== null && archivedPlanEntries !== null && loadEntries !== null && securityLogs !== null && trackingRecords !== null;
 
   if (!isLoaded) {
     return (

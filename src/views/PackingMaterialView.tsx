@@ -105,11 +105,10 @@ import {
   saveThermocolAuditsToFirestore,
   saveThermocolSequencesToFirestore,
   incrementInvoiceSequenceAndSave,
+  subscribeToThermocolPackingStore,
   syncThermocolPackingStateToFirestore,
   fetchIchOperationsWithGetDocs,
   fetchInvoicesFromIchOperations,
-  fetchInvoicesFromPackingOutwards,
-  cleanupObsoleteMonolithicDocs,
   withTimeout,
   COLLECTIONS
 } from '../services/firestoreService';
@@ -219,26 +218,13 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   // ----------------------------------------------------
   useEffect(() => {
     let isMounted = true;
-
-    // Purge obsolete bloated monolithic docs from Firestore in the background
-    cleanupObsoleteMonolithicDocs().catch(() => {});
-
-    // Immediate startup fetch from lightweight individual collections with strict timeout
+    // Immediate startup fetch from ich_operations using getDocs for instant data restoration
     const fetchExistingIchOperations = async () => {
       try {
-        console.log('[Firestore Startup] Fetching initial packing material data smoothly...');
+        console.log('[Firestore Startup] Explicit getDocs fetching ich_operations in PackingMaterialView...');
         const [res, directInvoices] = await Promise.all([
-          withTimeout(fetchIchOperationsWithGetDocs(), 2000, {
-            operations: [],
-            inwards: [],
-            invoices: [],
-            audits: [],
-            products: [],
-            parties: [],
-            transporters: [],
-            demands: []
-          }),
-          withTimeout(fetchInvoicesFromPackingOutwards(), 2000, [])
+          fetchIchOperationsWithGetDocs(),
+          fetchInvoicesFromIchOperations()
         ]);
         if (!isMounted) return;
 
@@ -246,12 +232,10 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
           setInwards(res.inwards.map(i => ({ ...i, company: normalizeCompany(i.company) })));
         }
 
-        // Merge invoices safely (individual docs from packing_outwards primary, operations secondary)
+        // Merge invoices from both parsers for maximum resilience
         const invoiceMap = new Map<string, ThermocolInvoice>();
+        (res.invoices || []).forEach(inv => invoiceMap.set(inv.invNo, inv));
         (directInvoices || []).forEach(inv => invoiceMap.set(inv.invNo, inv));
-        (res.invoices || []).forEach(inv => {
-          if (!invoiceMap.has(inv.invNo)) invoiceMap.set(inv.invNo, inv);
-        });
 
         if (invoiceMap.size > 0) {
           const mergedInvoices = Array.from(invoiceMap.values()).map(inv => ({
@@ -283,7 +267,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
           setClientDemands(res.demands);
         }
       } catch (err) {
-        console.warn('[Firestore Startup] Non-blocking notice during initial data fetch in PackingMaterialView:', err);
+        console.warn('[Firestore Startup] Error fetching ich_operations via getDocs in PackingMaterialView:', err);
       }
     };
     fetchExistingIchOperations();
@@ -574,7 +558,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   useEffect(() => {
     if ((activeTab === 'previewPrintTab' || activeTab === 'reportTab') && invoices.length === 0) {
       console.log(`[Firestore Tab Sync] Direct query for invoices in ${activeTab}...`);
-      withTimeout(fetchInvoicesFromPackingOutwards(), 2000, []).then(loadedInvoices => {
+      fetchInvoicesFromIchOperations().then(loadedInvoices => {
         if (loadedInvoices && loadedInvoices.length > 0) {
           setInvoices(prev => {
             const map = new Map<string, ThermocolInvoice>();
