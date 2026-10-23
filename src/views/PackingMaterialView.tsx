@@ -72,6 +72,7 @@ import { TaxInvoiceModal, TaxInvoiceModalOverlay } from './thermocol/TaxInvoiceM
 import { DataCleanupView } from './thermocol/DataCleanupView';
 import { OutwardOrderEntryForm } from './thermocol/OutwardOrderEntryForm';
 import { InvoiceAuditLogView } from './thermocol/InvoiceAuditLogView';
+import { SynchronizedTableScroll } from '../components/SynchronizedTableScroll';
 import {
   subscribeToAllIchOperations,
   subscribeToThermocolInwards,
@@ -3019,7 +3020,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                 </div>
 
                 {reportView === 'summary' ? (
-                  <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <SynchronizedTableScroll className="rounded-lg border border-slate-200">
                     <table className="w-full text-xs text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
@@ -3118,7 +3119,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                         )}
                       </tbody>
                     </table>
-                  </div>
+                  </SynchronizedTableScroll>
                 ) : (
                   <div className="overflow-x-auto rounded-lg border border-slate-200">
                     <table className="w-full text-xs text-left border-collapse">
