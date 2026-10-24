@@ -15,7 +15,7 @@
     body {
       font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
       background-color: #4b5563;
-      color: #000000;
+      color: #333333;
       padding: 16px 8px;
       font-size: 11px;
       line-height: 1.3;
@@ -87,12 +87,7 @@
       transition: all 0.15s ease;
     }
 
-    .btn-test:hover {
-      background-color: #316599;
-      color: #ffffff;
-      border-color: #316599;
-    }
-
+    .btn-test:hover,
     .btn-test.active {
       background-color: #316599;
       color: #ffffff;
@@ -142,18 +137,6 @@
     #invoicePagesContainer {
       max-width: 297mm;
       margin: 0 auto;
-    }
-
-    /* Hidden Sandbox for Exact DOM Height Measurement */
-    #domMeasurementSandbox {
-      position: absolute;
-      left: -9999px;
-      top: -9999px;
-      width: 297mm;
-      visibility: hidden;
-      pointer-events: none;
-      box-sizing: border-box;
-      padding: 6mm 8mm;
     }
 
     /* ==========================================================================
@@ -206,7 +189,21 @@
       print-color-adjust: exact;
     }
 
-    /* हल्का ग्रे-ब्लू टोन जो सब-हेडर्स में है */
+    .flex-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+
+    /* --------------------------------------------------------------------------
+       2. Parties Section: Consignor & Consignee Details Side-by-Side
+       -------------------------------------------------------------------------- */
+    .section-box {
+      border: 1px solid #b0b0b0;
+      margin-bottom: 5px;
+      background-color: #ffffff;
+    }
+
     .section-title {
       background-color: #e6ecf2; 
       font-weight: bold;
@@ -220,43 +217,24 @@
       print-color-adjust: exact;
     }
 
-    .flex-row {
+    .details-grid {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      width: 100%;
     }
 
-    /* --------------------------------------------------------------------------
-       2. Parties Section: Consignor & Consignee Side-by-Side
-       -------------------------------------------------------------------------- */
-    .party-details-grid {
-      display: flex;
-      gap: 5px;
-      margin-bottom: 4px;
-    }
-
-    .party-card {
+    .details-col {
       flex: 1;
-      border: 1px solid #b0b0b0;
-      background-color: #ffffff;
-      font-size: 9px;
-      line-height: 1.3;
-      overflow: hidden;
+      padding: 6px;
+      font-size: 10px;
+      line-height: 1.35;
     }
 
-    .party-card-body {
-      padding: 6px 8px;
-    }
-
-    .party-name {
-      font-size: 9.5px;
-      font-weight: 700;
-      color: #000000;
-      margin-bottom: 2px;
+    .details-col:first-child {
+      border-right: 1px solid #b0b0b0;
     }
 
     /* --------------------------------------------------------------------------
-       3. Line Items Table (#316599 Header, #b0b0b0 Thin Borders)
+       3. Line Items Table (Single-Row #f0f0f0 Header, #b0b0b0 Thin Borders)
        -------------------------------------------------------------------------- */
     .table-container {
       width: 100%;
@@ -267,68 +245,34 @@
       width: 100%;
       border-collapse: collapse;
       border: 1px solid #b0b0b0;
-      font-size: 9px;
+      font-size: 10px;
+      margin-top: 0;
     }
 
     table.invoice-items-table th,
     table.invoice-items-table td {
       border: 1px solid #b0b0b0;
-      padding: 3.5px 5px;
+      padding: 4px 5px;
       line-height: 1.25;
       vertical-align: middle;
+      font-size: 10px;
     }
 
     table.invoice-items-table th {
-      background-color: #316599 !important;
-      color: #ffffff !important;
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 8.5px;
-      letter-spacing: 0.3px;
+      background-color: #f0f0f0 !important;
+      color: #000000 !important;
+      font-weight: bold;
       text-align: center;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
 
-    table.invoice-items-table td.col-sr {
+    .text-right {
+      text-align: right;
+    }
+
+    .text-center {
       text-align: center;
-      width: 32px;
-      font-family: Consolas, monospace;
-    }
-    table.invoice-items-table td.col-desc {
-      text-align: left;
-      font-weight: 600;
-    }
-    table.invoice-items-table td.col-hsn {
-      text-align: center;
-      width: 65px;
-      font-family: Consolas, monospace;
-    }
-    table.invoice-items-table td.col-qty {
-      text-align: right;
-      width: 55px;
-      font-weight: 700;
-      font-family: Consolas, monospace;
-    }
-    table.invoice-items-table td.col-unit {
-      text-align: center;
-      width: 45px;
-    }
-    table.invoice-items-table td.col-rate {
-      text-align: right;
-      width: 65px;
-      font-family: Consolas, monospace;
-    }
-    table.invoice-items-table td.col-taxable {
-      text-align: right;
-      width: 75px;
-      font-family: Consolas, monospace;
-    }
-    table.invoice-items-table td.col-total {
-      text-align: right;
-      width: 80px;
-      font-weight: 700;
-      font-family: Consolas, monospace;
     }
 
     /* Continuation Notice on non-final pages (STRICTLY IN ENGLISH) */
@@ -483,8 +427,7 @@
       }
 
       .no-print,
-      .action-bar-wrapper,
-      #domMeasurementSandbox {
+      .action-bar-wrapper {
         display: none !important;
       }
 
@@ -518,9 +461,7 @@
         break-after: avoid !important;
       }
 
-      /* Guarantee Color & Border Preservation in Print */
-      .header-blue,
-      table.invoice-items-table th {
+      .header-blue {
         background-color: #316599 !important;
         color: #ffffff !important;
         -webkit-print-color-adjust: exact !important;
@@ -534,8 +475,17 @@
         print-color-adjust: exact !important;
       }
 
+      table.invoice-items-table th {
+        background-color: #f0f0f0 !important;
+        color: #000000 !important;
+        font-weight: bold !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
       .company-header,
-      .party-card,
+      .section-box,
+      .details-col,
       table.invoice-items-table,
       table.invoice-items-table th,
       table.invoice-items-table td,
@@ -573,7 +523,7 @@
           <button class="btn-test" onclick="loadPreset(35)">35 Items (3 Pages)</button>
         </div>
 
-        <!-- Primary Requested Buttons -->
+        <!-- Primary Working Buttons -->
         <div class="action-buttons">
           <button id="downloadHtmlBtn" class="btn btn-download-html" onclick="downloadCurrentInvoiceHtml()" title="Save standalone HTML file">
             📁 Download HTML
@@ -589,22 +539,13 @@
   <!-- Primary Render Target -->
   <div id="invoicePagesContainer"></div>
 
-  <!-- Measurement Sandbox for True Natural DOM Auto-Fit Calculation -->
-  <div id="domMeasurementSandbox"></div>
-
   <!-- JavaScript Engine for Natural Auto-Fit & Multi-Page Pagination -->
   <script>
     /**
      * WMS Thermocol Tax Invoice Engine (A4 Landscape)
-     * Layout: 297mm width x 210mm height
-     *
-     * Natural Content-Based Pagination Logic:
-     * - Does NOT use hardcoded row count limits.
-     * - The printable usable height for A4 landscape with 3mm margin & 6mm padding is ~194mm (~733px).
-     * - When items overflow the available printable height of the first page, subsequent pages are generated.
-     * - "To be continued..." appears strictly in English at the bottom-right of non-final pages.
-     * - Bottom summary totals, transporter details, consignment metrics, and signatures appear ONLY on the last page.
-     * - Dynamic page numbering "Page X of Y" is placed in the footer of every page.
+     * Header Left: Single 'ABBOTT' + single 'ABBOTT INDIA LIMITED'
+     * Header Right: #316599 title box, Invoice No, Invoice Date, Place of Supply (LR/GR removed)
+     * Table: 13 single-row columns matching exact percentage widths with #f0f0f0 background
      */
 
     // Indian Currency Number to Words Formatter
@@ -649,32 +590,34 @@
 
     // Default Thermocol Stock Transfer Invoice Dataset
     const invoiceState = {
-      invoiceNo: "STN/2026/0491",
-      date: "2026-10-24",
-      placeOfSupply: "Madhya Pradesh (23)",
-      eWayBillNo: "3810 9942 8120",
+      invoiceNo: "AILICH-426/26",
+      date: "23-10-2026",
+      placeOfSupply: "CUTTACK",
       poReference: "PO-WH-IND-9921",
       reverseCharge: "No",
 
-      // Consignor (Shipped & Dispatched From)
+      // Consignor Details
       consignor: {
-        name: "ABBOTT HEALTHCARE PRIVATE LIMITED",
-        subDivision: "Central Warehousing & Logistics Division",
-        address: "Survey No 52/2/2, Peer Karadiya, Kshipra Road, Tehsil - Sanwer, Indore - 453771 (M.P.)",
-        gstin: "23AAACA0231P1Z1",
-        pan: "AAACA0231P",
+        name: "ABBOTT INDIA LIMITED",
+        address: "Survey No 52/2/2, 52/2/1, 58 & 59, Village - Peer Karadiya, Kshipra Road, Tehsil – Sanwer, A.B. Road, Indore – 453771, Madhya Pradesh",
+        gstin: "23AAACB5170B1ZE",
+        pan: "AAACB5170B",
+        cin: "L24239MH1944PLC007330",
         state: "Madhya Pradesh",
-        stateCode: "23"
+        stateCode: "23",
+        contact: "+91 9285061000"
       },
 
-      // Consignee (Billed To / Stock Transfer Destination)
+      // Consignee Details
       consignee: {
-        name: "ABBOTT INDIA LIMITED - AHMEDABAD REGIONAL DEPOT",
+        name: "ABBOTT HEALTHCARE PRIVATE LIMITED",
         address: "Plot No. 14/B, Changodar Industrial Estate, Sanand, Ahmedabad - 382213 (Gujarat)",
         gstin: "24AAACA0231P1ZA",
         pan: "AAACA0231P",
         state: "Gujarat",
-        stateCode: "24"
+        stateCode: "24",
+        city: "CUTTACK",
+        pincode: "753001"
       },
 
       // Logistics & Consignment Metrics
@@ -682,60 +625,44 @@
         name: "SafeXpress Logistics Pvt. Ltd.",
         vehicleNo: "MP-09-GH-8821",
         lrNo: "LR-7729108",
-        lrDate: "2026-10-24",
+        lrDate: "23-10-2026",
         numberOfCases: "184 Boxes",
         grossWeight: "1,420 KGS",
         netWeight: "1,290 KGS",
-        volumeCft: "480 CFT",
-        driverPhone: "+91 98260 11223"
+        volumeCft: "480 CFT"
       },
 
       items: []
     };
 
-    // Realistic Packaging & Thermocol Products
+    // Realistic Packaging & Thermocol Products Catalog
     const thermocolProductCatalog = [
-      { name: 'Thermocol Box 12 Litre Molded EPS High Density (28mm Wall)', hsn: '39239090', unit: 'NOS', rate: 145.00 },
-      { name: 'Thermocol Box 24 Litre Cold Chain Vaccine Ice Box', hsn: '39239090', unit: 'NOS', rate: 215.00 },
-      { name: 'Thermocol Box 36 Litre Insulated Pharmaceutical Shipper', hsn: '39239090', unit: 'NOS', rate: 320.00 },
-      { name: 'Thermocol Lid Top Cover EPS 25mm thickness interlocking', hsn: '39239090', unit: 'NOS', rate: 45.00 },
-      { name: 'Thermocol Corner Protector 3-Way Heavy Duty Molded', hsn: '39239090', unit: 'NOS', rate: 18.50 },
-      { name: 'Thermocol Sheet 50mm High Density EPS Insulation Plate', hsn: '39239090', unit: 'SHT', rate: 180.00 },
-      { name: 'Thermocol Partition Separator Plate 6 Cavity Vial Tray', hsn: '39239090', unit: 'NOS', rate: 65.00 },
-      { name: 'HDPE Gel Pack Bottle 500ml Phase Change Cold Coolant', hsn: '38249900', unit: 'NOS', rate: 38.00 },
-      { name: 'Corrugated Outer Shipper 7-Ply Heavy Master Box (Kraft)', hsn: '48191010', unit: 'NOS', rate: 95.00 },
-      { name: 'BOPP Self Adhesive Transparent Packaging Tape 3" x 65M', hsn: '39191000', unit: 'ROL', rate: 58.00 },
-      { name: 'Thermal Insulation Air Bubble Roll 1.2m x 50m Heavy Grade', hsn: '39269099', unit: 'ROL', rate: 840.00 },
-      { name: 'Polyethylene Stretch Wrap Film 23 Micron Industrial Cast', hsn: '39201019', unit: 'ROL', rate: 420.00 },
-      { name: 'Moisture Barrier Silica Gel Desiccant Sachet 100g Bag', hsn: '28112200', unit: 'PKT', rate: 22.00 },
-      { name: 'Fragile Handle With Care Temperature Sensitive Warning Label', hsn: '48211010', unit: 'ROL', rate: 140.00 },
-      { name: 'Thermocol Base Tray 10 Cavity Ampoule Safety Cushioning', hsn: '39239090', unit: 'NOS', rate: 52.00 },
-      { name: 'Molded Pulp Edge Board Corner Protector Strip 50x50x4mm', hsn: '48239090', unit: 'NOS', rate: 28.00 }
+      { name: 'Thermocol Box 12 Litre Molded EPS High Density (28mm Wall)', hsn: '39231100', unit: 'NOS', rate: 145.00, batch: 'LOT-A12-01', exp: '10/2028', packSizeMultiple: 10 },
+      { name: 'Thermocol Box 24 Litre Cold Chain Vaccine Ice Box', hsn: '39231100', unit: 'NOS', rate: 215.00, batch: 'LOT-A24-04', exp: '11/2028', packSizeMultiple: 8 },
+      { name: 'Thermocol Box 36 Litre Insulated Pharmaceutical Shipper', hsn: '39231100', unit: 'NOS', rate: 320.00, batch: 'LOT-A36-09', exp: '12/2028', packSizeMultiple: 6 },
+      { name: 'Thermocol Lid Top Cover EPS 25mm thickness interlocking', hsn: '39231100', unit: 'NOS', rate: 45.00, batch: 'LOT-LID-12', exp: '09/2028', packSizeMultiple: 20 },
+      { name: 'Thermocol Corner Protector 3-Way Heavy Duty Molded', hsn: '39231100', unit: 'NOS', rate: 18.50, batch: 'LOT-CP-08', exp: '08/2028', packSizeMultiple: 50 },
+      { name: 'Thermocol Sheet 50mm High Density EPS Insulation Plate', hsn: '39231100', unit: 'SHT', rate: 180.00, batch: 'LOT-SHT-15', exp: '07/2028', packSizeMultiple: 12 },
+      { name: 'Thermocol Partition Separator Plate 6 Cavity Vial Tray', hsn: '39231100', unit: 'NOS', rate: 65.00, batch: 'LOT-TR-22', exp: '06/2028', packSizeMultiple: 25 },
+      { name: 'HDPE Gel Pack Bottle 500ml Phase Change Cold Coolant', hsn: '38249900', unit: 'NOS', rate: 38.00, batch: 'LOT-GP-90', exp: '05/2028', packSizeMultiple: 30 },
+      { name: 'Corrugated Outer Shipper 7-Ply Heavy Master Box (Kraft)', hsn: '48191010', unit: 'NOS', rate: 95.00, batch: 'LOT-BX-33', exp: '04/2028', packSizeMultiple: 15 },
+      { name: 'BOPP Self Adhesive Transparent Packaging Tape 3" x 65M', hsn: '39191000', unit: 'ROL', rate: 58.00, batch: 'LOT-TP-77', exp: '03/2028', packSizeMultiple: 36 },
+      { name: 'Thermal Insulation Air Bubble Roll 1.2m x 50m Heavy Grade', hsn: '39269099', unit: 'ROL', rate: 840.00, batch: 'LOT-BR-11', exp: '02/2028', packSizeMultiple: 4 },
+      { name: 'Polyethylene Stretch Wrap Film 23 Micron Industrial Cast', hsn: '39201019', unit: 'ROL', rate: 420.00, batch: 'LOT-SW-05', exp: '01/2028', packSizeMultiple: 6 },
+      { name: 'Moisture Barrier Silica Gel Desiccant Sachet 100g Bag', hsn: '28112200', unit: 'PKT', rate: 22.00, batch: 'LOT-SG-88', exp: '12/2027', packSizeMultiple: 100 },
+      { name: 'Thermocol Base Tray 10 Cavity Ampoule Safety Cushioning', hsn: '39231100', unit: 'NOS', rate: 52.00, batch: 'LOT-BT-44', exp: '11/2027', packSizeMultiple: 40 }
     ];
 
     /**
      * Natural Content Auto-Fit Slicer:
-     * Evaluates actual content height dynamics:
-     * - In A4 landscape (210mm total height minus 12mm page padding = ~198mm max usable).
-     * - Fixed Header + Parties block = ~52mm
-     * - Table headers + spacing = ~8mm
-     * - Continuation notice = ~5mm
-     * - Bottom summary box + Signatures + Transporter metrics + Footer = ~56mm
-     *
-     * Available table height on non-final page: ~198 - 52 - 8 - 5 - 6 (footer) = ~127mm (~16-17 rows).
-     * Available table height on final page: ~198 - 52 - 8 - 56 - 6 (footer) = ~76mm (~10-11 rows).
-     *
-     * Natural Auto-Fit Algorithm:
-     * If all remaining items fit together with the bottom summary block (<= 11 items),
-     * they are kept on the final page!
-     * When content exceeds page height, rows naturally spill over into the next page.
+     * Fits up to 8 items on the final page together with the bottom summary blocks.
+     * On continuation pages (no summary), fits up to 14 items comfortably.
      */
     function partitionItemsNaturally(items) {
       const total = items.length;
       if (total === 0) return [[]];
 
-      // If all items fit comfortably on a single page with the summary block (up to 11 items)
-      if (total <= 11) {
+      if (total <= 8) {
         return [items];
       }
 
@@ -744,17 +671,13 @@
 
       while (startIdx < total) {
         const remaining = total - startIdx;
-
-        // If the remaining items fit on the final page with the summary block
-        if (remaining <= 11) {
+        if (remaining <= 8) {
           pages.push(items.slice(startIdx, total));
           break;
         }
 
-        // Available capacity on a non-final page (without summary block) is up to 16 items
-        let take = 16;
-        if (remaining <= 16) {
-          // Balance nicely between this page and the final page
+        let take = 14;
+        if (remaining <= 14) {
           take = Math.ceil(remaining / 2);
         }
 
@@ -774,16 +697,19 @@
 
       // Compute financial totals
       let totalQty = 0;
+      let totalCases = 0;
       let totalTaxable = 0;
       let totalIGST = 0;
 
       invoiceData.items.forEach(it => {
         const qty = Number(it.qty) || 0;
         const rate = Number(it.rate) || 0;
+        const cases = Number(it.cases) || 1;
         const taxable = qty * rate;
         totalQty += qty;
+        totalCases += cases;
         totalTaxable += taxable;
-        totalIGST += (taxable * 0.18); // 18% IGST on industrial packaging / thermocol
+        totalIGST += (taxable * 0.18); // 18% IGST on stock transfer
       });
 
       const grandTotal = totalTaxable + totalIGST;
@@ -804,77 +730,77 @@
           <div class="invoice-page">
             <div class="page-main-content">
               
-              <!-- 1. Header: Consignor Details Left | #316599 Title & Metadata Right -->
+              <!-- 1. मुख्य हेडर: Single ABBOTT title Left | Exact #316599 Title & Metadata Right -->
               <div class="company-header">
-                <div class="flex-row" style="margin-bottom: 6px; align-items: flex-start;">
-                  <div style="width: 53%;">
-                    <h2 style="margin: 0; font-size: 20px; letter-spacing: 1px; font-weight: 900; color: #000;">ABBOTT</h2>
-                    <div style="font-size: 12px; font-weight: bold; margin-top: 2px; color: #000;">${invoiceData.consignor.name}</div>
-                    <div style="font-size: 9.5px; line-height: 1.3; color: #222; margin-top: 3px;">
-                      ${invoiceData.consignor.address}
-                    </div>
+                <div class="flex-row" style="margin-bottom: 8px;">
+                  <div>
+                    <svg width="125" height="32" viewBox="0 0 170 42" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Abbott Logo">
+                      <g>
+                        <rect width="40" height="40" rx="9" fill="#002F6C"/>
+                        <path d="M 29 12 C 29 8 22 8 18 8 C 12 8 8 13 8 21 C 8 29 13 34 21 34 C 27 34 30 30 30 26 L 25 26 C 25 28 23 30 20 30 C 15 30 13 26 13 21 C 13 16 16 12 20 12 C 24 12 25 14 25 17 L 25 34 L 29 34 Z" fill="#FFFFFF"/>
+                        <path d="M 20.5 16 C 16.5 16 14 18.5 14 22 C 14 25.5 16.5 28 20.5 28 C 24.5 28 25.5 24.5 25.5 22 C 25.5 18.5 24 16 20.5 16 Z" fill="#009FE3"/>
+                      </g>
+                      <text x="48" y="31" font-family="system-ui, -apple-system, sans-serif" font-size="26" font-weight="900" letter-spacing="-0.8" fill="#002F6C">Abbott</text>
+                    </svg>
+                    <div style="font-size: 12.5px; margin-top: 3px; font-weight: bold; color: #002F6C; letter-spacing: 0.4px;">ABBOTT INDIA LIMITED</div>
                   </div>
                   <div style="text-align: right; width: 45%;">
-                    <div class="header-blue" style="margin-bottom: 5px;">TAX INVOICE (STOCK TRANSFER NOTE)</div>
-                    <div style="border: 1px solid #b0b0b0; background-color: #fafbfc; padding: 4px 8px; font-size: 9.5px; text-align: left;">
-                      <div style="display: flex; justify-content: space-between; margin-bottom: 2px;">
-                        <span><strong style="color: #444;">Invoice No:</strong> <span style="font-family: Consolas, monospace; font-weight: bold; color: #000;">${invoiceData.invoiceNo}</span></span>
-                        <span><strong style="color: #444;">Invoice Date:</strong> <span style="font-family: Consolas, monospace; font-weight: bold; color: #000;">${invoiceData.date}</span></span>
-                      </div>
-                      <div style="display: flex; justify-content: space-between;">
-                        <span><strong style="color: #444;">Place of Supply:</strong> <b>${invoiceData.placeOfSupply}</b></span>
-                        <span><strong style="color: #444;">e-Way Bill:</strong> <span style="font-family: Consolas, monospace;">${invoiceData.eWayBillNo}</span></span>
-                      </div>
+                    <div class="header-blue" style="text-align: center; margin-bottom: 5px;">TAX INVOICE (STOCK TRANSFER NOTE)</div>
+                    <div style="font-size: 10px; display: flex; justify-content: space-between;">
+                      <span><strong>Invoice No:</strong> <span style="font-family: Consolas, monospace; font-weight: bold;">${invoiceData.invoiceNo}</span></span>
+                      <span><strong>Invoice Date:</strong> <span style="font-family: Consolas, monospace; font-weight: bold;">${invoiceData.date}</span></span>
+                    </div>
+                    <!-- LR / GR No. यहाँ से पूरी तरह हटा दिया गया है -->
+                    <div style="font-size: 10px; margin-top: 4px; text-align: left;">
+                      <span><strong>Place of Supply:</strong> <b>${invoiceData.placeOfSupply}</b></span>
                     </div>
                   </div>
                 </div>
-                <div style="font-size: 9px; margin-top: 3px; padding-top: 3px; border-top: 1px solid #b0b0b0; font-weight: 600; color: #111; display: flex; gap: 12px; flex-wrap: wrap;">
-                  <span><b>GSTIN:</b> ${invoiceData.consignor.gstin}</span>
-                  <span><b>PAN:</b> ${invoiceData.consignor.pan}</span>
-                  <span><b>CIN:</b> L24239MH1944PLC007330</span>
-                  <span><b>State Code:</b> 23 (${invoiceData.consignor.state})</span>
+                <div style="font-size: 9.5px; line-height: 1.35; color: #222; border-top: 1px solid #b0b0b0; padding-top: 4px;">
+                  ${invoiceData.consignor.address}<br />
+                  <strong>GSTIN:</strong> ${invoiceData.consignor.gstin} &nbsp;&nbsp; <strong>PAN:</strong> ${invoiceData.consignor.pan} &nbsp;&nbsp; <strong>CIN:</strong> ${invoiceData.consignor.cin}<br />
+                  <strong>State:</strong> ${invoiceData.consignor.state} (State Code: ${invoiceData.consignor.stateCode}) &nbsp;&nbsp; <strong>Contact:</strong> ${invoiceData.consignor.contact}
                 </div>
               </div>
 
-              <!-- 2. Parties Section: Consignor & Consignee Details Side-by-Side -->
-              <div class="party-details-grid">
-                <div class="party-card">
-                  <div class="section-title">Details of Consignor (Shipped &amp; Dispatched From)</div>
-                  <div class="party-card-body">
-                    <div class="party-name">${invoiceData.consignor.name}</div>
-                    <div>${invoiceData.consignor.subDivision}</div>
-                    <div>Survey No 52/2/2, Peer Karadiya, Indore - 453771 (M.P.)</div>
-                    <div style="margin-top: 3px; padding-top: 3px; border-top: 1px solid #b0b0b0;">
-                      <b>GSTIN:</b> ${invoiceData.consignor.gstin} | <b>State Code:</b> ${invoiceData.consignor.stateCode}
-                    </div>
+              <!-- 2. Consignor & Consignee Box -->
+              <div class="section-box">
+                <div class="details-grid">
+                  <div class="details-col">
+                    <div class="section-title" style="margin: -6px -6px 6px -6px;">DETAILS OF CONSIGNOR (SHIPPED &amp; DISPATCHED FROM)</div>
+                    ${invoiceData.consignor.address}<br /><br />
+                    <strong>GSTIN:</strong> ${invoiceData.consignor.gstin} &nbsp;&nbsp; <strong>PAN:</strong> ${invoiceData.consignor.pan} &nbsp;&nbsp; <strong>CIN:</strong> ${invoiceData.consignor.cin}<br />
+                    <strong>State:</strong> ${invoiceData.consignor.state} (State Code: ${invoiceData.consignor.stateCode})
                   </div>
-                </div>
-
-                <div class="party-card">
-                  <div class="section-title">Details of Consignee (Billed To / Destination)</div>
-                  <div class="party-card-body">
-                    <div class="party-name">${invoiceData.consignee.name}</div>
-                    <div>${invoiceData.consignee.address}</div>
-                    <div style="margin-top: 3px; padding-top: 3px; border-top: 1px solid #b0b0b0;">
-                      <b>GSTIN:</b> ${invoiceData.consignee.gstin} | <b>State:</b> ${invoiceData.consignee.state} (${invoiceData.consignee.stateCode})
-                    </div>
+                  <div class="details-col">
+                    <div class="section-title" style="margin: -6px -6px 6px -6px;">DETAILS OF CONSIGNEE (BILLED TO / DELIVERED TO)</div>
+                    <strong>${invoiceData.consignee.name}</strong><br />
+                    ${invoiceData.consignee.address}<br /><br />
+                    <strong>State:</strong> ${invoiceData.consignee.state}<br />
+                    <strong>City &amp; Pincode:</strong> ${invoiceData.consignee.city} - ${invoiceData.consignee.pincode}<br />
+                    <strong>GSTIN / UIN:</strong> ${invoiceData.consignee.gstin} &nbsp;&nbsp; <strong>Destination:</strong> ${invoiceData.consignee.city}
                   </div>
                 </div>
               </div>
 
-              <!-- 3. Line Items Table -->
+              <!-- 3. Line Items Table (Single-Row #f0f0f0 Header with Exact 13 Columns) -->
               <div class="table-container">
                 <table class="invoice-items-table">
                   <thead>
                     <tr>
-                      <th style="width: 32px; text-align: center;">#</th>
-                      <th style="text-align: left;">Description of Thermocol / Packing Material</th>
-                      <th style="width: 65px; text-align: center;">HSN</th>
-                      <th style="width: 55px; text-align: right;">Qty</th>
-                      <th style="width: 45px; text-align: center;">Unit</th>
-                      <th style="width: 65px; text-align: right;">Rate (₹)</th>
-                      <th style="width: 75px; text-align: right;">Taxable (₹)</th>
-                      <th style="width: 80px; text-align: right;">Total (₹)</th>
+                      <th style="width: 5%; text-align: center;">Sr. No.</th>
+                      <th style="width: 32%; text-align: left;">Description of Goods</th>
+                      <th style="width: 8%; text-align: center;">HSN</th>
+                      <th style="width: 7%; text-align: center;">Qty. NOS</th>
+                      <th style="width: 7%; text-align: center;">Case Qty.</th>
+                      <th style="width: 6%; text-align: center;">Unit</th>
+                      <th style="width: 6%; text-align: center;">Batch</th>
+                      <th style="width: 6%; text-align: center;">EXP</th>
+                      <th style="width: 8%; text-align: right;">Rate (per item)</th>
+                      <th style="width: 8%; text-align: right;">Total</th>
+                      <th style="width: 8%; text-align: right;">Taxable Value</th>
+                      <th style="width: 7%; text-align: center;">IGST Rate %</th>
+                      <th style="width: 10%; text-align: right; font-weight: bold;">Final Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -882,22 +808,43 @@
                       globalIndex++;
                       const qty = Number(item.qty) || 0;
                       const rate = Number(item.rate) || 0;
+                      const cases = Number(item.cases) || 1;
                       const taxable = qty * rate;
-                      const rowTotal = taxable * 1.18; // 18% IGST included
+                      const igstAmt = taxable * 0.18;
+                      const rowFinalTotal = taxable + igstAmt;
                       return `
                         <tr>
-                          <td class="col-sr">${globalIndex}</td>
-                          <td class="col-desc">${item.name}</td>
-                          <td class="col-hsn">${item.hsn}</td>
-                          <td class="col-qty">${qty}</td>
-                          <td class="col-unit">${item.unit}</td>
-                          <td class="col-rate">${rate.toFixed(2)}</td>
-                          <td class="col-taxable">${taxable.toFixed(2)}</td>
-                          <td class="col-total">${rowTotal.toFixed(2)}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace;">${globalIndex}</td>
+                          <td style="font-weight: 600; text-align: left;">${item.name}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace;">${item.hsn}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace; font-weight: bold;">${qty}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace;">${cases}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace;">${item.unit}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace;">${item.batch || 'ABT-001'}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace;">${item.exp || '10/2028'}</td>
+                          <td class="text-right" style="font-family: Consolas, monospace;">₹${rate.toFixed(2)}</td>
+                          <td class="text-right" style="font-family: Consolas, monospace;">₹${taxable.toFixed(2)}</td>
+                          <td class="text-right" style="font-family: Consolas, monospace; font-weight: 600;">₹${taxable.toFixed(2)}</td>
+                          <td class="text-center" style="font-family: Consolas, monospace;">18%</td>
+                          <td class="text-right" style="font-family: Consolas, monospace; font-weight: bold;">₹${rowFinalTotal.toFixed(2)}</td>
                         </tr>
                       `;
                     }).join('')}
                   </tbody>
+                  ${isLastPage ? `
+                    <tfoot>
+                      <tr style="background-color: #f0f4f8; font-weight: bold; border-top: 2px solid #b0b0b0;">
+                        <td colspan="3" class="text-right" style="text-transform: uppercase;">Total:</td>
+                        <td class="text-center" style="font-family: Consolas, monospace; font-weight: bold;">${totalQty}</td>
+                        <td class="text-center" style="font-family: Consolas, monospace; color: #316599; font-weight: bold;">${totalCases} Cases</td>
+                        <td colspan="4"></td>
+                        <td class="text-right" style="font-family: Consolas, monospace;">₹${totalTaxable.toFixed(2)}</td>
+                        <td class="text-right" style="font-family: Consolas, monospace;">₹${totalTaxable.toFixed(2)}</td>
+                        <td class="text-center" style="font-family: Consolas, monospace;">-</td>
+                        <td class="text-right" style="font-family: Consolas, monospace; color: #316599; font-weight: 800;">₹${grandTotal.toFixed(2)}</td>
+                      </tr>
+                    </tfoot>
+                  ` : ''}
                 </table>
               </div>
 
@@ -1015,7 +962,6 @@
      * Interactive test preset loader to verify auto-fit
      */
     function loadPreset(count) {
-      // Highlight active preset button
       const buttons = document.querySelectorAll('.btn-test');
       buttons.forEach(b => {
         b.classList.remove('active');
@@ -1027,11 +973,16 @@
       const items = [];
       for (let i = 0; i < count; i++) {
         const prod = thermocolProductCatalog[i % thermocolProductCatalog.length];
+        const qty = 10 + ((i + 1) * 5);
+        const cases = Math.ceil(qty / (prod.packSizeMultiple || 10));
         items.push({
           name: `${prod.name} [Lot #${(i % 4) + 1}]`,
           hsn: prod.hsn,
-          qty: 12 + ((i + 1) * 6),
+          qty: qty,
+          cases: cases,
           unit: prod.unit,
+          batch: prod.batch,
+          exp: prod.exp,
           rate: prod.rate
         });
       }
@@ -1069,24 +1020,18 @@
     .page-main-content { display: flex; flex-direction: column; gap: 4px; }
     .company-header { border: 1px solid #b0b0b0; margin-bottom: 5px; padding: 8px 10px; background-color: #fff; }
     .header-blue { background-color: #316599; color: #ffffff; font-weight: bold; padding: 6px 10px; font-size: 13px; text-align: center; letter-spacing: 0.5px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .section-box { border: 1px solid #b0b0b0; margin-bottom: 5px; background-color: #fff; }
     .section-title { background-color: #e6ecf2; font-weight: bold; padding: 4px 8px; border-bottom: 1px solid #b0b0b0; font-size: 10px; color: #1e3a5f; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .flex-row { display: flex; justify-content: space-between; align-items: center; }
-    .party-details-grid { display: flex; gap: 5px; margin-bottom: 4px; }
-    .party-card { flex: 1; border: 1px solid #b0b0b0; background-color: #fff; font-size: 9px; line-height: 1.3; overflow: hidden; }
-    .party-card-body { padding: 6px 8px; }
-    .party-name { font-size: 9.5px; font-weight: 700; color: #000; margin-bottom: 2px; }
+    .flex-row { display: flex; justify-content: space-between; align-items: flex-start; }
+    .details-grid { display: flex; width: 100%; }
+    .details-col { flex: 1; padding: 6px; font-size: 10px; line-height: 1.35; }
+    .details-col:first-child { border-right: 1px solid #b0b0b0; }
     .table-container { width: 100%; margin-bottom: 4px; }
-    table.invoice-items-table { width: 100%; border-collapse: collapse; border: 1px solid #b0b0b0; font-size: 9px; }
-    table.invoice-items-table th, table.invoice-items-table td { border: 1px solid #b0b0b0; padding: 3.5px 5px; line-height: 1.25; }
-    table.invoice-items-table th { background-color: #316599 !important; color: #fff !important; font-weight: 700; text-transform: uppercase; font-size: 8.5px; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    table.invoice-items-table td.col-sr { text-align: center; width: 32px; font-family: Consolas, monospace; }
-    table.invoice-items-table td.col-desc { text-align: left; font-weight: 600; }
-    table.invoice-items-table td.col-hsn { text-align: center; width: 65px; font-family: Consolas, monospace; }
-    table.invoice-items-table td.col-qty { text-align: right; width: 55px; font-weight: 700; font-family: Consolas, monospace; }
-    table.invoice-items-table td.col-unit { text-align: center; width: 45px; }
-    table.invoice-items-table td.col-rate { text-align: right; width: 65px; font-family: Consolas, monospace; }
-    table.invoice-items-table td.col-taxable { text-align: right; width: 75px; font-family: Consolas, monospace; }
-    table.invoice-items-table td.col-total { text-align: right; width: 80px; font-weight: 700; font-family: Consolas, monospace; }
+    table.invoice-items-table { width: 100%; border-collapse: collapse; border: 1px solid #b0b0b0; font-size: 10px; }
+    table.invoice-items-table th, table.invoice-items-table td { border: 1px solid #b0b0b0; padding: 4px 5px; line-height: 1.25; vertical-align: middle; }
+    table.invoice-items-table th { background-color: #f0f0f0 !important; color: #000 !important; font-weight: bold; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
     .continuation-notice { text-align: right; font-size: 9.5px; font-weight: 700; font-style: italic; color: #316599; padding: 2px 4px; margin-top: 2px; }
     .bottom-summary-section { display: flex; gap: 5px; margin-top: 3px; margin-bottom: 2px; }
     .summary-box { flex: 1; border: 1px solid #b0b0b0; background-color: #fff; font-size: 9px; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; }
@@ -1112,9 +1057,10 @@
       #invoicePagesContainer { width: 100% !important; max-width: 100% !important; margin: 0 !important; }
       .invoice-page { width: 297mm !important; min-height: auto !important; height: auto !important; margin: 0 !important; padding: 6mm 8mm !important; box-shadow: none !important; border: 1px solid #b0b0b0 !important; page-break-after: always !important; break-after: page !important; page-break-inside: avoid !important; display: flex !important; flex-direction: column !important; justify-content: flex-start !important; gap: 4px !important; box-sizing: border-box !important; }
       .invoice-page:last-child { page-break-after: avoid !important; break-after: avoid !important; }
-      .header-blue, table.invoice-items-table th { background-color: #316599 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .header-blue { background-color: #316599 !important; color: #fff !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       .section-title { background-color: #e6ecf2 !important; color: #1e3a5f !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .company-header, .party-card, table.invoice-items-table, table.invoice-items-table th, table.invoice-items-table td, .summary-box, .invoice-footer { border-color: #b0b0b0 !important; }
+      table.invoice-items-table th { background-color: #f0f0f0 !important; color: #000 !important; font-weight: bold !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      .company-header, .section-box, .details-col, table.invoice-items-table, table.invoice-items-table th, table.invoice-items-table td, .summary-box, .invoice-footer { border-color: #b0b0b0 !important; }
     }
   </style>
 </head>
@@ -1145,7 +1091,7 @@
       URL.revokeObjectURL(url);
     }
 
-    // Default initialization with 3 realistic items (Compact, fits perfectly on 1 page without void)
+    // Default initialization with 3 realistic items (Compact, fits on 1 page without void)
     window.addEventListener('DOMContentLoaded', () => {
       loadPreset(3);
     });

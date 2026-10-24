@@ -16,7 +16,7 @@ interface Props {
 
 export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => {
   const isHpl = invoice.senderName?.includes('Healthcare') || invoice.invNo?.startsWith('AHPL');
-  const displaySenderName = invoice.senderName || (isHpl ? 'Abbott Healthcare Private Limited' : 'Abbott India Ltd.');
+  const displaySenderName = invoice.senderName || (isHpl ? 'ABBOTT HEALTHCARE PRIVATE LIMITED' : 'ABBOTT INDIA LIMITED');
 
   const displaySenderAddress =
     !invoice.senderAddress || invoice.senderAddress.includes('Industrial Area, Sector C')
@@ -26,11 +26,11 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
   const displaySenderGstin =
     invoice.senderGstin && !invoice.senderGstin.includes('23ICHIN')
       ? invoice.senderGstin
-      : (isHpl ? '23AABCA4612J1Z0' : '23AAACA0231P1Z1');
+      : (isHpl ? '23AABCA4612J1Z0' : '23AAACB5170B1ZE');
 
-  const displaySenderPan = invoice.senderPan || (isHpl ? 'AABCA4612J' : 'AAACA0231P');
+  const displaySenderPan = invoice.senderPan || (isHpl ? 'AABCA4612J' : 'AAACB5170B');
   const displaySenderCin = invoice.senderCin || (isHpl ? 'U24239MH1997PTC109594' : 'L24239MH1944PLC007330');
-  const displaySenderContact = invoice.senderContact || '+91 9285061000 | Indore.hub@abbott.in';
+  const displaySenderContact = invoice.senderContact || '+91 9285061000';
 
   // Dynamic Rule: Destination Indore (0% GST / Delivery Challan) vs Other States (18% IGST / Tax Invoice)
   const isIndore = isIndoreDestination({
@@ -176,8 +176,9 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             break-after: page !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            margin: 0 !important;
-            width: 100% !important;
+            margin: 0 auto !important;
+            width: 297mm !important;
+            max-width: 297mm !important;
             min-height: auto !important;
             height: auto !important;
             box-sizing: border-box !important;
@@ -186,7 +187,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             display: flex !important;
             flex-direction: column !important;
             justify-content: flex-start !important;
-            gap: 5px !important;
+            gap: 4px !important;
           }
           .tax-invoice-page:last-child, .invoice-page:last-child {
             page-break-after: avoid !important;
@@ -208,8 +209,8 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             border: 1px solid #b0b0b0 !important;
           }
           th {
-            background-color: #316599 !important;
-            color: #ffffff !important;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
             font-weight: bold !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
@@ -228,106 +229,71 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             style={{ fontFamily: 'Arial, sans-serif' }}
           >
             <div>
-              {/* 1. TOP HEADER SECTION (Exact layout: Consignor left, #316599 Header-Blue banner & details right) */}
+              {/* 1. TOP HEADER SECTION */}
               <div 
                 id="taxInvoiceHeader"
-                className="header-box tax-invoice-header border border-[#b0b0b0] p-[8px_10px] mb-[5px] bg-white"
+                className="company-header border border-[#b0b0b0] p-[10px] mb-[5px] bg-white"
               >
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
-                  {/* Left: Company wordmark & full title */}
-                  <div className="w-full sm:w-[55%]">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <AbbottLogo 
-                        customLogoUrl={invoice.senderLogoUrl} 
-                        companyTitle={isHpl ? 'ABBOTT HEALTHCARE PRIVATE LIMITED' : 'ABBOTT INDIA LIMITED'} 
-                        className="h-7 sm:h-8 w-auto" 
-                      />
-                    </div>
-                    <div className="text-[12px] font-bold text-black tracking-wide">
-                      {isHpl ? 'ABBOTT HEALTHCARE PRIVATE LIMITED' : 'ABBOTT INDIA LIMITED'}
+                <div className="flex-row flex justify-between items-start mb-2">
+                  <div>
+                    <AbbottLogo className="h-8 w-auto mb-1" showTitle={false} />
+                    <div style={{ fontSize: '12.5px', marginTop: '3px', fontWeight: 'bold', color: '#002F6C', letterSpacing: '0.4px' }}>
+                      {displaySenderName}
                     </div>
                   </div>
-
-                  {/* Right: #316599 Header Blue Banner + Meta Details */}
-                  <div className="w-full sm:w-[45%] text-right">
+                  <div style={{ textAlign: 'right', width: '45%' }}>
                     <div 
-                      className="header-blue bg-[#316599] text-white font-bold text-center text-[12.5px] py-1.5 px-3 uppercase tracking-wider mb-1.5 rounded-xs"
-                      style={{ backgroundColor: '#316599', color: '#ffffff' }}
+                      className="header-blue" 
+                      style={{ 
+                        backgroundColor: '#316599', 
+                        color: '#ffffff', 
+                        fontWeight: 'bold', 
+                        padding: '6px 10px', 
+                        fontSize: '13px', 
+                        textAlign: 'center', 
+                        marginBottom: '5px' 
+                      }}
                     >
                       {docTitle}
                     </div>
-                    <div className="border border-[#b0b0b0] bg-[#fafbfc] p-2 text-[9px] text-left">
-                      <div className="flex justify-between items-center mb-1">
-                        <span><strong className="text-slate-700">{isIndore ? 'Challan No:' : 'Invoice No:'}</strong> <b className="font-mono text-black font-bold">{invoice.invNo}</b></span>
-                        <span><strong className="text-slate-700">{isIndore ? 'Challan Date:' : 'Invoice Date:'}</strong> <b className="font-mono text-black">{formatDateDDMMYYYY(invoice.date)}</b></span>
-                      </div>
-                      <div className="flex justify-between items-center text-[9px]">
-                        <span><strong className="text-slate-700">Place of Supply:</strong> <b className="text-black uppercase">{formattedPlaceOfSupply}</b></span>
-                        {invoice.lrNo && (
-                          <span><strong className="text-slate-700">LR / GR No:</strong> <b className="font-mono text-black">{invoice.lrNo}</b></span>
-                        )}
-                      </div>
+                    <div style={{ fontSize: '10px', display: 'flex', justifyContent: 'space-between' }}>
+                      <span><strong>{isIndore ? 'Challan No:' : 'Invoice No:'}</strong> {invoice.invNo}</span>
+                      <span><strong>{isIndore ? 'Challan Date:' : 'Invoice Date:'}</strong> {formatDateDDMMYYYY(invoice.date)}</span>
+                    </div>
+                    {/* LR / GR No. यहाँ से पूरी तरह हटा दिया गया है */}
+                    <div style={{ fontSize: '10px', marginTop: '3px', textAlign: 'left' }}>
+                      <span><strong>Place of Supply:</strong> {formattedPlaceOfSupply}</span>
                     </div>
                   </div>
                 </div>
-
-                {/* Sender Address & Statutory Details across the bottom of header */}
-                <div className="text-[9.5px] leading-snug text-slate-800 border-t border-[#b0b0b0] pt-1.5 mt-1">
-                  <p className="w-full whitespace-normal">
-                    {displaySenderAddress}
-                  </p>
-                  <div className="flex flex-wrap items-center gap-x-3 text-[9px] text-black pt-1 font-semibold">
-                    <span><b>GSTIN:</b> {displaySenderGstin}</span>
-                    <span><b>PAN:</b> {displaySenderPan}</span>
-                    <span><b>CIN:</b> {displaySenderCin}</span>
-                    <span><b>State Code:</b> 23 (Madhya Pradesh)</span>
-                    <span><b>Contact:</b> {displaySenderContact}</span>
-                  </div>
+                <div style={{ fontSize: '9.5px', lineHeight: 1.3 }}>
+                  {displaySenderAddress}<br />
+                  <strong>GSTIN:</strong> {displaySenderGstin} &nbsp;&nbsp; <strong>PAN:</strong> {displaySenderPan} &nbsp;&nbsp; <strong>CIN:</strong> {displaySenderCin}<br />
+                  <strong>State:</strong> Madhya Pradesh (State Code: 23) &nbsp;&nbsp; <strong>Contact:</strong> {displaySenderContact}
                 </div>
               </div>
 
-              {/* 2. CONSIGNOR & CONSIGNEE DETAILS (details-grid with #e6ecf2 section-title) */}
-              <div className="details-grid flex flex-col sm:flex-row gap-[5px] mb-[5px] text-[9.5px]">
-                {/* Consignor Column */}
-                <div className="details-col flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
-                  <div>
-                    <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
-                      Details of Consignor (Shipped &amp; Dispatched From)
+              {/* 2. CONSIGNOR & CONSIGNEE DETAILS */}
+              <div className="section-box border border-[#b0b0b0] mb-[5px] bg-white">
+                <div className="details-grid flex w-full">
+                  <div className="details-col flex-1 p-[6px] text-[10px] border-r border-[#b0b0b0]">
+                    <div className="section-title bg-[#e6ecf2] font-bold py-1 px-2 border-b border-[#b0b0b0] text-[10px] -m-[6px] mb-[6px] text-[#1e3a5f]">
+                      DETAILS OF CONSIGNOR (SHIPPED &amp; DISPATCHED FROM)
                     </div>
-                    <div className="p-[5px_8px]">
-                      <p className="font-bold text-black text-[10px]">{displaySenderName}</p>
-                      <p className="text-slate-800 leading-normal whitespace-normal break-words">{displaySenderAddress}</p>
-                    </div>
+                    {/* Duplicate header/name hidden so Abbott India Limited appears strictly once */}
+                    {displaySenderAddress}<br /><br />
+                    <strong>GSTIN:</strong> {displaySenderGstin} &nbsp;&nbsp; <strong>PAN:</strong> {displaySenderPan} &nbsp;&nbsp; <strong>CIN:</strong> {displaySenderCin}<br />
+                    <strong>State:</strong> Madhya Pradesh (State Code: 23)
                   </div>
-                  <div className="p-[4px_8px] border-t border-[#b0b0b0] text-[9px] text-black font-medium bg-[#fafbfc]">
-                    <div className="flex flex-wrap gap-x-3">
-                      <span><b>GSTIN:</b> {displaySenderGstin}</span>
-                      <span><b>PAN:</b> {displaySenderPan}</span>
-                      <span><b>State:</b> Madhya Pradesh (23)</span>
+                  <div className="details-col flex-1 p-[6px] text-[10px]">
+                    <div className="section-title bg-[#e6ecf2] font-bold py-1 px-2 border-b border-[#b0b0b0] text-[10px] -m-[6px] mb-[6px] text-[#1e3a5f]">
+                      DETAILS OF CONSIGNEE (BILLED TO / DELIVERED TO)
                     </div>
-                  </div>
-                </div>
-
-                {/* Consignee Column */}
-                <div className="details-col flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
-                  <div>
-                    <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
-                      Details of Consignee (Billed To / Delivered To)
-                    </div>
-                    <div className="p-[5px_8px]">
-                      <p className="font-bold text-black text-[10px]">{invoice.partyName}</p>
-                      <p className="text-slate-800 leading-normal whitespace-normal break-words">{invoice.partyAddress}</p>
-                    </div>
-                  </div>
-                  <div className="p-[4px_8px] border-t border-[#b0b0b0] text-[9px] text-black font-medium bg-[#fafbfc]">
-                    <div className="flex justify-between mb-0.5">
-                      <span><span className="text-slate-700 font-semibold">State:</span> <b className="text-black">{consigneeCleanState}</b></span>
-                      <span><span className="text-slate-700 font-semibold">City &amp; PIN:</span> <b className="text-black font-mono">{formattedCityPin}</b></span>
-                    </div>
-                    <div className="flex flex-wrap gap-x-3">
-                      <span><b>GSTIN / UIN:</b> {invoice.partyGstin || 'Unregistered / URP'}</span>
-                      <span><b>Destination:</b> {isIndore ? 'Indore (MP)' : consigneeCleanCity}</span>
-                    </div>
+                    <strong>{invoice.partyName}</strong><br />
+                    {invoice.partyAddress}<br /><br />
+                    <strong>State:</strong> {consigneeCleanState}<br />
+                    <strong>City &amp; Pincode:</strong> {formattedCityPin}<br />
+                    <strong>GSTIN / UIN:</strong> {invoice.partyGstin || 'Unregistered'} &nbsp;&nbsp; <strong>Destination:</strong> {isIndore ? 'Indore (MP)' : consigneeCleanCity}
                   </div>
                 </div>
               </div>
@@ -335,19 +301,19 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
               {/* 3. DYNAMIC ITEM TABLE FOR THIS PAGE CHUNK */}
               <div className="overflow-x-auto mb-[5px]">
                 {isIndore ? (
-                  <table className="w-full text-left border-collapse text-[9px] mb-[5px]">
+                  <table className="w-full text-left border-collapse text-[10px] mb-[5px]">
                     <thead>
-                      <tr className="bg-[#316599] text-white font-bold border-b border-[#b0b0b0]">
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-8 bg-[#316599] text-white">Sr.</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] min-w-[200px] text-left bg-[#316599] text-white">Description of Goods</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#316599] text-white">HSN</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Qty. NOS</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Case Qty.</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-12 bg-[#316599] text-white">Unit</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-20 bg-[#316599] text-white">Batch</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-18 bg-[#316599] text-white">EXP</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-20 bg-[#316599] text-white">Rate (₹)</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-24 bg-[#316599] text-white">Total (₹)</th>
+                      <tr className="bg-[#f0f0f0] text-black font-bold border-b border-[#b0b0b0]">
+                        <th style={{ width: '5%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Sr. No.</th>
+                        <th style={{ width: '37%' }} className="border border-[#b0b0b0] p-[5px] text-left bg-[#f0f0f0] text-black">Description of Goods</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">HSN</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Qty. NOS</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Case Qty.</th>
+                        <th style={{ width: '7%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Unit</th>
+                        <th style={{ width: '7%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Batch</th>
+                        <th style={{ width: '7%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">EXP</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-right bg-[#f0f0f0] text-black">Rate (per item)</th>
+                        <th style={{ width: '10%' }} className="border border-[#b0b0b0] p-[5px] text-right font-extrabold bg-[#f0f0f0] text-black">Total (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -362,9 +328,9 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           const itemsBeforeThisPage = pageChunks.slice(0, pageIdx).reduce((acc, c) => acc + c.length, 0);
                           const globalIdx = itemsBeforeThisPage + localIdx;
                           return (
-                            <tr key={it.id || globalIdx} className="hover:bg-slate-50">
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{globalIdx + 1}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] font-semibold text-black text-left">
+                            <tr key={it.id || globalIdx} className="hover:bg-slate-50 text-[10px]">
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{globalIdx + 1}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] font-semibold text-black text-left">
                                 {it.productName}
                                 {it.packSize && (
                                    <span className="text-[8px] text-slate-600 font-normal block font-mono">
@@ -372,14 +338,14 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                                   </span>
                                 )}
                               </td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.hsnCode || '39239090'}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">{it.qty}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-black">{it.itemCases}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.unitText}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.batchNo}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.expDate}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.hsnCode || '39231100'}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono font-bold text-black">{it.qty}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.itemCases}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.unitText}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.batchNo}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.expDate}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-right font-mono font-bold text-black">
                                 ₹{it.taxableVal.toFixed(2)}
                               </td>
                             </tr>
@@ -389,15 +355,15 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     </tbody>
                     {isLastPage && (
                       <tfoot>
-                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9px]">
-                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px] text-right uppercase">
+                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9.5px]">
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[5px] text-right uppercase">
                             Total:
                           </td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-slate-500">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#316599] font-extrabold">{totalCases} Cases</td>
-                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px]"></td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#316599]">
+                          <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-slate-500">-</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-[#316599] font-extrabold">{totalCases} Cases</td>
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[5px]"></td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right font-mono">-</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right font-mono font-extrabold text-[#316599]">
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>
@@ -405,32 +371,28 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     )}
                   </table>
                 ) : (
-                  <table className="w-full text-left border-collapse text-[9px] mb-[5px]">
+                  <table className="w-full text-left border-collapse text-[10px] mb-[5px]">
                     <thead>
-                      <tr className="bg-[#316599] text-white font-bold border-b border-[#b0b0b0]">
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-7 bg-[#316599] text-white">Sr.</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] min-w-[160px] text-left bg-[#316599] text-white">Description of Goods</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#316599] text-white">HSN</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#316599] text-white">Qty</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#316599] text-white">Cases</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-10 bg-[#316599] text-white">Unit</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#316599] text-white">Batch</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#316599] text-white">EXP</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Rate</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Total</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Taxable</th>
-                        <th colSpan={2} className="border border-[#b0b0b0] p-[2px_4px] text-center bg-[#316599] text-white">IGST</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-20 bg-[#316599] text-white">Final Total</th>
-                      </tr>
-                      <tr className="bg-[#316599] text-white font-bold border-b border-[#b0b0b0] text-[8px]">
-                        <th className="border border-[#b0b0b0] p-[2px_4px] text-center w-10 bg-[#316599] text-white">Rate %</th>
-                        <th className="border border-[#b0b0b0] p-[2px_4px] text-right w-14 bg-[#316599] text-white">Amt (₹)</th>
+                      <tr className="bg-[#f0f0f0] text-black font-bold border-b border-[#b0b0b0]">
+                        <th style={{ width: '5%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Sr. No.</th>
+                        <th style={{ width: '32%' }} className="border border-[#b0b0b0] p-[5px] text-left bg-[#f0f0f0] text-black">Description of Goods</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">HSN</th>
+                        <th style={{ width: '7%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Qty. NOS</th>
+                        <th style={{ width: '7%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Case Qty.</th>
+                        <th style={{ width: '6%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Unit</th>
+                        <th style={{ width: '6%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Batch</th>
+                        <th style={{ width: '6%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">EXP</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-right bg-[#f0f0f0] text-black">Rate (per item)</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-right bg-[#f0f0f0] text-black">Total</th>
+                        <th style={{ width: '8%' }} className="border border-[#b0b0b0] p-[5px] text-right bg-[#f0f0f0] text-black">Taxable Value</th>
+                        <th style={{ width: '7%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">IGST Rate %</th>
+                        <th style={{ width: '10%' }} className="border border-[#b0b0b0] p-[5px] text-right font-extrabold bg-[#f0f0f0] text-black">Final Total</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
                       {pageItems.length === 0 ? (
                         <tr>
-                          <td colSpan={14} className="border border-[#b0b0b0] p-4 text-center text-slate-500 italic">
+                          <td colSpan={13} className="border border-[#b0b0b0] p-4 text-center text-slate-500 italic">
                             No outward line items recorded.
                           </td>
                         </tr>
@@ -439,9 +401,9 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           const itemsBeforeThisPage = pageChunks.slice(0, pageIdx).reduce((acc, c) => acc + c.length, 0);
                           const globalIdx = itemsBeforeThisPage + localIdx;
                           return (
-                            <tr key={it.id || globalIdx} className="hover:bg-slate-50">
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{globalIdx + 1}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] font-semibold text-black text-left">
+                            <tr key={it.id || globalIdx} className="hover:bg-slate-50 text-[10px]">
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{globalIdx + 1}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] font-semibold text-black text-left">
                                 {it.productName}
                                 {it.packSize && (
                                   <span className="text-[8px] text-slate-600 font-normal block font-mono">
@@ -449,24 +411,21 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                                   </span>
                                 )}
                               </td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.hsnCode || '39239090'}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">{it.qty}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-black">{it.itemCases}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.unitText}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.batchNo}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.expDate}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{it.lineGross.toFixed(2)}</td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-semibold">₹{it.taxableVal.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.hsnCode || '39231100'}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono font-bold text-black">{it.qty}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.itemCases}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.unitText}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.batchNo}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{it.expDate}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-right font-mono">₹{it.lineGross.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[5px] text-right font-mono font-semibold">₹{it.taxableVal.toFixed(2)}</td>
                               
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-[8px]">
+                              <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-[9px]">
                                 {it.igstRate > 0 ? `${it.igstRate}%` : '0%'}
                               </td>
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">
-                                ₹{it.igstAmt.toFixed(2)}
-                              </td>
 
-                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">
+                              <td className="border border-[#b0b0b0] p-[5px] text-right font-mono font-bold text-black">
                                 ₹{it.lineFinalTotal.toFixed(2)}
                               </td>
                             </tr>
@@ -476,19 +435,18 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     </tbody>
                     {isLastPage && (
                       <tfoot>
-                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9px]">
-                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px] text-right uppercase">
+                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9.5px]">
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[5px] text-right uppercase">
                             Total:
                           </td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-slate-500">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#316599] font-extrabold">{totalCases} Cases</td>
-                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px]"></td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumGross.toFixed(2)}</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumTaxable.toFixed(2)}</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumIgst.toFixed(2)}</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#316599]">
+                          <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-slate-500">-</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-[#316599] font-extrabold">{totalCases} Cases</td>
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[5px]"></td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right font-mono">-</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right font-mono">₹{sumGross.toFixed(2)}</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right font-mono">₹{sumTaxable.toFixed(2)}</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center font-mono">-</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right font-mono font-extrabold text-[#316599]">
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>

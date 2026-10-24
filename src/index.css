@@ -719,55 +719,124 @@ html.light aside .nav-link, body.light aside .nav-link {
 
 .force-light-text { color: #000000 !important; }
 
-/* Multi-Page A4 Print Engine & Page-Break Isolation Rules */
+/* Multi-Page A4 Landscape Print Engine & Page-Break Isolation Rules */
 @media print {
   @page {
     size: A4 landscape;
-    margin: 6mm;
+    margin: 3mm;
   }
 
-  /* Reset body and container bounds to allow multi-page flow without clipping */
-  html, body, #root, main, #master-logs-container, #taxInvoicePrintArea {
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide application sidebar, top header, toolbars, buttons, and navigation chrome */
+  aside,
+  header,
+  nav,
+  button,
+  .action-bar,
+  .action-bar-wrapper,
+  .no-print,
+  .print\:hidden,
+  [data-print-hidden="true"],
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  /* Reset outer application containers so invoice prints cleanly without black backdrops or scrollbars */
+  html, body, #root, #root > div, main, #master-logs-container {
     background: #ffffff !important;
     color: #000000 !important;
     height: auto !important;
-    min-height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
     display: block !important;
-    position: relative !important;
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
-  /* Strict Page Break Isolation per Tax Invoice Page */
-  .tax-invoice-page {
-    page-break-before: always !important;
-    break-before: page !important;
+  /* Strict A4 Landscape Formatting for .tax-invoice-page and .invoice-page */
+  .tax-invoice-page,
+  .invoice-page {
+    width: 297mm !important;
+    max-width: 297mm !important;
+    min-height: auto !important;
+    height: auto !important;
+    margin: 0 auto !important;
+    padding: 6mm 8mm !important;
+    box-shadow: none !important;
+    border: 1px solid #b0b0b0 !important;
     page-break-after: always !important;
     break-after: page !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    margin: 0 auto !important;
-    border: 1px solid #000000 !important;
-    box-shadow: none !important;
-    width: 100% !important;
-    max-width: 281mm !important;
-    box-sizing: border-box !important;
-    padding: 4mm !important;
-    min-height: 188mm !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
     clear: both !important;
+    background-color: #ffffff !important;
+    color: #333333 !important;
   }
 
-  .tax-invoice-page:first-child {
+  .tax-invoice-page:first-child,
+  .invoice-page:first-child {
     page-break-before: auto !important;
     break-before: auto !important;
   }
 
-  .tax-invoice-page:last-child {
-    page-break-after: auto !important;
-    break-after: auto !important;
+  .tax-invoice-page:last-child,
+  .invoice-page:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Exact color and border retention in print */
+  .header-blue {
+    background-color: #316599 !important;
+    color: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .section-title {
+    background-color: #e6ecf2 !important;
+    color: #1e3a5f !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  table.invoice-items-table th,
+  .invoice-items-table th,
+  th {
+    background-color: #f0f0f0 !important;
+    color: #000000 !important;
+    font-weight: bold !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .company-header,
+  .section-box,
+  .details-col,
+  .details-grid,
+  table,
+  th,
+  td,
+  .summary-box,
+  .amount-words-box,
+  .transporter-box,
+  .invoice-footer {
+    border-color: #b0b0b0 !important;
   }
 }
 

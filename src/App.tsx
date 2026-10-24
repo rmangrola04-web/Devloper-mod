@@ -985,7 +985,7 @@ export default function App() {
     <div className="h-[100dvh] w-full max-w-full overflow-hidden flex flex-col selection:bg-blue-600 selection:text-white bg-[var(--bg-main)]">
       <div className="flex flex-1 min-h-0 w-full max-w-full overflow-hidden">
         {/* Left Sidebar - Clean Light-Dark Blue Navigation Bar */}
-        <aside className="hidden md:flex w-72 bg-[#1e3d6b] text-white border-r border-blue-900/40 flex-col justify-between p-4 min-h-screen sticky top-0 shrink-0 select-none shadow-md">
+        <aside className="hidden md:flex print:hidden w-72 bg-[#1e3d6b] text-white border-r border-blue-900/40 flex-col justify-between p-4 min-h-screen sticky top-0 shrink-0 select-none shadow-md">
           <div className="space-y-4">
             {/* Header Brand & Title Section */}
             <div className="border-b border-white/15 pb-3.5 flex items-center gap-3">

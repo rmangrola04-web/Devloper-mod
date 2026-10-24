@@ -192,8 +192,9 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
         }
 
         th {
-            background-color: #316599 !important;
-            color: white !important;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            font-weight: bold;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -207,19 +208,19 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
         }
         .amount-words-box {
             flex: 1.5;
-            border: 1px solid #000;
+            border: 1px solid #b0b0b0;
             padding: 5px 7px;
             font-size: 9px;
         }
         .transporter-box {
             flex: 1.5;
-            border: 1px solid #000;
+            border: 1px solid #b0b0b0;
             padding: 5px 7px;
             font-size: 9px;
         }
         .summary-box {
             flex: 1.5;
-            border: 1px solid #000;
+            border: 1px solid #b0b0b0;
             padding: 5px 7px;
             font-size: 9px;
         }
@@ -227,7 +228,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
         .declaration {
             margin-top: 4px;
             font-size: 8px;
-            border-top: 1px dashed #000;
+            border-top: 1px dashed #b0b0b0;
             padding-top: 3px;
             display: flex;
             justify-content: space-between;
@@ -238,7 +239,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             font-weight: bold;
             font-style: italic;
             font-size: 9.5px;
-            color: #2563eb;
+            color: #316599;
             margin-top: 3px;
         }
 
@@ -253,8 +254,8 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
                 background-color: #ffffff !important;
                 margin: 0 !important;
                 padding: 0 !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
 
             .action-bar, .no-print {
@@ -262,11 +263,13 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             }
 
             .invoice-page {
-                width: 100% !important;
+                width: 297mm !important;
+                max-width: 297mm !important;
                 min-height: auto !important;
                 height: auto !important;
-                margin: 0 !important;
+                margin: 0 auto !important;
                 box-shadow: none !important;
+                border: 1px solid #b0b0b0 !important;
                 padding: 6mm 8mm !important;
                 page-break-after: always !important;
                 break-after: page !important;
@@ -274,7 +277,8 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: flex-start !important;
-                gap: 5px !important;
+                gap: 4px !important;
+                box-sizing: border-box !important;
             }
 
             .invoice-page:last-child {
@@ -282,13 +286,30 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
                 break-after: avoid !important;
             }
 
-            .header-box, .party-col, table, th, td, .amount-words-box, .transporter-box, .summary-box {
-                border: 1px solid #000 !important;
+            .header-blue {
+                background-color: #316599 !important;
+                color: #ffffff !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .section-title {
+                background-color: #e6ecf2 !important;
+                color: #1e3a5f !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .header-box, .section-box, .party-col, .details-col, table, th, td, .amount-words-box, .transporter-box, .summary-box {
+                border: 1px solid #b0b0b0 !important;
             }
 
             th {
-                background-color: #3b82f6 !important;
-                color: white !important;
+                background-color: #f0f0f0 !important;
+                color: #000000 !important;
+                font-weight: bold !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
         }
     </style>

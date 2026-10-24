@@ -4,6 +4,7 @@ interface AbbottLogoProps {
   className?: string;
   customLogoUrl?: string;
   companyTitle?: string;
+  showTitle?: boolean;
 }
 
 // Embedded High-Resolution Base64/SVG Data URI for 100% offline & cross-device persistence
@@ -19,7 +20,8 @@ export const ABBOTT_LOGO_SVG_DATA_URI = "data:image/svg+xml;charset=utf-8," + en
 export const AbbottLogo: React.FC<AbbottLogoProps> = ({
   className = 'h-9 w-auto',
   customLogoUrl,
-  companyTitle = 'ABBOTT INDIA LIMITED'
+  companyTitle = 'ABBOTT INDIA LIMITED',
+  showTitle = true
 }) => {
   const [imgError, setImgError] = useState(false);
   const displayTitle = (companyTitle || 'ABBOTT INDIA LIMITED').toUpperCase();
@@ -72,9 +74,11 @@ export const AbbottLogo: React.FC<AbbottLogoProps> = ({
       )}
 
       {/* Company Title placed neatly directly below the logo image */}
-      <span className="text-[9.5pt] font-black text-[#002f6c] tracking-tight uppercase leading-tight font-sans">
-        {displayTitle}
-      </span>
+      {showTitle && (
+        <span className="text-[9.5pt] font-black text-[#002f6c] tracking-tight uppercase leading-tight font-sans">
+          {displayTitle}
+        </span>
+      )}
     </div>
   );
 };
