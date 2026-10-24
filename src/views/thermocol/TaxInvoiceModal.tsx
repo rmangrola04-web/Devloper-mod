@@ -69,7 +69,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             gap: 10px;
         }
         .btn-primary {
-            background-color: #2c3e50;
+            background-color: #316599;
             color: white;
             border: none;
             padding: 8px 16px;
@@ -96,7 +96,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             align-items: center;
             gap: 6px;
         }
-        .btn-primary:hover { background-color: #1a252f; }
+        .btn-primary:hover { background-color: #255280; }
         .btn-secondary:hover { background-color: #219653; }
 
         /* A4 Landscape Page Box - Compact & Natural Content-based Layout */
@@ -116,16 +116,27 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             position: relative;
         }
 
-        /* तस्वीर के अनुसार सॉफ्ट प्रोफेशनल कलर्स और बॉर्डर्स */
         .header-box { border: 1px solid #b0b0b0; padding: 5px 8px; margin-bottom: 5px; }
-        .header-title { 
-            background-color: #1e3a8a; 
+        .header-blue { 
+            background-color: #316599; 
             color: white; 
             text-align: center; 
             font-weight: bold; 
-            font-size: 12px; 
-            padding: 5px; 
-            margin: -5px -8px 5px -8px;
+            font-size: 13px; 
+            padding: 6px 10px; 
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .section-title {
+            background-color: #e6ecf2;
+            color: #1e3a5f;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-bottom: 1px solid #b0b0b0;
+            font-size: 10px;
+            text-transform: uppercase;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
         }
         .company-header { display: flex; justify-content: space-between; font-size: 9.5px; }
         
@@ -146,7 +157,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
         }
 
         th {
-            background-color: #1e3a8a !important;
+            background-color: #316599 !important;
             color: white !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -192,7 +203,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             font-weight: bold;
             font-style: italic;
             font-size: 9.5px;
-            color: #1e3a8a;
+            color: #2563eb;
             margin-top: 3px;
         }
 
@@ -241,7 +252,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             }
 
             th {
-                background-color: #1e3a8a !important;
+                background-color: #3b82f6 !important;
                 color: white !important;
             }
         }

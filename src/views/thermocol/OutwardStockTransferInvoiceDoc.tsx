@@ -192,11 +192,23 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             page-break-after: avoid !important;
             break-after: avoid !important;
           }
+          .header-blue {
+            background-color: #316599 !important;
+            color: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .section-title {
+            background-color: #e6ecf2 !important;
+            color: #1e3a5f !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .header-box, .party-col, .details-box, table, th, td, .amount-words-box, .transporter-box, .summary-box, .summary-section {
-            border: 1px solid #000 !important;
+            border: 1px solid #b0b0b0 !important;
           }
           th {
-            background-color: #34495e !important;
+            background-color: #316599 !important;
             color: #ffffff !important;
             font-weight: bold !important;
             -webkit-print-color-adjust: exact !important;
@@ -212,98 +224,107 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
         return (
           <div
             key={pageIdx}
-            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-0 h-auto mx-auto p-[6mm_8mm] text-black font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-black print:p-[6mm_8mm] print:w-full print:min-h-0 print:h-auto print:m-0 mb-6 print:mb-0 flex flex-col justify-start gap-[5px]"
-            style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-0 h-auto mx-auto p-[6mm_8mm] text-[#333333] font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-[#b0b0b0] print:p-[6mm_8mm] print:w-full print:min-h-0 print:h-auto print:m-0 mb-6 print:mb-0 flex flex-col justify-start gap-[5px]"
+            style={{ fontFamily: 'Arial, sans-serif' }}
           >
             <div>
-              {/* 1. TOP HEADER SECTION */}
+              {/* 1. TOP HEADER SECTION (Exact layout: Consignor left, #316599 Header-Blue banner & details right) */}
               <div 
                 id="taxInvoiceHeader"
-                className="header-box tax-invoice-header border border-[#b0b0b0] p-[6px_8px] mb-[5px] bg-white"
+                className="header-box tax-invoice-header border border-[#b0b0b0] p-[8px_10px] mb-[5px] bg-white"
               >
-                {/* Header Title Banner with #1e3a8a background */}
-                <div className="header-title bg-[#1e3a8a] text-white text-center font-bold text-[12px] p-[5px] -mx-[8px] -mt-[6px] mb-[6px] tracking-wide uppercase">
-                  {docTitle}
-                </div>
-
-                <div className="company-header flex flex-col sm:flex-row justify-between items-start gap-3 text-[9.5px]">
-                  {/* Company Header: Official Logo, PAN & CIN Integration on left */}
-                  <div className="w-full sm:w-[58%] space-y-1">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-2">
+                  {/* Left: Company wordmark & full title */}
+                  <div className="w-full sm:w-[55%]">
+                    <div className="flex items-center gap-2 mb-0.5">
                       <AbbottLogo 
                         customLogoUrl={invoice.senderLogoUrl} 
                         companyTitle={isHpl ? 'ABBOTT HEALTHCARE PRIVATE LIMITED' : 'ABBOTT INDIA LIMITED'} 
-                        className="h-8 sm:h-9 w-auto" 
+                        className="h-7 sm:h-8 w-auto" 
                       />
                     </div>
-                    <p className="text-[9px] text-slate-800 leading-normal w-full whitespace-normal">
-                      {displaySenderAddress}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-3 text-[9px] text-black pt-0.5 font-semibold">
-                      <span><b>GSTIN:</b> {displaySenderGstin}</span>
-                      <span><b>PAN:</b> {displaySenderPan}</span>
-                      <span><b>CIN:</b> {displaySenderCin}</span>
-                      <span><b>State:</b> Madhya Pradesh (State Code: 23)</span>
-                      <span><b>Contact:</b> {displaySenderContact}</span>
+                    <div className="text-[12px] font-bold text-black tracking-wide">
+                      {isHpl ? 'ABBOTT HEALTHCARE PRIVATE LIMITED' : 'ABBOTT INDIA LIMITED'}
                     </div>
                   </div>
 
-                  {/* Document Details on right */}
-                  <div className="w-full sm:w-[40%] text-left sm:text-right space-y-1">
-                    <div className="border border-[#b0b0b0] bg-slate-50 p-2 text-[9px] grid grid-cols-2 gap-x-2 gap-y-1 text-left rounded-xs">
-                      <div>
-                        <span className="text-slate-600 font-semibold">{isIndore ? 'Challan No:' : 'Invoice No:'}</span>{' '}
-                        <b className="font-mono text-[#2c3e50]">{invoice.invNo}</b>
+                  {/* Right: #316599 Header Blue Banner + Meta Details */}
+                  <div className="w-full sm:w-[45%] text-right">
+                    <div 
+                      className="header-blue bg-[#316599] text-white font-bold text-center text-[12.5px] py-1.5 px-3 uppercase tracking-wider mb-1.5 rounded-xs"
+                      style={{ backgroundColor: '#316599', color: '#ffffff' }}
+                    >
+                      {docTitle}
+                    </div>
+                    <div className="border border-[#b0b0b0] bg-[#fafbfc] p-2 text-[9px] text-left">
+                      <div className="flex justify-between items-center mb-1">
+                        <span><strong className="text-slate-700">{isIndore ? 'Challan No:' : 'Invoice No:'}</strong> <b className="font-mono text-black font-bold">{invoice.invNo}</b></span>
+                        <span><strong className="text-slate-700">{isIndore ? 'Challan Date:' : 'Invoice Date:'}</strong> <b className="font-mono text-black">{formatDateDDMMYYYY(invoice.date)}</b></span>
                       </div>
-                      <div>
-                        <span className="text-slate-600 font-semibold">{isIndore ? 'Challan Date:' : 'Invoice Date:'}</span>{' '}
-                        <b className="font-mono">{formatDateDDMMYYYY(invoice.date)}</b>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-slate-600 font-semibold">Place of Supply:</span>{' '}
-                        <b className="text-black">
-                          {formattedPlaceOfSupply}
-                        </b>
+                      <div className="flex justify-between items-center text-[9px]">
+                        <span><strong className="text-slate-700">Place of Supply:</strong> <b className="text-black uppercase">{formattedPlaceOfSupply}</b></span>
+                        {invoice.lrNo && (
+                          <span><strong className="text-slate-700">LR / GR No:</strong> <b className="font-mono text-black">{invoice.lrNo}</b></span>
+                        )}
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Sender Address & Statutory Details across the bottom of header */}
+                <div className="text-[9.5px] leading-snug text-slate-800 border-t border-[#b0b0b0] pt-1.5 mt-1">
+                  <p className="w-full whitespace-normal">
+                    {displaySenderAddress}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-x-3 text-[9px] text-black pt-1 font-semibold">
+                    <span><b>GSTIN:</b> {displaySenderGstin}</span>
+                    <span><b>PAN:</b> {displaySenderPan}</span>
+                    <span><b>CIN:</b> {displaySenderCin}</span>
+                    <span><b>State Code:</b> 23 (Madhya Pradesh)</span>
+                    <span><b>Contact:</b> {displaySenderContact}</span>
                   </div>
                 </div>
               </div>
 
-              {/* 2. CONSIGNOR & CONSIGNEE DETAILS (parties-box with party-col) */}
-              <div className="parties-box flex flex-col sm:flex-row gap-[5px] mb-[5px] text-[9.5px]">
+              {/* 2. CONSIGNOR & CONSIGNEE DETAILS (details-grid with #e6ecf2 section-title) */}
+              <div className="details-grid flex flex-col sm:flex-row gap-[5px] mb-[5px] text-[9.5px]">
                 {/* Consignor Column */}
-                <div className="party-col flex-1 border border-[#b0b0b0] p-[5px_8px] box-border bg-[#fbfcfd] flex flex-col justify-between">
+                <div className="details-col flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
                   <div>
-                    <div className="bg-[#1e3a8a] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] -mx-[8px] -mt-[5px] mb-[5px]">
+                    <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
                       Details of Consignor (Shipped &amp; Dispatched From)
                     </div>
-                    <p className="font-bold text-black text-[10px]">{displaySenderName}</p>
-                    <p className="text-slate-800 leading-normal whitespace-normal break-words">{displaySenderAddress}</p>
+                    <div className="p-[5px_8px]">
+                      <p className="font-bold text-black text-[10px]">{displaySenderName}</p>
+                      <p className="text-slate-800 leading-normal whitespace-normal break-words">{displaySenderAddress}</p>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-x-3 pt-1 border-t border-[#b0b0b0] text-[9px] text-black font-medium mt-1">
-                    <span><b>GSTIN:</b> {displaySenderGstin}</span>
-                    <span><b>PAN:</b> {displaySenderPan}</span>
-                    <span><b>CIN:</b> {displaySenderCin}</span>
-                    <span><b>State:</b> Madhya Pradesh (23)</span>
+                  <div className="p-[4px_8px] border-t border-[#b0b0b0] text-[9px] text-black font-medium bg-[#fafbfc]">
+                    <div className="flex flex-wrap gap-x-3">
+                      <span><b>GSTIN:</b> {displaySenderGstin}</span>
+                      <span><b>PAN:</b> {displaySenderPan}</span>
+                      <span><b>State:</b> Madhya Pradesh (23)</span>
+                    </div>
                   </div>
                 </div>
 
                 {/* Consignee Column */}
-                <div className="party-col flex-1 border border-[#b0b0b0] p-[5px_8px] box-border bg-[#fbfcfd] flex flex-col justify-between">
+                <div className="details-col flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
                   <div>
-                    <div className="bg-[#1e3a8a] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] -mx-[8px] -mt-[5px] mb-[5px]">
+                    <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
                       Details of Consignee (Billed To / Delivered To)
                     </div>
-                    <p className="font-bold text-black text-[10px]">{invoice.partyName}</p>
-                    <p className="text-slate-800 leading-normal whitespace-normal break-words">{invoice.partyAddress}</p>
+                    <div className="p-[5px_8px]">
+                      <p className="font-bold text-black text-[10px]">{invoice.partyName}</p>
+                      <p className="text-slate-800 leading-normal whitespace-normal break-words">{invoice.partyAddress}</p>
+                    </div>
                   </div>
-                  <div className="pt-1 border-t border-[#b0b0b0] text-[9px] space-y-0.5 mt-1">
-                    <div className="flex justify-between">
+                  <div className="p-[4px_8px] border-t border-[#b0b0b0] text-[9px] text-black font-medium bg-[#fafbfc]">
+                    <div className="flex justify-between mb-0.5">
                       <span><span className="text-slate-700 font-semibold">State:</span> <b className="text-black">{consigneeCleanState}</b></span>
                       <span><span className="text-slate-700 font-semibold">City &amp; PIN:</span> <b className="text-black font-mono">{formattedCityPin}</b></span>
                     </div>
-                    <div className="flex flex-wrap gap-x-3 text-black font-medium">
+                    <div className="flex flex-wrap gap-x-3">
                       <span><b>GSTIN / UIN:</b> {invoice.partyGstin || 'Unregistered / URP'}</span>
                       <span><b>Destination:</b> {isIndore ? 'Indore (MP)' : consigneeCleanCity}</span>
                     </div>
@@ -316,17 +337,17 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                 {isIndore ? (
                   <table className="w-full text-left border-collapse text-[9px] mb-[5px]">
                     <thead>
-                      <tr className="bg-[#34495e] text-white font-bold border-b border-[#b0b0b0]">
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-8 bg-[#34495e] text-white">Sr.</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] min-w-[200px] text-left bg-[#34495e] text-white">Description of Goods</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#34495e] text-white">HSN</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#34495e] text-white">Qty. NOS</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#34495e] text-white">Case Qty.</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-12 bg-[#34495e] text-white">Unit</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-20 bg-[#34495e] text-white">Batch</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-18 bg-[#34495e] text-white">EXP</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-20 bg-[#34495e] text-white">Rate (₹)</th>
-                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-24 bg-[#34495e] text-white">Total (₹)</th>
+                      <tr className="bg-[#316599] text-white font-bold border-b border-[#b0b0b0]">
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-8 bg-[#316599] text-white">Sr.</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] min-w-[200px] text-left bg-[#316599] text-white">Description of Goods</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#316599] text-white">HSN</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Qty. NOS</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Case Qty.</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-12 bg-[#316599] text-white">Unit</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-20 bg-[#316599] text-white">Batch</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-18 bg-[#316599] text-white">EXP</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-20 bg-[#316599] text-white">Rate (₹)</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-24 bg-[#316599] text-white">Total (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -346,7 +367,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                               <td className="border border-[#b0b0b0] p-[4px_5px] font-semibold text-black text-left">
                                 {it.productName}
                                 {it.packSize && (
-                                  <span className="text-[8px] text-slate-600 font-normal block font-mono">
+                                   <span className="text-[8px] text-slate-600 font-normal block font-mono">
                                     Pack: {it.packSize} (×{it.packSizeMultiple || 1})
                                   </span>
                                 )}
@@ -368,15 +389,15 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     </tbody>
                     {isLastPage && (
                       <tfoot>
-                        <tr className="bg-slate-100 font-bold border-t-2 border-[#b0b0b0] text-[9px]">
+                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9px]">
                           <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px] text-right uppercase">
                             Total:
                           </td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-slate-500">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#2c3e50] font-extrabold">{totalCases} Cases</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#316599] font-extrabold">{totalCases} Cases</td>
                           <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px]"></td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#2c3e50]">
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#316599]">
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>
@@ -386,24 +407,24 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                 ) : (
                   <table className="w-full text-left border-collapse text-[9px] mb-[5px]">
                     <thead>
-                      <tr className="bg-[#1e3a8a] text-white font-bold border-b border-[#b0b0b0]">
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-7 bg-[#1e3a8a] text-white">Sr.</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] min-w-[160px] text-left bg-[#1e3a8a] text-white">Description of Goods</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#1e3a8a] text-white">HSN</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#1e3a8a] text-white">Qty</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#1e3a8a] text-white">Cases</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-10 bg-[#1e3a8a] text-white">Unit</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#1e3a8a] text-white">Batch</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#1e3a8a] text-white">EXP</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#1e3a8a] text-white">Rate</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#1e3a8a] text-white">Total</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#1e3a8a] text-white">Taxable</th>
-                        <th colSpan={2} className="border border-[#b0b0b0] p-[2px_4px] text-center bg-[#1e3a8a] text-white">IGST</th>
-                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-20 bg-[#1e3a8a] text-white">Final Total</th>
+                      <tr className="bg-[#316599] text-white font-bold border-b border-[#b0b0b0]">
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-7 bg-[#316599] text-white">Sr.</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] min-w-[160px] text-left bg-[#316599] text-white">Description of Goods</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#316599] text-white">HSN</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#316599] text-white">Qty</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#316599] text-white">Cases</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-10 bg-[#316599] text-white">Unit</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#316599] text-white">Batch</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#316599] text-white">EXP</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Rate</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Total</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#316599] text-white">Taxable</th>
+                        <th colSpan={2} className="border border-[#b0b0b0] p-[2px_4px] text-center bg-[#316599] text-white">IGST</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-20 bg-[#316599] text-white">Final Total</th>
                       </tr>
-                      <tr className="bg-[#1e3a8a] text-white font-bold border-b border-[#b0b0b0] text-[8px]">
-                        <th className="border border-[#b0b0b0] p-[2px_4px] text-center w-10 bg-[#1e3a8a] text-white">Rate %</th>
-                        <th className="border border-[#b0b0b0] p-[2px_4px] text-right w-14 bg-[#1e3a8a] text-white">Amt (₹)</th>
+                      <tr className="bg-[#316599] text-white font-bold border-b border-[#b0b0b0] text-[8px]">
+                        <th className="border border-[#b0b0b0] p-[2px_4px] text-center w-10 bg-[#316599] text-white">Rate %</th>
+                        <th className="border border-[#b0b0b0] p-[2px_4px] text-right w-14 bg-[#316599] text-white">Amt (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
@@ -455,19 +476,19 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     </tbody>
                     {isLastPage && (
                       <tfoot>
-                        <tr className="bg-slate-100 font-bold border-t-2 border-[#b0b0b0] text-[9px]">
+                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9px]">
                           <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px] text-right uppercase">
                             Total:
                           </td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-slate-500">-</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#2c3e50] font-extrabold">{totalCases} Cases</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#316599] font-extrabold">{totalCases} Cases</td>
                           <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px]"></td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">-</td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumGross.toFixed(2)}</td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumTaxable.toFixed(2)}</td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono">-</td>
                           <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumIgst.toFixed(2)}</td>
-                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#2c3e50]">
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#316599]">
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>
@@ -479,111 +500,122 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
 
               {/* Intermediate Page Continuation Notice (Strictly English) */}
               {!isLastPage && (
-                <div className="continuation-notice text-right font-bold italic text-[9.5px] text-[#1e3a8a] mt-[3px] pr-2">
+                <div className="continuation-notice text-right font-bold italic text-[9.5px] text-[#316599] mt-[3px] pr-2">
                   To be continued...
                 </div>
               )}
 
-              {/* 4. BOTTOM SECTION: 3 Boxes (amount-words-box, transporter-box, summary-box) */}
+              {/* 4. BOTTOM SECTION: 3 Boxes (amount-words-box, transporter-box, summary-box with #e6ecf2 section titles) */}
               {isLastPage && (
                 <div 
                   id="taxInvoiceFooter"
                   className="bottom-section flex flex-col sm:flex-row gap-[5px] mt-[5px] text-[9.5px]"
                 >
                   {/* Box 1: Amount in Words & Remarks */}
-                  <div className="amount-words-box flex-1 border border-[#b0b0b0] p-[6px] text-[9.5px] bg-[#fbfcfd] flex flex-col justify-between">
+                  <div className="amount-words-box flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
                     <div>
-                      <span className="text-[8px] font-bold text-slate-600 uppercase block mb-1">
-                        Amount Chargeable (in words):
-                      </span>
-                      <p className="font-extrabold text-black italic text-[9.5px] leading-snug">
-                        Rupees {amountWords} Only
-                      </p>
+                      <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
+                        Amount Chargeable (in words)
+                      </div>
+                      <div className="p-[6px]">
+                        <p className="font-extrabold text-black italic text-[9.5px] leading-snug">
+                          Rupees {amountWords} Only
+                        </p>
+                      </div>
                     </div>
-                    <div className="mt-2 pt-1 border-t border-[#b0b0b0] text-[8.5px] text-slate-700">
+                    <div className="p-[5px_6px] border-t border-[#b0b0b0] text-[8.5px] text-slate-700 bg-[#fafbfc]">
                       <p><b>Company PAN:</b> {displaySenderPan}</p>
                       <p><b>Bank:</b> HDFC Bank Ltd. | A/C: 00030310002134</p>
-                      <p><b>Remarks:</b> Stock transfer of packing material for production/packaging.</p>
+                      <p><b>Remarks:</b> Inter-branch stock transfer of packing material for production/packaging.</p>
                     </div>
                   </div>
 
                   {/* Box 2: Transporter Details & Metrics */}
-                  <div className="transporter-box flex-1 border border-[#b0b0b0] p-[6px] text-[9.5px] bg-[#fbfcfd] space-y-1">
-                    <span className="font-bold text-slate-800 block uppercase text-[8px] border-b border-[#b0b0b0] pb-0.5 mb-1">
-                      Transporter &amp; Logistics Details:
-                    </span>
-                    <p><b>Transporter:</b> {invoice.transName || 'Direct Logistics'}</p>
-                    <p><b>GSTIN:</b> {invoice.transGstin || 'N/A'}</p>
-                    <p><b>LR / GR No:</b> {invoice.lrNo || 'N/A'} (Date: {formatDateDDMMYYYY(invoice.lrDate || invoice.date)})</p>
-                    <p><b>Vehicle No:</b> <span className="font-mono font-bold text-black">{invoice.vehicleNo || 'N/A'}</span></p>
-                    <div className="pt-1 border-t border-[#b0b0b0] text-[8.5px] flex justify-between">
-                      <span><b>Cases:</b> <span className="font-bold text-[#2c3e50]">{totalCases}</span></span>
+                  <div className="transporter-box flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
+                    <div>
+                      <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
+                        Transporter &amp; Logistics Details
+                      </div>
+                      <div className="p-[6px] space-y-1">
+                        <p><b>Transporter:</b> {invoice.transName || 'Direct Logistics'}</p>
+                        <p><b>GSTIN:</b> {invoice.transGstin || 'N/A'}</p>
+                        <p><b>LR / GR No:</b> {invoice.lrNo || 'N/A'} (Date: {formatDateDDMMYYYY(invoice.lrDate || invoice.date)})</p>
+                        <p><b>Vehicle No:</b> <span className="font-mono font-bold text-black">{invoice.vehicleNo || 'N/A'}</span></p>
+                      </div>
+                    </div>
+                    <div className="p-[4px_6px] border-t border-[#b0b0b0] text-[8.5px] flex justify-between bg-[#fafbfc]">
+                      <span><b>Cases:</b> <span className="font-bold text-[#316599]">{totalCases}</span></span>
                       <span><b>Weight:</b> {Number(invoice.totalWeight || 0).toFixed(2)} kg</span>
                       <span><b>CFT:</b> {Number(invoice.totalCft || 0).toFixed(2)}</span>
                     </div>
                   </div>
 
                   {/* Box 3: Financial Summary & Net Payable */}
-                  <div className="summary-box flex-1 border border-[#b0b0b0] p-[6px] text-[9.5px] bg-white flex flex-col justify-between">
-                    <table className="w-full text-[9px]">
-                      <tbody>
-                        {isIndore ? (
-                          <>
-                            <tr className="border-b border-[#b0b0b0]">
-                              <td className="py-0.5 text-slate-700">Taxable Value:</td>
-                              <td className="py-0.5 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
-                            </tr>
-                            <tr className="border-b border-[#b0b0b0]">
-                              <td className="py-0.5 text-slate-700">GST (Challan):</td>
-                              <td className="py-0.5 text-right font-mono font-semibold text-emerald-700">0% (No GST)</td>
-                            </tr>
-                            {Math.abs(roundOff) > 0.001 && (
+                  <div className="summary-box flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
+                    <div>
+                      <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
+                        Tax &amp; Amount Summary
+                      </div>
+                      <table className="w-full text-[9px]">
+                        <tbody>
+                          {isIndore ? (
+                            <>
                               <tr className="border-b border-[#b0b0b0]">
-                                <td className="py-0.5 text-slate-700">Rounding off:</td>
-                                <td className="py-0.5 text-right font-mono text-black">
-                                  {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
+                                <td className="py-0.5 px-2 text-slate-700">Taxable Value:</td>
+                                <td className="py-0.5 px-2 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
+                              </tr>
+                              <tr className="border-b border-[#b0b0b0]">
+                                <td className="py-0.5 px-2 text-slate-700">GST (Challan):</td>
+                                <td className="py-0.5 px-2 text-right font-mono font-semibold text-emerald-700">0% (No GST)</td>
+                              </tr>
+                              {Math.abs(roundOff) > 0.001 && (
+                                <tr className="border-b border-[#b0b0b0]">
+                                  <td className="py-0.5 px-2 text-slate-700">Rounding off:</td>
+                                  <td className="py-0.5 px-2 text-right font-mono text-black">
+                                    {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
+                                  </td>
+                                </tr>
+                              )}
+                              <tr className="bg-[#e6ecf2] font-bold text-black border-t border-[#b0b0b0]">
+                                <td className="py-1 px-2 font-black text-[9.5px] text-[#1e3a5f]">Net Amount:</td>
+                                <td className="py-1 px-2 text-right font-mono text-[10.5px] font-black text-[#316599]">
+                                  ₹{grandTotalNum.toFixed(2)}
                                 </td>
                               </tr>
-                            )}
-                            <tr className="bg-slate-100 font-bold text-black">
-                              <td className="py-1 px-1 font-black text-[9.5px]">Net Amount:</td>
-                              <td className="py-1 px-1 text-right font-mono text-[10.5px] font-black text-[#2c3e50]">
-                                ₹{grandTotalNum.toFixed(2)}
-                              </td>
-                            </tr>
-                          </>
-                        ) : (
-                          <>
-                            <tr className="border-b border-[#b0b0b0]">
-                              <td className="py-0.5 text-slate-700">Taxable Value:</td>
-                              <td className="py-0.5 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
-                            </tr>
-                            <tr className="border-b border-[#b0b0b0]">
-                              <td className="py-0.5 text-slate-700">Total IGST (18%):</td>
-                              <td className="py-0.5 text-right font-mono font-semibold text-[#2c3e50]">₹{sumIgst.toFixed(2)}</td>
-                            </tr>
-                            {Math.abs(roundOff) > 0.001 && (
+                            </>
+                          ) : (
+                            <>
                               <tr className="border-b border-[#b0b0b0]">
-                                <td className="py-0.5 text-slate-700">Rounding off:</td>
-                                <td className="py-0.5 text-right font-mono text-black">
-                                  {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
+                                <td className="py-0.5 px-2 text-slate-700">Taxable Value:</td>
+                                <td className="py-0.5 px-2 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
+                              </tr>
+                              <tr className="border-b border-[#b0b0b0]">
+                                <td className="py-0.5 px-2 text-slate-700">Total IGST (18%):</td>
+                                <td className="py-0.5 px-2 text-right font-mono font-semibold text-[#316599]">₹{sumIgst.toFixed(2)}</td>
+                              </tr>
+                              {Math.abs(roundOff) > 0.001 && (
+                                <tr className="border-b border-[#b0b0b0]">
+                                  <td className="py-0.5 px-2 text-slate-700">Rounding off:</td>
+                                  <td className="py-0.5 px-2 text-right font-mono text-black">
+                                    {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
+                                  </td>
+                                </tr>
+                              )}
+                              <tr className="bg-[#e6ecf2] font-bold text-black border-t border-[#b0b0b0]">
+                                <td className="py-1 px-2 font-black text-[9.5px] text-[#1e3a5f]">Net Payable:</td>
+                                <td className="py-1 px-2 text-right font-mono text-[10.5px] font-black text-[#316599]">
+                                  ₹{grandTotalNum.toFixed(2)}
                                 </td>
                               </tr>
-                            )}
-                            <tr className="bg-slate-100 font-bold text-black">
-                              <td className="py-1 px-1 font-black text-[9.5px]">Net Payable:</td>
-                              <td className="py-1 px-1 text-right font-mono text-[10.5px] font-black text-[#2c3e50]">
-                                ₹{grandTotalNum.toFixed(2)}
-                              </td>
-                            </tr>
-                          </>
-                        )}
-                      </tbody>
-                    </table>
+                            </>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
 
-                    <div className="pt-2 text-right">
+                    <div className="p-[4px_6px] text-right bg-[#fafbfc] border-t border-[#b0b0b0]">
                       <p className="text-[8px] font-bold text-black">For {displaySenderName}</p>
-                      <div className="h-4"></div>
+                      <div className="h-3"></div>
                       <p className="border-t border-[#b0b0b0] pt-0.5 text-[7.5px] text-slate-700 inline-block font-semibold">
                         Authorized Signatory
                       </p>

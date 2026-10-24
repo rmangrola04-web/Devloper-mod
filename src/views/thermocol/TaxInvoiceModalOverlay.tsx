@@ -103,7 +103,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             gap: 10px;
         }
         .btn-primary {
-            background-color: #1e3a8a;
+            background-color: #316599;
             color: white;
             border: none;
             padding: 8px 16px;
@@ -130,7 +130,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             align-items: center;
             gap: 6px;
         }
-        .btn-primary:hover { background-color: #172554; }
+        .btn-primary:hover { background-color: #255280; }
         .btn-secondary:hover { background-color: #219653; }
 
         /* A4 Landscape Page Specification - Compact & Natural Layout */
@@ -148,25 +148,35 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             justify-content: flex-start;
             gap: 5px;
             position: relative;
-            border: 1px solid #000;
+            border: 1px solid #b0b0b0;
         }
 
-        .header-box { border: 1px solid #000; padding: 5px 8px; margin-bottom: 5px; }
-        .header-title { 
-            background-color: #1e3a8a; 
+        .header-box { border: 1px solid #b0b0b0; padding: 5px 8px; margin-bottom: 5px; }
+        .header-blue { 
+            background-color: #316599; 
             color: white; 
             text-align: center; 
             font-weight: bold; 
-            font-size: 12px; 
-            padding: 5px; 
-            margin: -5px -8px 5px -8px;
+            font-size: 13px; 
+            padding: 6px 10px; 
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .section-title {
+            background-color: #e6ecf2;
+            color: #1e3a5f;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-bottom: 1px solid #b0b0b0;
+            font-size: 10px;
+            text-transform: uppercase;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
         .company-header { display: flex; justify-content: space-between; font-size: 9.5px; }
         
         .parties-box { display: flex; gap: 5px; margin-bottom: 5px; }
-        .party-col { flex: 1; border: 1px solid #000; padding: 5px 7px; font-size: 9px; box-sizing: border-box; }
+        .party-col { flex: 1; border: 1px solid #b0b0b0; padding: 5px 7px; font-size: 9px; box-sizing: border-box; }
         
         table {
             width: 100%;
@@ -175,14 +185,14 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
         }
 
         th, td {
-            border: 1px solid #000 !important;
+            border: 1px solid #b0b0b0 !important;
             padding: 3px 5px;
             font-size: 9px;
             text-align: center;
         }
 
         th {
-            background-color: #1e3a8a !important;
+            background-color: #316599 !important;
             color: white !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
@@ -228,7 +238,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             font-weight: bold;
             font-style: italic;
             font-size: 9.5px;
-            color: #1e3a8a;
+            color: #2563eb;
             margin-top: 3px;
         }
 
@@ -277,7 +287,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             }
 
             th {
-                background-color: #1e3a8a !important;
+                background-color: #3b82f6 !important;
                 color: white !important;
             }
         }
@@ -462,7 +472,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             <button
               id="downloadPdfBtn"
               onClick={() => window.print()}
-              className="px-4 py-2 bg-[#2c3e50] hover:bg-[#1a252f] text-white rounded font-bold text-[13px] shadow transition active:scale-95 inline-flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2 bg-[#316599] hover:bg-[#255280] text-white rounded font-bold text-[13px] shadow transition active:scale-95 inline-flex items-center gap-1.5 cursor-pointer"
               title="Download or Print PDF"
             >
               <span>📥 Download / Print PDF</span>

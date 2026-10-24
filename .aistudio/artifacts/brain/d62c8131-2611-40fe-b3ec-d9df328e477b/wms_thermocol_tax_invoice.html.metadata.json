@@ -1,5 +1,5 @@
 {
-  "summary":  "Single-file HTML and JavaScript module for WMS Thermocol Tax Invoice (Stock Transfer Note) with strict A4 Landscape format, corporate navy blue (#1e3a8a) headers, crisp thin black borders, natural auto-fit pagination, continuation handling ('To be continued...'), final page summary & signatures, and working Download HTML and Download/Print PDF buttons.",
-  "updatedAt":  "2026-10-24T09:40:09.413463247Z",
+  "summary":  "WMS Thermocol Tax Invoice (Stock Transfer Note) module with a lighter, softer professional blue color scheme (#3b82f6 header bars, #2563eb accents), thin black borders, strict A4 landscape orientation, dynamic auto-fit pagination, continuation notices, and last-page summary and signatures.",
+  "updatedAt":  "2026-10-24T10:27:59.466188199Z",
   "userFacing":  true
 }
