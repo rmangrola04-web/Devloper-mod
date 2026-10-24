@@ -130,30 +130,37 @@
          Strict Landscape A4 Print Layout for Outward Tax Invoice & Stock Transfer Note
          ========================================================================= */
       @page {
-        size: A4;
-        margin: 10mm;
+        size: A4 portrait;
+        margin: 5mm;
       }
 
       @media print {
         body {
-          background-color: #ffffff;
+          background-color: #ffffff !important;
           margin: 0 !important;
           padding: 0 !important;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
 
-        /* इनवॉइस कंटेनर को फिक्स हाइट या स्क्रॉल से मुक्त करें ताकि यह पेजों में फैल सके */
-        .invoice-box, .invoice-container, .container {
+        .invoice-page, .invoice-box, .invoice-container, .container {
           width: 100% !important;
-          max-width: 100% !important;
-          height: auto !important;
-          max-height: none !important;
-          overflow: visible !important;
+          min-height: auto !important;
+          margin: 0 !important;
           box-shadow: none !important;
           border: none !important;
-          margin: 0 !important;
           padding: 0 !important;
+          page-break-after: always;
+        }
+
+        /* प्रिंट के दौरान सभी बॉर्डर्स और हेडर कलर्स को जबरन दिखाना */
+        .header-box, .details-box, table, th, td, .summary-section {
+          border: 1px solid #000 !important;
+        }
+
+        th {
+          background-color: #1e3a8a !important;
+          color: white !important;
         }
 
         /* टेबल की प्रत्येक पंक्ति (Row) बीच से न कटे, जरूरत पड़ने पर अगले पेज पर चली जाए */
@@ -162,7 +169,6 @@
           break-inside: avoid !important;
         }
 
-        /* यदि इनवॉइस दूसरे पेज पर जाए तो टेबल का हेडर हर नए पेज पर ऊपर अपने आप दिखे */
         thead {
           display: table-header-group !important;
         }
@@ -171,8 +177,7 @@
           display: table-footer-group !important;
         }
 
-        /* फुटर या डिक्लेरेशन को कटने से बचाने के लिए */
-        .declaration-box, .invoice-footer {
+        .declaration-box, .invoice-footer, .declaration, .summary-section {
           page-break-inside: avoid !important;
           break-inside: avoid !important;
         }
