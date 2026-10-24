@@ -131,40 +131,55 @@
          ========================================================================= */
       @page {
         size: A4;
-        margin: 5mm;
+        margin: 10mm;
       }
 
       @media print {
-        /* 1. Global Print Reset: Natural Printable A4 Dimensions */
-        html, body {
+        body {
+          background-color: #ffffff;
+          margin: 0 !important;
+          padding: 0 !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        /* इनवॉइस कंटेनर को फिक्स हाइट या स्क्रॉल से मुक्त करें ताकि यह पेजों में फैल सके */
+        .invoice-box, .invoice-container, .container {
           width: 100% !important;
           max-width: 100% !important;
           height: auto !important;
-          min-height: auto !important;
           max-height: none !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          background: #ffffff !important;
-          background-color: #ffffff !important;
-          color: #0f172a !important;
-          font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
           overflow: visible !important;
-        }
-        .invoice-box, .invoice-container {
-          width: 100% !important;
-          max-width: 100% !important;
           box-shadow: none !important;
           border: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
         }
-        /* अगर इनवॉइस लंबी है तो यह सुनिश्चित करेगा कि सामग्री कटे नहीं बल्कि अगले पेज पर चली जाए */
-        .page-break {
-          page-break-after: always;
-        }
-        tr, td, th {
+
+        /* टेबल की प्रत्येक पंक्ति (Row) बीच से न कटे, जरूरत पड़ने पर अगले पेज पर चली जाए */
+        tr, .item-row, td, th {
           page-break-inside: avoid !important;
           break-inside: avoid !important;
+        }
+
+        /* यदि इनवॉइस दूसरे पेज पर जाए तो टेबल का हेडर हर नए पेज पर ऊपर अपने आप दिखे */
+        thead {
+          display: table-header-group !important;
+        }
+
+        tfoot {
+          display: table-footer-group !important;
+        }
+
+        /* फुटर या डिक्लेरेशन को कटने से बचाने के लिए */
+        .declaration-box, .invoice-footer {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+
+        /* ऑटोमैटिक डायनेमिक पेज नंबरिंग (Page 1 of 2, Page 2 of 2) के लिए */
+        .page-counter::after {
+          content: "Page " counter(page) " of " counter(pages);
         }
 
         /* 2. Disable All Overflow Scrollbars & Scrolling Indicators */
