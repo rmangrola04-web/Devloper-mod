@@ -127,8 +127,8 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
   // When the full Summary Section (totals, words, transporter, metrics, signature) is on the page:
   // comfortably fits up to 7 items without any overflow.
   // When continuation page (no summary): comfortably fits up to 12 items.
-  const MAX_ITEMS_ON_FINAL_PAGE = 7;
-  const MAX_ITEMS_ON_CONTINUATION_PAGE = 12;
+  const MAX_ITEMS_ON_FINAL_PAGE = 8;
+  const MAX_ITEMS_ON_CONTINUATION_PAGE = 14;
 
   const pageChunks: typeof processedItems[] = [];
   if (processedItems.length === 0) {
@@ -178,14 +178,15 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             break-inside: avoid !important;
             margin: 0 !important;
             width: 100% !important;
-            min-height: 210mm !important;
+            min-height: auto !important;
             height: auto !important;
             box-sizing: border-box !important;
             box-shadow: none !important;
-            padding: 10mm 12mm !important;
+            padding: 6mm 8mm !important;
             display: flex !important;
             flex-direction: column !important;
-            justify-content: space-between !important;
+            justify-content: flex-start !important;
+            gap: 5px !important;
           }
           .tax-invoice-page:last-child, .invoice-page:last-child {
             page-break-after: avoid !important;
@@ -211,7 +212,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
         return (
           <div
             key={pageIdx}
-            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-[210mm] mx-auto p-[10mm_12mm] text-black font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-black print:p-[10mm_12mm] print:w-full print:min-h-[210mm] print:m-0 mb-8 print:mb-0 flex flex-col justify-between"
+            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-0 h-auto mx-auto p-[6mm_8mm] text-black font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-black print:p-[6mm_8mm] print:w-full print:min-h-0 print:h-auto print:m-0 mb-6 print:mb-0 flex flex-col justify-start gap-[5px]"
             style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
           >
             <div>

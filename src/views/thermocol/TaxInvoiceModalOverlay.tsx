@@ -133,23 +133,25 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
         .btn-primary:hover { background-color: #172554; }
         .btn-secondary:hover { background-color: #219653; }
 
-        /* A4 Landscape Page Specification */
+        /* A4 Landscape Page Specification - Compact & Natural Layout */
         .invoice-page {
             width: 297mm;
-            min-height: 210mm;
+            min-height: auto;
+            height: auto;
             margin: 0 auto 8mm auto;
             background: #fff;
-            padding: 10mm 12mm;
+            padding: 6mm 8mm;
             box-sizing: border-box;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            justify-content: flex-start;
+            gap: 5px;
             position: relative;
             border: 1px solid #000;
         }
 
-        .header-box { border: 1px solid #000; padding: 6px 8px; margin-bottom: 5px; }
+        .header-box { border: 1px solid #000; padding: 5px 8px; margin-bottom: 5px; }
         .header-title { 
             background-color: #1e3a8a; 
             color: white; 
@@ -157,24 +159,24 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             font-weight: bold; 
             font-size: 12px; 
             padding: 5px; 
-            margin: -6px -8px 6px -8px;
+            margin: -5px -8px 5px -8px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
         .company-header { display: flex; justify-content: space-between; font-size: 9.5px; }
         
         .parties-box { display: flex; gap: 5px; margin-bottom: 5px; }
-        .party-col { flex: 1; border: 1px solid #000; padding: 5px 8px; font-size: 9.5px; box-sizing: border-box; }
+        .party-col { flex: 1; border: 1px solid #000; padding: 5px 7px; font-size: 9px; box-sizing: border-box; }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
         }
 
         th, td {
             border: 1px solid #000 !important;
-            padding: 4px 5px;
+            padding: 3px 5px;
             font-size: 9px;
             text-align: center;
         }
@@ -191,29 +193,29 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
         .bottom-section {
             display: flex;
             gap: 5px;
-            margin-top: 5px;
+            margin-top: 4px;
         }
         .amount-words-box {
             flex: 1.5;
             border: 1px solid #000;
-            padding: 6px;
-            font-size: 9.5px;
+            padding: 5px 7px;
+            font-size: 9px;
         }
         .transporter-box {
             flex: 1.5;
             border: 1px solid #000;
-            padding: 6px;
-            font-size: 9.5px;
+            padding: 5px 7px;
+            font-size: 9px;
         }
         .summary-box {
             flex: 1.5;
             border: 1px solid #000;
-            padding: 6px;
-            font-size: 9.5px;
+            padding: 5px 7px;
+            font-size: 9px;
         }
 
         .declaration {
-            margin-top: 5px;
+            margin-top: 4px;
             font-size: 8px;
             border-top: 1px dashed #000;
             padding-top: 3px;
@@ -251,17 +253,23 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
 
             .invoice-page {
                 width: 100% !important;
-                min-height: 210mm !important;
+                min-height: auto !important;
                 height: auto !important;
                 margin: 0 !important;
                 box-shadow: none !important;
-                padding: 10mm 12mm !important;
+                padding: 6mm 8mm !important;
                 page-break-after: always !important;
                 break-after: page !important;
                 page-break-inside: avoid !important;
                 display: flex !important;
                 flex-direction: column !important;
-                justify-content: space-between !important;
+                justify-content: flex-start !important;
+                gap: 5px !important;
+            }
+
+            .invoice-page:last-child {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
             }
 
             .header-box, .party-col, table, th, td, .amount-words-box, .transporter-box, .summary-box {
