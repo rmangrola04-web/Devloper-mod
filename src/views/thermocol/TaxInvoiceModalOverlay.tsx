@@ -78,79 +78,121 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
     const docPrefix = isIndore ? 'Delivery_Challan' : 'Tax_Invoice_Stock_Transfer';
 
     const fullHtml = `<!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
-    <title>${docPrefix}_${invoice.invNo.replace(/\//g, '_')}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${docPrefix} - ${invoice.invNo.replace(/\//g, '_')}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @page {
-            size: A4 landscape;
-            margin: 8mm;
-        }
-        *, *::before, *::after {
-            box-sizing: border-box !important;
-            scrollbar-width: none !important;
-        }
-        *::-webkit-scrollbar {
-            display: none !important;
-        }
         body {
             font-family: Arial, Helvetica, sans-serif;
+            background-color: #555;
             margin: 0;
-            padding: 15px;
-            background-color: #f1f5f9;
-            color: #111111;
+            padding: 20px;
+            color: #000;
         }
-        .no-print {
-            max-width: 281mm;
-            margin: 0 auto 12px auto;
+
+        /* टॉप एक्शन बार जहाँ HTML डाउनलोड और PDF प्रिंट बटन हैं */
+        .action-bar {
+            max-width: 210mm;
+            margin: 0 auto 15px auto;
+            text-align: right;
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
         }
-        .print-btn {
-            background-color: #002f6c;
+        .btn-primary {
+            background-color: #1e3a8a;
             color: white;
             border: none;
-            padding: 8px 16px;
-            font-size: 13px;
-            font-weight: bold;
-            border-radius: 6px;
+            padding: 10px 18px;
+            border-radius: 4px;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
-        .print-btn:hover {
-            background-color: #001f48;
+        .btn-secondary {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        .btn-secondary:hover { background-color: #218838; }
+
+        /* सख्त A4 Portrait प्रिंट लेआउट */
+        @page {
+            size: A4 portrait;
+            margin: 0;
+        }
+
         @media print {
             body {
-                background: white !important;
+                background-color: #ffffff !important;
+                margin: 0 !important;
                 padding: 0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
-            .no-print {
+            .action-bar, .no-print {
                 display: none !important;
             }
-            #taxInvoicePrintArea, .tax-invoice-page {
-                border: 1px solid #000 !important;
+            .invoice-page, .tax-invoice-page {
+                width: 209mm !important;
+                min-height: 296mm !important;
+                height: auto !important;
+                margin: 0 !important;
                 box-shadow: none !important;
-                max-width: 281mm !important;
-                width: 100% !important;
-                padding: 4mm !important;
-                margin: 0 auto !important;
-                overflow: visible !important;
-                box-sizing: border-box !important;
+                padding: 10mm 12mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+            }
+            .invoice-page:last-child, .tax-invoice-page:last-child {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+            .header-box, .details-box, table, th, td, .summary-section {
+                border: 1px solid #000 !important;
+            }
+            th {
+                background-color: #1e3a8a !important;
+                color: white !important;
+                font-weight: bold !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
         }
     </style>
 </head>
 <body>
 
-<div class="no-print" style="margin-bottom: 12px;">
-    <span style="font-size: 12px; color: #64748b; font-family: monospace;">Landscape A4 Format (297mm × 210mm)</span>
+<div class="action-bar no-print">
+    <button class="btn-secondary" onclick="window.location.reload()">
+        <span>Download HTML</span>
+    </button>
+    <button class="btn-primary" onclick="window.print()">
+        <span>📥 Download / Print PDF</span>
+    </button>
 </div>
 
-<div style="max-width: 287mm; margin: 0 auto; background: white; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+<div style="max-width: 210mm; margin: 0 auto;">
     ${htmlContent}
 </div>
 
@@ -237,7 +279,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
       {/* ==============================================================
           TOP AUDIT & PRE-PRINT INSPECTION TOOLBAR (Hidden in Print)
           ============================================================== */}
-      <div className="w-full max-w-[287mm] mb-3 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 p-3.5 print:hidden shrink-0 space-y-3">
+      <div className="w-full max-w-[210mm] mb-3 bg-slate-900 text-white rounded-2xl shadow-2xl border border-slate-800 p-3.5 print:hidden shrink-0 space-y-3">
         {/* Top Action Row */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2.5">
           <div className="flex items-center gap-2.5">
@@ -254,7 +296,7 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
                 </span>
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center gap-1">
                   <LayoutTemplate className="w-3 h-3" />
-                  <span>A4 Landscape</span>
+                  <span>A4 Portrait</span>
                 </span>
                 {isIndore ? (
                   <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
@@ -276,10 +318,10 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             </div>
           </div>
 
-          {/* Quick Buttons */}
+          {/* Quick Buttons: Exactly 2 Action Buttons + Modal Close */}
           <div className="flex items-center gap-2">
             {/* Zoom Controls */}
-            <div className="hidden sm:flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
+            <div className="hidden sm:flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700 mr-1">
               <button 
                 onClick={() => setScale(s => Math.max(0.6, s - 0.1))}
                 className="p-1.5 text-slate-300 hover:text-white hover:bg-slate-700 rounded transition cursor-pointer"
@@ -306,45 +348,29 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
               </button>
             </div>
 
-            <button
-              onClick={() => window.print()}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white border border-blue-500 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95"
-              title="Print invoice or save as PDF"
-            >
-              <Printer className="w-3.5 h-3.5 text-blue-100" />
-              <span>Print Invoice</span>
-            </button>
-
-            <button
-              onClick={handleDownloadPdf}
-              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs active:scale-95"
-              title="Download verified A4 Landscape PDF"
-            >
-              <FileDown className="w-3.5 h-3.5 text-emerald-100" />
-              <span>Download PDF</span>
-            </button>
-
+            {/* Button 1: Download HTML */}
             <button
               onClick={handleDownloadHtml}
-              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-              title="Download standalone HTML file in Landscape format"
+              className="btn-secondary active:scale-95"
+              title="Download standalone HTML file"
             >
-              <Download className="w-3.5 h-3.5 text-blue-400" />
-              <span className="hidden sm:inline">HTML</span>
+              <Download className="w-4 h-4" />
+              <span>Download HTML</span>
             </button>
 
+            {/* Button 2: 📥 Download / Print PDF */}
             <button
-              onClick={() => exportSapDispatchCsvHelper([invoice], `SAP_IRN_Dispatch_${invoice.invNo.replace(/[/]/g, '_')}`)}
-              className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 text-white border border-indigo-500 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-sm"
-              title="Export SAP / IRN Dispatch CSV pre-filled with Consignor, Customer, HSN, Tax & Transport data"
+              onClick={() => window.print()}
+              className="btn-primary active:scale-95"
+              title="Download or Print PDF"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-200" />
-              <span>Export SAP CSV</span>
+              <span>📥 Download / Print PDF</span>
             </button>
 
+            {/* Modal Close Button */}
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer border border-transparent hover:border-slate-700"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer border border-transparent hover:border-slate-700 ml-1"
               title="Close Preview (Esc)"
             >
               <X className="w-4 h-4" />
@@ -395,11 +421,11 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
       </div>
 
       {/* ==============================================================
-          A4 LANDSCAPE CANVAS (Screen Preview & Exact Print Target)
+          A4 PORTRAIT CANVAS (Screen Preview & Exact Print Target)
           ============================================================== */}
       <div 
         style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}
-        className="w-full max-w-[287mm] overflow-x-auto transition-transform duration-150 mb-12 print:mb-0 print:transform-none print:overflow-visible"
+        className="w-full max-w-[210mm] overflow-x-auto transition-transform duration-150 mb-12 print:mb-0 print:transform-none print:overflow-visible"
       >
         <OutwardStockTransferInvoiceDoc invoice={invoice} />
       </div>
