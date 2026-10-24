@@ -46,113 +46,212 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
     const fullHtml = `<!DOCTYPE html>
 <html lang="hi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${docPrefix} - ${invoice.invNo.replace(/\//g, '_')}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body {
-      font-family: Arial, Helvetica, sans-serif;
-      background-color: #555;
-      margin: 0;
-      padding: 20px;
-      color: #000;
-    }
-    .action-bar {
-      max-width: 210mm;
-      margin: 0 auto 15px auto;
-      text-align: right;
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-    }
-    .btn-primary {
-      background-color: #1e3a8a;
-      color: white;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 13px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn-secondary {
-      background-color: #28a745;
-      color: white;
-      border: none;
-      padding: 10px 18px;
-      border-radius: 4px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 13px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn-primary:hover { background-color: #1d4ed8; }
-    .btn-secondary:hover { background-color: #218838; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${docPrefix} - ${invoice.invNo.replace(/\//g, '_')}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #555;
+            margin: 0;
+            padding: 10px;
+            color: #000;
+        }
 
-    @page { 
-      size: A4 portrait; 
-      margin: 0; 
-    }
-    @media print {
-      body {
-        background-color: #ffffff !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-      .action-bar, .no-print, .print-hidden, button, nav, header { display: none !important; }
-      .invoice-page, .tax-invoice-page {
-        width: 209mm !important;
-        min-height: 296mm !important;
-        height: auto !important;
-        margin: 0 !important;
-        box-shadow: none !important;
-        padding: 10mm 12mm !important;
-        page-break-after: always !important;
-        break-after: page !important;
-        page-break-inside: avoid !important;
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: space-between !important;
-      }
-      .invoice-page:last-child, .tax-invoice-page:last-child {
-        page-break-after: avoid !important;
-        break-after: avoid !important;
-      }
-      .header-box, .details-box, table, th, td, .summary-section {
-        border: 1px solid #000 !important;
-      }
-      th {
-        background-color: #1e3a8a !important;
-        color: white !important;
-        font-weight: bold !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-    }
-  </style>
+        /* एक्शन बार: HTML डाउनलोड और PDF प्रिंट बटन */
+        .action-bar {
+            max-width: 297mm;
+            margin: 0 auto 10mm auto;
+            text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-primary {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-secondary {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-primary:hover { background-color: #1a252f; }
+        .btn-secondary:hover { background-color: #219653; }
+
+        /* इनवॉइस का मुख्य पेज बॉक्स (सटीक A4 लैंडस्केप साइज और परफेक्ट मार्जिन) */
+        .invoice-page {
+            width: 297mm;
+            min-height: 210mm;
+            margin: 0 auto 8mm auto;
+            background: #fff;
+            padding: 10mm 12mm;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* तस्वीर के अनुसार सॉफ्ट प्रोफेशनल कलर्स और बॉर्डर्स */
+        .header-box { border: 1px solid #b0b0b0; padding: 6px 8px; margin-bottom: 5px; }
+        .header-title { 
+            background-color: #2c3e50; 
+            color: white; 
+            text-align: center; 
+            font-weight: bold; 
+            font-size: 12px; 
+            padding: 5px; 
+            margin: -6px -8px 6px -8px;
+        }
+        .company-header { display: flex; justify-content: space-between; font-size: 9.5px; }
+        
+        .parties-box { display: flex; gap: 5px; margin-bottom: 5px; }
+        .party-col { flex: 1; border: 1px solid #b0b0b0; padding: 5px 8px; font-size: 9.5px; box-sizing: border-box; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+
+        th, td {
+            border: 1px solid #b0b0b0 !important;
+            padding: 4px 5px;
+            font-size: 9px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #34495e !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .text-left { text-align: left; }
+
+        .bottom-section {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .amount-words-box {
+            flex: 1.5;
+            border: 1px solid #b0b0b0;
+            padding: 6px;
+            font-size: 9.5px;
+        }
+        .transporter-box {
+            flex: 1.5;
+            border: 1px solid #b0b0b0;
+            padding: 6px;
+            font-size: 9.5px;
+        }
+        .summary-box {
+            flex: 1.5;
+            border: 1px solid #b0b0b0;
+            padding: 6px;
+            font-size: 9.5px;
+        }
+
+        .declaration {
+            margin-top: 5px;
+            font-size: 8px;
+            border-top: 1px dashed #b0b0b0;
+            padding-top: 3px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .continuation-notice {
+            text-align: right;
+            font-weight: bold;
+            font-style: italic;
+            font-size: 9.5px;
+            color: #d35400;
+            margin-top: 3px;
+        }
+
+        /* --- PDF और प्रिंट के लिए सख्त नियम --- */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 3mm;
+            }
+
+            body {
+                background-color: #ffffff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .action-bar, .no-print {
+                display: none !important;
+            }
+
+            .invoice-page {
+                width: 100% !important;
+                min-height: 210mm !important;
+                height: auto !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                padding: 10mm 12mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+            }
+
+            .header-box, .party-col, table, th, td, .amount-words-box, .transporter-box, .summary-box {
+                border: 1px solid #000 !important;
+            }
+
+            th {
+                background-color: #34495e !important;
+                color: white !important;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="action-bar no-print">
-    <button class="btn-secondary" onclick="window.location.reload()">
-      <span>Download HTML</span>
-    </button>
-    <button class="btn-primary" onclick="window.print()">
-      <span>📥 Download / Print PDF</span>
-    </button>
-  </div>
-  <div style="max-width: 210mm; margin: 0 auto;">
+
+<!-- एक्शन बार -->
+<div class="action-bar no-print">
+    <button id="downloadHtmlBtn" class="btn-secondary" onclick="window.location.reload()">📁 Download HTML</button>
+    <button id="downloadPdfBtn" class="btn-primary" onclick="window.print()">📥 Download / Print PDF</button>
+</div>
+
+<!-- इनवॉइस कंटेनर -->
+<div id="invoiceContainer" style="max-width: 297mm; margin: 0 auto;">
     ${htmlContent}
-  </div>
+</div>
+
 </body>
 </html>`;
     const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
@@ -237,7 +336,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
           </span>
           <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
             <LayoutTemplate className="w-3 h-3 text-blue-600" />
-            <span>A4 Portrait</span>
+            <span>A4 Landscape</span>
           </span>
           {isIndore ? (
             <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
@@ -278,7 +377,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
 
       {/* Printable Invoice Document Body Wrapped in Responsive Container */}
       <div className="overflow-x-auto bg-slate-200/50 p-2 sm:p-4 rounded-xl border border-slate-200 shadow-inner">
-        <div className="max-w-[210mm] mx-auto">
+        <div className="max-w-[296mm] mx-auto">
           <OutwardStockTransferInvoiceDoc invoice={invoice} />
         </div>
       </div>

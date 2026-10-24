@@ -123,44 +123,65 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
   const roundOff = Number((grandTotalNum - subTotalBeforeRounding).toFixed(2));
   const amountWords = numberToWords(grandTotalNum);
 
-  // Chunk items dynamically into pages of strictly max 3 items per page
-  const ITEMS_PER_PAGE = 3;
+  // Natural dynamic content-based page capacity for A4 Landscape
+  // When the full Summary Section (totals, words, transporter, metrics, signature) is on the page:
+  // comfortably fits up to 7 items without any overflow.
+  // When continuation page (no summary): comfortably fits up to 12 items.
+  const MAX_ITEMS_ON_FINAL_PAGE = 7;
+  const MAX_ITEMS_ON_CONTINUATION_PAGE = 12;
+
   const pageChunks: typeof processedItems[] = [];
   if (processedItems.length === 0) {
     pageChunks.push([]);
+  } else if (processedItems.length <= MAX_ITEMS_ON_FINAL_PAGE) {
+    // Natural single-page invoice: all items & full summary fit completely on 1 page!
+    pageChunks.push(processedItems);
   } else {
-    for (let i = 0; i < processedItems.length; i += ITEMS_PER_PAGE) {
-      pageChunks.push(processedItems.slice(i, i + ITEMS_PER_PAGE));
+    // Multi-page invoice: fill continuation pages naturally, reserving remainder for final page with summary
+    let remaining = [...processedItems];
+    while (remaining.length > 0) {
+      if (remaining.length <= MAX_ITEMS_ON_FINAL_PAGE) {
+        pageChunks.push(remaining);
+        break;
+      } else {
+        const chunkSize = Math.min(MAX_ITEMS_ON_CONTINUATION_PAGE, remaining.length - 1);
+        pageChunks.push(remaining.slice(0, chunkSize));
+        remaining = remaining.slice(chunkSize);
+      }
     }
   }
   const totalPages = pageChunks.length;
 
   return (
     <div id="taxInvoicePrintArea" className="space-y-6 print:space-y-0">
-      {/* Dynamic Print CSS for Strict A4 Portrait Format & Exact Color Adjust */}
+      {/* Dynamic Print CSS for Strict A4 Landscape Format & Soft Professional Palette */}
       <style>{`
         @media print {
           @page {
-            size: A4 portrait;
-            margin: 0;
+            size: A4 landscape;
+            margin: 3mm;
           }
           body {
             print-color-adjust: exact !important;
             -webkit-print-color-adjust: exact !important;
             background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .action-bar, .no-print {
+            display: none !important;
           }
           .tax-invoice-page, .invoice-page {
             page-break-after: always !important;
             break-after: page !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
-            margin: 0 auto !important;
-            border: 1px solid #000000 !important;
-            box-shadow: none !important;
-            width: 209mm !important;
-            min-height: 296mm !important;
+            margin: 0 !important;
+            width: 100% !important;
+            min-height: 210mm !important;
             height: auto !important;
             box-sizing: border-box !important;
+            box-shadow: none !important;
             padding: 10mm 12mm !important;
             display: flex !important;
             flex-direction: column !important;
@@ -170,11 +191,11 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             page-break-after: avoid !important;
             break-after: avoid !important;
           }
-          .header-box, .details-box, table, th, td, .summary-section {
-            border: 1px solid #000000 !important;
+          .header-box, .party-col, .details-box, table, th, td, .amount-words-box, .transporter-box, .summary-box, .summary-section {
+            border: 1px solid #000 !important;
           }
           th {
-            background-color: #1e3a8a !important;
+            background-color: #34495e !important;
             color: #ffffff !important;
             font-weight: bold !important;
             -webkit-print-color-adjust: exact !important;
@@ -190,17 +211,22 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
         return (
           <div
             key={pageIdx}
-            className="tax-invoice-page invoice-page bg-white w-[210mm] max-w-[210mm] min-h-[297mm] mx-auto p-[10mm_12mm] text-black font-sans text-[7.5pt] leading-tight border border-black shadow-xl print:shadow-none print:border print:border-black print:p-[10mm_12mm] print:w-[209mm] print:min-h-[296mm] print:m-0 mb-8 print:mb-0 flex flex-col justify-between"
+            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-[210mm] mx-auto p-[10mm_12mm] text-black font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-black print:p-[10mm_12mm] print:w-full print:min-h-[210mm] print:m-0 mb-8 print:mb-0 flex flex-col justify-between"
             style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
           >
             <div>
               {/* 1. TOP HEADER SECTION */}
               <div 
                 id="taxInvoiceHeader"
-                className="header-box tax-invoice-header border border-black p-2 mb-2 bg-white"
+                className="header-box tax-invoice-header border border-[#b0b0b0] p-[6px_8px] mb-[5px] bg-white"
               >
-                <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
-                  {/* Company Header: Official Logo, PAN & CIN Integration on top left */}
+                {/* Header Title Banner with #1e3a8a background */}
+                <div className="header-title bg-[#1e3a8a] text-white text-center font-bold text-[12px] p-[5px] -mx-[8px] -mt-[6px] mb-[6px] tracking-wide uppercase">
+                  {docTitle}
+                </div>
+
+                <div className="company-header flex flex-col sm:flex-row justify-between items-start gap-3 text-[9.5px]">
+                  {/* Company Header: Official Logo, PAN & CIN Integration on left */}
                   <div className="w-full sm:w-[58%] space-y-1">
                     <div className="flex items-center gap-3">
                       <AbbottLogo 
@@ -209,10 +235,10 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                         className="h-8 sm:h-9 w-auto" 
                       />
                     </div>
-                    <p className="text-[7.5pt] text-slate-800 leading-normal w-full whitespace-normal">
+                    <p className="text-[9px] text-slate-800 leading-normal w-full whitespace-normal">
                       {displaySenderAddress}
                     </p>
-                    <div className="flex flex-wrap items-center gap-x-3 text-[7.5pt] text-black pt-0.5 font-semibold">
+                    <div className="flex flex-wrap items-center gap-x-3 text-[9px] text-black pt-0.5 font-semibold">
                       <span><b>GSTIN:</b> {displaySenderGstin}</span>
                       <span><b>PAN:</b> {displaySenderPan}</span>
                       <span><b>CIN:</b> {displaySenderCin}</span>
@@ -221,19 +247,12 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     </div>
                   </div>
 
-                  {/* Dynamic Header & Document Details on top right */}
-                  <div className="w-full sm:w-[42%] text-left sm:text-right space-y-1">
-                    <div className="bg-[#1e3a8a] text-white px-3 py-1.5 text-center sm:text-right rounded-xs border border-black">
-                      <h2 className="text-[11pt] font-black tracking-wide uppercase m-0 leading-tight">
-                        {docTitle}
-                      </h2>
-                    </div>
-
-                    {/* Document Details Box */}
-                    <div className="border border-black bg-slate-50 p-1.5 text-[7.5pt] grid grid-cols-2 gap-x-2 gap-y-0.5 text-left rounded-xs">
+                  {/* Document Details on right */}
+                  <div className="w-full sm:w-[40%] text-left sm:text-right space-y-1">
+                    <div className="border border-[#b0b0b0] bg-slate-50 p-2 text-[9px] grid grid-cols-2 gap-x-2 gap-y-1 text-left rounded-xs">
                       <div>
                         <span className="text-slate-600 font-semibold">{isIndore ? 'Challan No:' : 'Invoice No:'}</span>{' '}
-                        <b className="font-mono text-blue-900">{invoice.invNo}</b>
+                        <b className="font-mono text-[#2c3e50]">{invoice.invNo}</b>
                       </div>
                       <div>
                         <span className="text-slate-600 font-semibold">{isIndore ? 'Challan Date:' : 'Invoice Date:'}</span>{' '}
@@ -250,99 +269,95 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                 </div>
               </div>
 
-              {/* 2. CONSIGNOR & CONSIGNEE DETAILS GRID BOXES */}
-              <div className="details-box grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2 text-[7.5pt] items-stretch">
-                {/* Consignor Box */}
-                <div className="border border-black rounded-xs bg-[#fbfcfd] flex flex-col justify-between">
-                  <div className="bg-[#1e3a8a] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[7pt] border-b border-black">
-                    Details of Consignor (Shipped &amp; Dispatched From)
-                  </div>
-                  <div className="p-2 space-y-1 flex-1">
-                    <p className="font-bold text-black text-[8pt]">{displaySenderName}</p>
-                    <p className="text-slate-800 leading-relaxed whitespace-normal break-words">{displaySenderAddress}</p>
-                    <div className="flex flex-wrap gap-x-3 pt-1 border-t border-slate-300 text-black font-medium">
-                      <span><b>GSTIN:</b> {displaySenderGstin}</span>
-                      <span><b>PAN:</b> {displaySenderPan}</span>
-                      <span><b>CIN:</b> {displaySenderCin}</span>
-                      <span><b>State:</b> Madhya Pradesh (State Code: 23)</span>
+              {/* 2. CONSIGNOR & CONSIGNEE DETAILS (parties-box with party-col) */}
+              <div className="parties-box flex flex-col sm:flex-row gap-[5px] mb-[5px] text-[9.5px]">
+                {/* Consignor Column */}
+                <div className="party-col flex-1 border border-[#b0b0b0] p-[5px_8px] box-border bg-[#fbfcfd] flex flex-col justify-between">
+                  <div>
+                    <div className="bg-[#1e3a8a] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] -mx-[8px] -mt-[5px] mb-[5px]">
+                      Details of Consignor (Shipped &amp; Dispatched From)
                     </div>
+                    <p className="font-bold text-black text-[10px]">{displaySenderName}</p>
+                    <p className="text-slate-800 leading-normal whitespace-normal break-words">{displaySenderAddress}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 pt-1 border-t border-[#b0b0b0] text-[9px] text-black font-medium mt-1">
+                    <span><b>GSTIN:</b> {displaySenderGstin}</span>
+                    <span><b>PAN:</b> {displaySenderPan}</span>
+                    <span><b>CIN:</b> {displaySenderCin}</span>
+                    <span><b>State:</b> Madhya Pradesh (23)</span>
                   </div>
                 </div>
 
-                {/* Consignee Box */}
-                <div className="border border-black rounded-xs bg-[#fbfcfd] flex flex-col justify-between">
-                  <div className="bg-[#1e3a8a] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[7pt] border-b border-black">
-                    Details of Consignee (Billed To / Delivered To)
+                {/* Consignee Column */}
+                <div className="party-col flex-1 border border-[#b0b0b0] p-[5px_8px] box-border bg-[#fbfcfd] flex flex-col justify-between">
+                  <div>
+                    <div className="bg-[#1e3a8a] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] -mx-[8px] -mt-[5px] mb-[5px]">
+                      Details of Consignee (Billed To / Delivered To)
+                    </div>
+                    <p className="font-bold text-black text-[10px]">{invoice.partyName}</p>
+                    <p className="text-slate-800 leading-normal whitespace-normal break-words">{invoice.partyAddress}</p>
                   </div>
-                  <div className="p-2 space-y-1 flex-1">
-                    <p className="font-bold text-black text-[8pt]">{invoice.partyName}</p>
-                    <p className="text-slate-800 leading-relaxed whitespace-normal break-words">{invoice.partyAddress}</p>
-                    
-                    <div className="pt-1 border-t border-slate-300 text-[7.5pt] space-y-0.5">
-                      <div>
-                        <span className="text-slate-700 font-semibold">State:</span>{' '}
-                        <b className="text-black">{consigneeCleanState}</b>
-                      </div>
-                      <div>
-                        <span className="text-slate-700 font-semibold">City &amp; Pincode:</span>{' '}
-                        <b className="text-black font-mono">{formattedCityPin}</b>
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 pt-0.5 text-black font-medium">
-                        <span><b>GSTIN / UIN:</b> {invoice.partyGstin || 'Unregistered / URP'}</span>
-                        <span><b>Destination:</b> {isIndore ? 'Indore (MP)' : consigneeCleanCity}</span>
-                      </div>
+                  <div className="pt-1 border-t border-[#b0b0b0] text-[9px] space-y-0.5 mt-1">
+                    <div className="flex justify-between">
+                      <span><span className="text-slate-700 font-semibold">State:</span> <b className="text-black">{consigneeCleanState}</b></span>
+                      <span><span className="text-slate-700 font-semibold">City &amp; PIN:</span> <b className="text-black font-mono">{formattedCityPin}</b></span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 text-black font-medium">
+                      <span><b>GSTIN / UIN:</b> {invoice.partyGstin || 'Unregistered / URP'}</span>
+                      <span><b>Destination:</b> {isIndore ? 'Indore (MP)' : consigneeCleanCity}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* 3. DYNAMIC ITEM TABLE FOR THIS PAGE CHUNK (MAX 3 ITEMS PER PAGE) */}
-              <div className="overflow-x-auto mb-2 border border-black rounded-xs">
+              {/* 3. DYNAMIC ITEM TABLE FOR THIS PAGE CHUNK */}
+              <div className="overflow-x-auto mb-[5px]">
                 {isIndore ? (
-                  <table className="w-full text-left border-collapse text-[7pt] leading-tight">
+                  <table className="w-full text-left border-collapse text-[9px] mb-[5px]">
                     <thead>
-                      <tr className="bg-[#1e3a8a] text-white font-bold border-b border-black">
-                        <th className="border border-black p-1 text-center w-8 bg-[#1e3a8a] text-white">Sr. No.</th>
-                        <th className="border border-black p-1 min-w-[200px] bg-[#1e3a8a] text-white">Description of Goods</th>
-                        <th className="border border-black p-1 text-center w-16 bg-[#1e3a8a] text-white">HSN</th>
-                        <th className="border border-black p-1 text-right w-16 bg-[#1e3a8a] text-white">Qty. NOS</th>
-                        <th className="border border-black p-1 text-right w-16 bg-[#1e3a8a] text-white">Case Qty.</th>
-                        <th className="border border-black p-1 text-center w-12 bg-[#1e3a8a] text-white">Unit</th>
-                        <th className="border border-black p-1 text-center w-20 bg-[#1e3a8a] text-white">Batch</th>
-                        <th className="border border-black p-1 text-center w-18 bg-[#1e3a8a] text-white">EXP</th>
-                        <th className="border border-black p-1 text-right w-20 bg-[#1e3a8a] text-white">Rate (per item)</th>
-                        <th className="border border-black p-1 text-right font-extrabold w-24 bg-[#1e3a8a] text-white">final Total</th>
+                      <tr className="bg-[#34495e] text-white font-bold border-b border-[#b0b0b0]">
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-8 bg-[#34495e] text-white">Sr.</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] min-w-[200px] text-left bg-[#34495e] text-white">Description of Goods</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#34495e] text-white">HSN</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#34495e] text-white">Qty. NOS</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#34495e] text-white">Case Qty.</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-12 bg-[#34495e] text-white">Unit</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-20 bg-[#34495e] text-white">Batch</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-center w-18 bg-[#34495e] text-white">EXP</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right w-20 bg-[#34495e] text-white">Rate (₹)</th>
+                        <th className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-24 bg-[#34495e] text-white">Total (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
                       {pageItems.length === 0 ? (
                         <tr>
-                          <td colSpan={10} className="border border-black p-4 text-center text-slate-500 italic">
+                          <td colSpan={10} className="border border-[#b0b0b0] p-4 text-center text-slate-500 italic">
                             No outward line items recorded.
                           </td>
                         </tr>
                       ) : (
                         pageItems.map((it, localIdx) => {
-                          const globalIdx = pageIdx * ITEMS_PER_PAGE + localIdx;
+                          const itemsBeforeThisPage = pageChunks.slice(0, pageIdx).reduce((acc, c) => acc + c.length, 0);
+                          const globalIdx = itemsBeforeThisPage + localIdx;
                           return (
                             <tr key={it.id || globalIdx} className="hover:bg-slate-50">
-                              <td className="border border-black p-1 text-center font-mono text-black">{globalIdx + 1}</td>
-                              <td className="border border-black p-1 font-semibold text-black">
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{globalIdx + 1}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] font-semibold text-black text-left">
                                 {it.productName}
                                 {it.packSize && (
-                                  <span className="text-[6.5pt] text-slate-600 font-normal block font-mono">
+                                  <span className="text-[8px] text-slate-600 font-normal block font-mono">
                                     Pack: {it.packSize} (×{it.packSizeMultiple || 1})
                                   </span>
                                 )}
                               </td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.hsnCode || '39239090'}</td>
-                              <td className="border border-black p-1 text-right font-mono font-bold text-black">{it.qty}</td>
-                              <td className="border border-black p-1 text-right font-mono text-black">{it.itemCases}</td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.unitText}</td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.batchNo}</td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.expDate}</td>
-                              <td className="border border-black p-1 text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
-                              <td className="border border-black p-1 text-right font-mono font-bold text-black">
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.hsnCode || '39239090'}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">{it.qty}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-black">{it.itemCases}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.unitText}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.batchNo}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.expDate}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">
                                 ₹{it.taxableVal.toFixed(2)}
                               </td>
                             </tr>
@@ -352,15 +367,15 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     </tbody>
                     {isLastPage && (
                       <tfoot>
-                        <tr className="bg-slate-200 font-bold border-t-2 border-black text-[7pt]">
-                          <td colSpan={3} className="border border-black p-1 text-right uppercase">
-                            Cumulative Total:
+                        <tr className="bg-slate-100 font-bold border-t-2 border-[#b0b0b0] text-[9px]">
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px] text-right uppercase">
+                            Total:
                           </td>
-                          <td className="border border-black p-1 text-center font-mono text-slate-500">-</td>
-                          <td className="border border-black p-1 text-right font-mono text-blue-900 font-extrabold">{totalCases} Cases</td>
-                          <td colSpan={3} className="border border-black p-1"></td>
-                          <td className="border border-black p-1 text-right font-mono">-</td>
-                          <td className="border border-black p-1 text-right font-mono font-extrabold text-[#002f6c]">
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-slate-500">-</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#2c3e50] font-extrabold">{totalCases} Cases</td>
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px]"></td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">-</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#2c3e50]">
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>
@@ -368,67 +383,68 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     )}
                   </table>
                 ) : (
-                  <table className="w-full text-left border-collapse text-[7pt] leading-tight">
+                  <table className="w-full text-left border-collapse text-[9px] mb-[5px]">
                     <thead>
-                      <tr className="bg-[#1e3a8a] text-white font-bold border-b border-black">
-                        <th rowSpan={2} className="border border-black p-1 text-center w-7 bg-[#1e3a8a] text-white">Sr. No.</th>
-                        <th rowSpan={2} className="border border-black p-1 min-w-[160px] bg-[#1e3a8a] text-white">Description of Goods</th>
-                        <th rowSpan={2} className="border border-black p-1 text-center w-14 bg-[#1e3a8a] text-white">HSN</th>
-                        <th rowSpan={2} className="border border-black p-1 text-right w-14 bg-[#1e3a8a] text-white">Qty. NOS</th>
-                        <th rowSpan={2} className="border border-black p-1 text-right w-14 bg-[#1e3a8a] text-white">Case Qty.</th>
-                        <th rowSpan={2} className="border border-black p-1 text-center w-10 bg-[#1e3a8a] text-white">Unit</th>
-                        <th rowSpan={2} className="border border-black p-1 text-center w-16 bg-[#1e3a8a] text-white">Batch</th>
-                        <th rowSpan={2} className="border border-black p-1 text-center w-14 bg-[#1e3a8a] text-white">EXP</th>
-                        <th rowSpan={2} className="border border-black p-1 text-right w-16 bg-[#1e3a8a] text-white">Rate (per item)</th>
-                        <th rowSpan={2} className="border border-black p-1 text-right w-16 bg-[#1e3a8a] text-white">Total</th>
-                        <th rowSpan={2} className="border border-black p-1 text-right w-16 bg-[#1e3a8a] text-white">Taxable Value</th>
-                        <th colSpan={2} className="border border-black p-0.5 text-center bg-[#172554] text-white">IGST</th>
-                        <th rowSpan={2} className="border border-black p-1 text-right font-extrabold w-20 bg-[#1e3a8a] text-white">final Total</th>
+                      <tr className="bg-[#1e3a8a] text-white font-bold border-b border-[#b0b0b0]">
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-7 bg-[#1e3a8a] text-white">Sr.</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] min-w-[160px] text-left bg-[#1e3a8a] text-white">Description of Goods</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#1e3a8a] text-white">HSN</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#1e3a8a] text-white">Qty</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-14 bg-[#1e3a8a] text-white">Cases</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-10 bg-[#1e3a8a] text-white">Unit</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-16 bg-[#1e3a8a] text-white">Batch</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-center w-14 bg-[#1e3a8a] text-white">EXP</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#1e3a8a] text-white">Rate</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#1e3a8a] text-white">Total</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right w-16 bg-[#1e3a8a] text-white">Taxable</th>
+                        <th colSpan={2} className="border border-[#b0b0b0] p-[2px_4px] text-center bg-[#1e3a8a] text-white">IGST</th>
+                        <th rowSpan={2} className="border border-[#b0b0b0] p-[4px_5px] text-right font-extrabold w-20 bg-[#1e3a8a] text-white">Final Total</th>
                       </tr>
-                      <tr className="bg-[#1e3a8a] text-white font-bold border-b border-black text-[6.5pt]">
-                        <th className="border border-black p-0.5 text-center w-10 bg-[#1e3a8a] text-white">Rate %</th>
-                        <th className="border border-black p-0.5 text-right w-14 bg-[#1e3a8a] text-white">Amt Rs</th>
+                      <tr className="bg-[#1e3a8a] text-white font-bold border-b border-[#b0b0b0] text-[8px]">
+                        <th className="border border-[#b0b0b0] p-[2px_4px] text-center w-10 bg-[#1e3a8a] text-white">Rate %</th>
+                        <th className="border border-[#b0b0b0] p-[2px_4px] text-right w-14 bg-[#1e3a8a] text-white">Amt (₹)</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white">
                       {pageItems.length === 0 ? (
                         <tr>
-                          <td colSpan={14} className="border border-black p-4 text-center text-slate-500 italic">
+                          <td colSpan={14} className="border border-[#b0b0b0] p-4 text-center text-slate-500 italic">
                             No outward line items recorded.
                           </td>
                         </tr>
                       ) : (
                         pageItems.map((it, localIdx) => {
-                          const globalIdx = pageIdx * ITEMS_PER_PAGE + localIdx;
+                          const itemsBeforeThisPage = pageChunks.slice(0, pageIdx).reduce((acc, c) => acc + c.length, 0);
+                          const globalIdx = itemsBeforeThisPage + localIdx;
                           return (
                             <tr key={it.id || globalIdx} className="hover:bg-slate-50">
-                              <td className="border border-black p-1 text-center font-mono text-black">{globalIdx + 1}</td>
-                              <td className="border border-black p-1 font-semibold text-black">
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{globalIdx + 1}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] font-semibold text-black text-left">
                                 {it.productName}
                                 {it.packSize && (
-                                  <span className="text-[6.5pt] text-slate-600 font-normal block font-mono">
+                                  <span className="text-[8px] text-slate-600 font-normal block font-mono">
                                     Pack: {it.packSize} (×{it.packSizeMultiple || 1})
                                   </span>
                                 )}
                               </td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.hsnCode || '39239090'}</td>
-                              <td className="border border-black p-1 text-right font-mono font-bold text-black">{it.qty}</td>
-                              <td className="border border-black p-1 text-right font-mono text-black">{it.itemCases}</td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.unitText}</td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.batchNo}</td>
-                              <td className="border border-black p-1 text-center font-mono text-black">{it.expDate}</td>
-                              <td className="border border-black p-1 text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
-                              <td className="border border-black p-1 text-right font-mono">₹{it.lineGross.toFixed(2)}</td>
-                              <td className="border border-black p-1 text-right font-mono font-semibold">₹{it.taxableVal.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.hsnCode || '39239090'}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">{it.qty}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-black">{it.itemCases}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.unitText}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.batchNo}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-black">{it.expDate}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{it.rateNum.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{it.lineGross.toFixed(2)}</td>
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-semibold">₹{it.taxableVal.toFixed(2)}</td>
                               
-                              <td className="border border-black p-1 text-center font-mono text-[6.5pt]">
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-[8px]">
                                 {it.igstRate > 0 ? `${it.igstRate}%` : '0%'}
                               </td>
-                              <td className="border border-black p-1 text-right font-mono">
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">
                                 ₹{it.igstAmt.toFixed(2)}
                               </td>
 
-                              <td className="border border-black p-1 text-right font-mono font-bold text-black">
+                              <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-bold text-black">
                                 ₹{it.lineFinalTotal.toFixed(2)}
                               </td>
                             </tr>
@@ -438,19 +454,19 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     </tbody>
                     {isLastPage && (
                       <tfoot>
-                        <tr className="bg-slate-200 font-bold border-t-2 border-black text-[7pt]">
-                          <td colSpan={3} className="border border-black p-1 text-right uppercase">
-                            Cumulative Total:
+                        <tr className="bg-slate-100 font-bold border-t-2 border-[#b0b0b0] text-[9px]">
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px] text-right uppercase">
+                            Total:
                           </td>
-                          <td className="border border-black p-1 text-center font-mono text-slate-500">-</td>
-                          <td className="border border-black p-1 text-right font-mono text-blue-900 font-extrabold">{totalCases} Cases</td>
-                          <td colSpan={3} className="border border-black p-1"></td>
-                          <td className="border border-black p-1 text-right font-mono">-</td>
-                          <td className="border border-black p-1 text-right font-mono">₹{sumGross.toFixed(2)}</td>
-                          <td className="border border-black p-1 text-right font-mono">₹{sumTaxable.toFixed(2)}</td>
-                          <td className="border border-black p-1 text-center font-mono">-</td>
-                          <td className="border border-black p-1 text-right font-mono">₹{sumIgst.toFixed(2)}</td>
-                          <td className="border border-black p-1 text-right font-mono font-extrabold text-[#002f6c]">
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono text-slate-500">-</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono text-[#2c3e50] font-extrabold">{totalCases} Cases</td>
+                          <td colSpan={3} className="border border-[#b0b0b0] p-[4px_5px]"></td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">-</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumGross.toFixed(2)}</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumTaxable.toFixed(2)}</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-center font-mono">-</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono">₹{sumIgst.toFixed(2)}</td>
+                          <td className="border border-[#b0b0b0] p-[4px_5px] text-right font-mono font-extrabold text-[#2c3e50]">
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>
@@ -460,139 +476,129 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                 )}
               </div>
 
-              {/* Intermediate Page Continuation Notice */}
+              {/* Intermediate Page Continuation Notice (Strictly English) */}
               {!isLastPage && (
-                <div className="continuation-notice text-center font-bold text-red-700 border border-black py-2 my-2 bg-amber-50 text-[8pt] tracking-wide">
-                  To be continued... (शेष अगले पेज पर जारी)
+                <div className="continuation-notice text-right font-bold italic text-[9.5px] text-[#1e3a8a] mt-[3px] pr-2">
+                  To be continued...
                 </div>
               )}
 
-              {/* 4. FOOTER SUMMARY SECTION (Rendered ONLY on Last Page) */}
+              {/* 4. BOTTOM SECTION: 3 Boxes (amount-words-box, transporter-box, summary-box) */}
               {isLastPage && (
                 <div 
                   id="taxInvoiceFooter"
-                  className="summary-section tax-invoice-footer border border-black rounded-xs bg-[#fbfcfd] p-2 text-[7.5pt] space-y-2 mb-2"
+                  className="bottom-section flex flex-col sm:flex-row gap-[5px] mt-[5px] text-[9.5px]"
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-                    <div className="sm:col-span-7 space-y-2 border-b sm:border-b-0 sm:border-r border-black pb-2 sm:pb-0 sm:pr-3">
-                      <div className="bg-slate-100 p-1.5 rounded-xs border border-black">
-                        <span className="text-[6.5pt] font-bold text-slate-600 uppercase block">
-                          Net Amount Payable (in words):
-                        </span>
-                        <p className="font-extrabold text-black italic text-[7.5pt] leading-tight">
-                          Rupees {amountWords} Only
-                        </p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-[7pt]">
-                        <div className="bg-slate-50 p-1.5 rounded-xs border border-black space-y-0.5">
-                          <span className="font-bold text-slate-800 block uppercase text-[6.5pt]">
-                            Transporter Details:
-                          </span>
-                          <p><b>Name:</b> {invoice.transName || 'N/A'}</p>
-                          <p><b>GSTIN:</b> {invoice.transGstin || 'N/A'}</p>
-                          <p><b>LR / GR No:</b> {invoice.lrNo || 'N/A'} (Date: {formatDateDDMMYYYY(invoice.lrDate || invoice.date)})</p>
-                          <p><b>Vehicle No:</b> {invoice.vehicleNo || 'N/A'}</p>
-                        </div>
-
-                        <div className="bg-slate-50 p-1.5 rounded-xs border border-black space-y-0.5">
-                          <span className="font-bold text-slate-800 block uppercase text-[6.5pt]">
-                            Consignment Metrics:
-                          </span>
-                          <p><b>No of cases:</b> <span className="font-bold text-blue-900">{totalCases} Cases</span></p>
-                          <p><b>Total Weight (Wt):</b> {Number(invoice.totalWeight || 0).toFixed(2)} kg</p>
-                          <p><b>Volume (CFT):</b> {Number(invoice.totalCft || 0).toFixed(2)} CFT</p>
-                        </div>
-                      </div>
+                  {/* Box 1: Amount in Words & Remarks */}
+                  <div className="amount-words-box flex-1 border border-[#b0b0b0] p-[6px] text-[9.5px] bg-[#fbfcfd] flex flex-col justify-between">
+                    <div>
+                      <span className="text-[8px] font-bold text-slate-600 uppercase block mb-1">
+                        Amount Chargeable (in words):
+                      </span>
+                      <p className="font-extrabold text-black italic text-[9.5px] leading-snug">
+                        Rupees {amountWords} Only
+                      </p>
                     </div>
+                    <div className="mt-2 pt-1 border-t border-[#b0b0b0] text-[8.5px] text-slate-700">
+                      <p><b>Company PAN:</b> {displaySenderPan}</p>
+                      <p><b>Bank:</b> HDFC Bank Ltd. | A/C: 00030310002134</p>
+                      <p><b>Remarks:</b> Stock transfer of packing material for production/packaging.</p>
+                    </div>
+                  </div>
 
-                    <div className="sm:col-span-5 flex flex-col justify-between space-y-2">
-                      <div className="border border-black rounded-xs bg-white p-2">
-                        <table className="w-full text-[7.5pt]">
-                          <tbody>
-                            {isIndore ? (
-                              <>
-                                <tr className="border-b border-black">
-                                  <td className="py-0.5 text-slate-700">Total Goods Value:</td>
-                                  <td className="py-0.5 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
-                                </tr>
-                                <tr className="border-b border-black">
-                                  <td className="py-0.5 text-slate-700">GST (Delivery Challan):</td>
-                                  <td className="py-0.5 text-right font-mono font-semibold text-emerald-700">0% (No GST)</td>
-                                </tr>
-                                {Math.abs(roundOff) > 0.001 && (
-                                  <tr className="border-b border-black">
-                                    <td className="py-0.5 text-slate-700">Rounding off:</td>
-                                    <td className="py-0.5 text-right font-mono text-black">
-                                      {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
-                                    </td>
-                                  </tr>
-                                )}
-                                <tr className="bg-emerald-50 font-bold text-emerald-950">
-                                  <td className="py-1 px-1 font-black text-[8pt]">Net Amount Payable (Total):</td>
-                                  <td className="py-1 px-1 text-right font-mono text-[9pt] font-black text-[#1e3a8a]">
-                                    ₹{grandTotalNum.toFixed(2)}
-                                  </td>
-                                </tr>
-                              </>
-                            ) : (
-                              <>
-                                <tr className="border-b border-black">
-                                  <td className="py-0.5 text-slate-700">Total Taxable Value:</td>
-                                  <td className="py-0.5 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
-                                </tr>
-                                <tr className="border-b border-black">
-                                  <td className="py-0.5 text-slate-700">Total IGST Amount (18%):</td>
-                                  <td className="py-0.5 text-right font-mono font-semibold text-blue-900">₹{sumIgst.toFixed(2)}</td>
-                                </tr>
-                                <tr className="border-b border-black">
-                                  <td className="py-0.5 text-slate-700">Total (Before Rounding):</td>
-                                  <td className="py-0.5 text-right font-mono">₹{subTotalBeforeRounding.toFixed(2)}</td>
-                                </tr>
-                                {Math.abs(roundOff) > 0.001 && (
-                                  <tr className="border-b border-black">
-                                    <td className="py-0.5 text-slate-700">Rounding off:</td>
-                                    <td className="py-0.5 text-right font-mono text-black">
-                                      {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
-                                    </td>
-                                  </tr>
-                                )}
-                                <tr className="bg-blue-50 font-bold text-blue-950">
-                                  <td className="py-1 px-1 font-black text-[8pt]">Net Amount Payable (Total):</td>
-                                  <td className="py-1 px-1 text-right font-mono text-[9pt] font-black text-[#1e3a8a]">
-                                    ₹{grandTotalNum.toFixed(2)}
-                                  </td>
-                                </tr>
-                              </>
+                  {/* Box 2: Transporter Details & Metrics */}
+                  <div className="transporter-box flex-1 border border-[#b0b0b0] p-[6px] text-[9.5px] bg-[#fbfcfd] space-y-1">
+                    <span className="font-bold text-slate-800 block uppercase text-[8px] border-b border-[#b0b0b0] pb-0.5 mb-1">
+                      Transporter &amp; Logistics Details:
+                    </span>
+                    <p><b>Transporter:</b> {invoice.transName || 'Direct Logistics'}</p>
+                    <p><b>GSTIN:</b> {invoice.transGstin || 'N/A'}</p>
+                    <p><b>LR / GR No:</b> {invoice.lrNo || 'N/A'} (Date: {formatDateDDMMYYYY(invoice.lrDate || invoice.date)})</p>
+                    <p><b>Vehicle No:</b> <span className="font-mono font-bold text-black">{invoice.vehicleNo || 'N/A'}</span></p>
+                    <div className="pt-1 border-t border-[#b0b0b0] text-[8.5px] flex justify-between">
+                      <span><b>Cases:</b> <span className="font-bold text-[#2c3e50]">{totalCases}</span></span>
+                      <span><b>Weight:</b> {Number(invoice.totalWeight || 0).toFixed(2)} kg</span>
+                      <span><b>CFT:</b> {Number(invoice.totalCft || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Box 3: Financial Summary & Net Payable */}
+                  <div className="summary-box flex-1 border border-[#b0b0b0] p-[6px] text-[9.5px] bg-white flex flex-col justify-between">
+                    <table className="w-full text-[9px]">
+                      <tbody>
+                        {isIndore ? (
+                          <>
+                            <tr className="border-b border-[#b0b0b0]">
+                              <td className="py-0.5 text-slate-700">Taxable Value:</td>
+                              <td className="py-0.5 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
+                            </tr>
+                            <tr className="border-b border-[#b0b0b0]">
+                              <td className="py-0.5 text-slate-700">GST (Challan):</td>
+                              <td className="py-0.5 text-right font-mono font-semibold text-emerald-700">0% (No GST)</td>
+                            </tr>
+                            {Math.abs(roundOff) > 0.001 && (
+                              <tr className="border-b border-[#b0b0b0]">
+                                <td className="py-0.5 text-slate-700">Rounding off:</td>
+                                <td className="py-0.5 text-right font-mono text-black">
+                                  {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
+                                </td>
+                              </tr>
                             )}
-                          </tbody>
-                        </table>
-                      </div>
+                            <tr className="bg-slate-100 font-bold text-black">
+                              <td className="py-1 px-1 font-black text-[9.5px]">Net Amount:</td>
+                              <td className="py-1 px-1 text-right font-mono text-[10.5px] font-black text-[#2c3e50]">
+                                ₹{grandTotalNum.toFixed(2)}
+                              </td>
+                            </tr>
+                          </>
+                        ) : (
+                          <>
+                            <tr className="border-b border-[#b0b0b0]">
+                              <td className="py-0.5 text-slate-700">Taxable Value:</td>
+                              <td className="py-0.5 text-right font-mono font-semibold">₹{sumTaxable.toFixed(2)}</td>
+                            </tr>
+                            <tr className="border-b border-[#b0b0b0]">
+                              <td className="py-0.5 text-slate-700">Total IGST (18%):</td>
+                              <td className="py-0.5 text-right font-mono font-semibold text-[#2c3e50]">₹{sumIgst.toFixed(2)}</td>
+                            </tr>
+                            {Math.abs(roundOff) > 0.001 && (
+                              <tr className="border-b border-[#b0b0b0]">
+                                <td className="py-0.5 text-slate-700">Rounding off:</td>
+                                <td className="py-0.5 text-right font-mono text-black">
+                                  {roundOff >= 0 ? `+₹${roundOff.toFixed(2)}` : `-₹${Math.abs(roundOff).toFixed(2)}`}
+                                </td>
+                              </tr>
+                            )}
+                            <tr className="bg-slate-100 font-bold text-black">
+                              <td className="py-1 px-1 font-black text-[9.5px]">Net Payable:</td>
+                              <td className="py-1 px-1 text-right font-mono text-[10.5px] font-black text-[#2c3e50]">
+                                ₹{grandTotalNum.toFixed(2)}
+                              </td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
 
-                      <div className="border border-black bg-white rounded-xs p-2 text-center sm:text-right">
-                        <p className="text-[7pt] font-bold text-black">
-                          For {displaySenderName}
-                        </p>
-                        <div className="h-8"></div>
-                        <p className="border-t border-black pt-0.5 text-[6.5pt] text-slate-800 inline-block font-semibold">
-                          Authorized Signatory
-                        </p>
-                      </div>
+                    <div className="pt-2 text-right">
+                      <p className="text-[8px] font-bold text-black">For {displaySenderName}</p>
+                      <div className="h-4"></div>
+                      <p className="border-t border-[#b0b0b0] pt-0.5 text-[7.5px] text-slate-700 inline-block font-semibold">
+                        Authorized Signatory
+                      </p>
                     </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Universal Page Footer with Declaration & Dynamic Page Number */}
-            <div className="border-t-2 border-black pt-1.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-[7pt] text-black">
-              <p className="font-semibold italic">
-                <b>Declaration:</b> We certify that this consignment contains Stationary &amp; Packing Material for office use Not For Sale.
+            {/* Declaration & Page Numbering */}
+            <div className="declaration mt-[5px] text-[8px] border-t border-dashed border-[#b0b0b0] pt-[3px] flex flex-col sm:flex-row justify-between items-start sm:items-center text-slate-700">
+              <p className="italic">
+                <b>Declaration:</b> We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
               </p>
-              <div className="flex items-center gap-3">
-                <span className="text-[7pt] font-mono font-bold text-black bg-slate-100 px-2 py-0.5 rounded border border-black">
-                  Page {pageNumber} of {totalPages}
-                </span>
+              <div className="font-mono font-bold text-black text-[8.5px]">
+                Page {pageNumber} of {totalPages}
               </div>
             </div>
           </div>

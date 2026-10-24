@@ -18,8 +18,8 @@
 
   <style>
     @page {
-      size: A4 portrait;
-      margin: 0;
+      size: A4 landscape;
+      margin: 3mm;
     }
     @media print {
       body { 
@@ -30,14 +30,16 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      .no-print { display: none !important; }
+      .no-print, .action-bar { display: none !important; }
       .invoice-page {
-        width: 209mm !important;
-        min-height: 296mm !important;
+        width: 100% !important;
+        min-height: 210mm !important;
         margin: 0 !important;
+        box-shadow: none !important;
         padding: 10mm 12mm !important;
         page-break-after: always !important;
         break-after: page !important;
+        page-break-inside: avoid !important;
         display: flex !important;
         flex-direction: column !important;
         justify-content: space-between !important;
@@ -46,11 +48,11 @@
         page-break-after: avoid !important;
         break-after: avoid !important;
       }
-      .header-box, .details-box, table, th, td, .summary-section {
+      .header-box, .party-col, .details-box, table, th, td, .amount-words-box, .transporter-box, .summary-box, .summary-section {
         border: 1px solid #000 !important;
       }
       th {
-        background-color: #1e3a8a !important;
+        background-color: #34495e !important;
         color: white !important;
         font-weight: bold !important;
         -webkit-print-color-adjust: exact !important;
@@ -58,33 +60,35 @@
       }
     }
     .btn-primary {
-      background-color: #1e3a8a;
+      background-color: #2c3e50;
       color: white;
       border: none;
-      padding: 10px 18px;
+      padding: 8px 16px;
       border-radius: 4px;
       cursor: pointer;
       font-weight: bold;
       font-size: 13px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       display: inline-flex;
       align-items: center;
       gap: 6px;
     }
     .btn-secondary {
-      background-color: #28a745;
+      background-color: #27ae60;
       color: white;
       border: none;
-      padding: 10px 18px;
+      padding: 8px 16px;
       border-radius: 4px;
       cursor: pointer;
       font-weight: bold;
       font-size: 13px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
       display: inline-flex;
       align-items: center;
       gap: 6px;
     }
-    .btn-primary:hover { background-color: #1d4ed8; }
-    .btn-secondary:hover { background-color: #218838; }
+    .btn-primary:hover { background-color: #1a252f; }
+    .btn-secondary:hover { background-color: #219653; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-900 font-sans antialiased min-h-screen flex flex-col">
@@ -439,23 +443,20 @@
 
   <!-- PRINTABLE TAX INVOICE MODAL -->
   <div id="mdlPrintInvoice" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
-    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-8 space-y-6 my-8">
-      <div class="flex items-center justify-between border-b pb-4 no-print">
-        <div class="flex items-center gap-2">
-          <button onclick="downloadCurrentInvoiceHtml()" class="btn-secondary" title="Download standalone HTML file">
-            <i data-lucide="download" class="w-4 h-4"></i>
-            <span>Download HTML</span>
-          </button>
-          <button onclick="window.print()" class="btn-primary" title="Download or Print PDF">
-            <span>📥 Download / Print PDF</span>
-          </button>
-          <button onclick="closePrintModal()" class="text-slate-400 hover:text-slate-600 p-1">
-            <i data-lucide="x" class="w-5 h-5"></i>
-          </button>
-        </div>
+    <div class="bg-white rounded-xl shadow-2xl max-w-[297mm] w-full p-6 space-y-4 my-6">
+      <div class="action-bar flex items-center justify-end gap-2.5 pb-2 no-print border-b">
+        <button id="downloadHtmlBtn" onclick="downloadCurrentInvoiceHtml()" class="btn-secondary" title="Download standalone HTML file">
+          <span>📁 Download HTML</span>
+        </button>
+        <button id="downloadPdfBtn" onclick="window.print()" class="btn-primary" title="Download or Print PDF">
+          <span>📥 Download / Print PDF</span>
+        </button>
+        <button onclick="closePrintModal()" class="text-slate-400 hover:text-slate-600 p-1.5 ml-2 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
 
-      <div id="printContainer" class="border border-slate-900 p-6 space-y-4 font-sans text-xs text-slate-900">
+      <div id="printContainer" class="p-0 font-sans text-xs text-slate-900">
         <!-- Dynamically Rendered Printable Invoice Document -->
       </div>
     </div>
@@ -948,17 +949,30 @@
 
     let currentActiveInvoice = null;
 
-    // Preview Printable Invoice Document with dynamic 3 items per page logic
+    // Preview Printable Invoice Document with natural dynamic page-filling logic
     function previewInvoiceDoc(invNo) {
       const inv = invoicesState.find(i => i.invNo === invNo) || { invNo, date: new Date().toISOString().split('T')[0], partyName: 'Consignee Party', grandTotal: '17700.00', items: [] };
       currentActiveInvoice = inv;
       const container = document.getElementById('printContainer');
       const items = inv.items && inv.items.length ? inv.items : [{ productName: 'Thermocol Box Standard', qty: inv.totalQty || 100, rate: 150, total: inv.grandTotal || 17700 }];
       
-      const ITEMS_PER_PAGE = 3;
+      const MAX_ITEMS_ON_FINAL_PAGE = 7;
+      const MAX_ITEMS_ON_CONTINUATION_PAGE = 12;
       const chunks = [];
-      for (let i = 0; i < items.length; i += ITEMS_PER_PAGE) {
-        chunks.push(items.slice(i, i + ITEMS_PER_PAGE));
+      if (items.length <= MAX_ITEMS_ON_FINAL_PAGE) {
+        chunks.push(items);
+      } else {
+        let remaining = [...items];
+        while (remaining.length > 0) {
+          if (remaining.length <= MAX_ITEMS_ON_FINAL_PAGE) {
+            chunks.push(remaining);
+            break;
+          } else {
+            const chunkSize = Math.min(MAX_ITEMS_ON_CONTINUATION_PAGE, remaining.length - 1);
+            chunks.push(remaining.slice(0, chunkSize));
+            remaining = remaining.slice(chunkSize);
+          }
+        }
       }
       const totalPages = chunks.length;
 
@@ -966,101 +980,121 @@
       chunks.forEach((chunk, pageIdx) => {
         const pageNumber = pageIdx + 1;
         const isLastPage = pageIdx === totalPages - 1;
+        const itemsBeforeThisPage = chunks.slice(0, pageIdx).reduce((acc, c) => acc + c.length, 0);
 
         html += `
-          <div class="invoice-page bg-white w-full max-w-[210mm] mx-auto p-4 font-sans text-xs text-black border border-black shadow-md my-4 flex flex-col justify-between" style="min-height: 296mm;">
+          <div class="invoice-page bg-white w-full max-w-[297mm] mx-auto p-[10mm_12mm] font-sans text-[9px] text-black border border-[#b0b0b0] shadow-md my-4 flex flex-col justify-between" style="min-height: 210mm; box-sizing: border-box;">
             <div>
               <!-- Header Box -->
-              <div class="header-box border border-black p-2 mb-2 bg-white flex justify-between items-start">
-                <div class="space-y-1">
-                  <h2 class="font-extrabold text-sm text-[#1e3a8a]">ABBOTT INDIA LIMITED / HEALTHCARE</h2>
-                  <p class="text-[11px] text-slate-700">Survey No 52/2/2, Peer Karadiya, Kshipra Road, Tehsil - Sanwer, Indore - 453771 (MP)</p>
-                  <p class="text-[10px] text-slate-800"><b>GSTIN:</b> 23AAACA0231P1Z1 | <b>PAN:</b> AAACA0231P | <b>State:</b> Madhya Pradesh (23)</p>
+              <div class="header-box border border-[#b0b0b0] p-[6px_8px] mb-[5px] bg-white">
+                <div class="header-title bg-[#2c3e50] text-white text-center font-bold text-[12px] p-[5px] -mx-[8px] -mt-[6px] mb-[6px] uppercase tracking-wide">
+                  TAX INVOICE (STOCK TRANSFER NOTE)
                 </div>
-                <div class="text-right">
-                  <div class="bg-[#1e3a8a] text-white px-3 py-1 font-bold text-xs uppercase mb-1">
-                    TAX INVOICE / DELIVERY CHALLAN
+                <div class="company-header flex justify-between items-start text-[9.5px]">
+                  <div class="space-y-1">
+                    <h2 class="font-bold text-[11px] text-black">${inv.company === 'HPL' ? 'ABBOTT HEALTHCARE PRIVATE LIMITED' : 'ABBOTT INDIA LIMITED'}</h2>
+                    <p class="text-[9px] text-slate-700">Survey No 52/2/2, Peer Karadiya, Kshipra Road, Tehsil - Sanwer, Indore - 453771 (MP)</p>
+                    <p class="text-[9px] text-slate-800"><b>GSTIN:</b> 23AAACA0231P1Z1 | <b>PAN:</b> AAACA0231P | <b>State:</b> Madhya Pradesh (23)</p>
                   </div>
-                  <p class="font-mono font-bold text-xs">No: ${inv.invNo}</p>
-                  <p class="text-[10px] text-slate-600">Date: ${inv.date || new Date().toISOString().split('T')[0]}</p>
+                  <div class="text-right border border-[#b0b0b0] bg-slate-50 p-2 text-[9px] rounded-xs">
+                    <p class="font-mono font-bold text-xs text-[#2c3e50]">No: ${inv.invNo}</p>
+                    <p class="text-slate-600">Date: ${inv.date || new Date().toISOString().split('T')[0]}</p>
+                    <p class="text-slate-600">Place of Supply: Madhya Pradesh</p>
+                  </div>
                 </div>
               </div>
 
-              <!-- Details Box -->
-              <div class="details-box grid grid-cols-2 gap-2 mb-2 border border-black p-2 bg-slate-50 text-[11px]">
-                <div>
-                  <p class="font-bold uppercase text-[10px] text-slate-600">Consignor (Dispatched From):</p>
-                  <p class="font-bold text-black">${inv.company === 'HPL' ? 'Abbott Healthcare Pvt Ltd' : 'Abbott India Ltd.'}</p>
-                  <p>Peer Karadiya Central Hub, Indore (MP)</p>
+              <!-- Parties Box -->
+              <div class="parties-box flex gap-[5px] mb-[5px] text-[9.5px]">
+                <div class="party-col flex-1 border border-[#b0b0b0] p-[5px_8px] box-border bg-[#fbfcfd]">
+                  <div class="bg-[#2c3e50] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] -mx-[8px] -mt-[5px] mb-[5px]">
+                    Details of Consignor (Shipped &amp; Dispatched From)
+                  </div>
+                  <p class="font-bold text-black text-[10px]">${inv.company === 'HPL' ? 'Abbott Healthcare Pvt Ltd' : 'Abbott India Ltd.'}</p>
+                  <p class="text-slate-700">Central Hub Peer Karadiya, Indore - 453771 (MP)</p>
+                  <p class="text-[8.5px] text-slate-800 mt-1">GSTIN: 23AAACA0231P1Z1 | State: MP (23)</p>
                 </div>
-                <div>
-                  <p class="font-bold uppercase text-[10px] text-slate-600">Consignee (Billed To):</p>
-                  <p class="font-bold text-black">${inv.partyName}</p>
-                  <p>Vehicle: ${inv.vehicleNo || 'Direct Transport'} | LR: ${inv.lrNo || 'N/A'}</p>
+                <div class="party-col flex-1 border border-[#b0b0b0] p-[5px_8px] box-border bg-[#fbfcfd]">
+                  <div class="bg-[#2c3e50] text-white px-2 py-0.5 font-bold uppercase tracking-wider text-[8px] -mx-[8px] -mt-[5px] mb-[5px]">
+                    Details of Consignee (Billed To / Delivered To)
+                  </div>
+                  <p class="font-bold text-black text-[10px]">${inv.partyName}</p>
+                  <p class="text-slate-700">Vehicle: <b class="font-mono">${inv.vehicleNo || 'Direct Transport'}</b> | LR: <b class="font-mono">${inv.lrNo || 'N/A'}</b></p>
+                  <p class="text-[8.5px] text-slate-800 mt-1">Status: Registered / Delivery</p>
                 </div>
               </div>
 
-              <!-- Items Table: Max 3 items per page with #1e3a8a header -->
-              <table class="w-full text-left border border-black border-collapse text-xs mb-2">
+              <!-- Items Table: Natural capacity with #34495e header & #b0b0b0 borders -->
+              <table class="w-full text-left border-collapse text-[9px] mb-[5px]">
                 <thead>
-                  <tr class="bg-[#1e3a8a] text-white font-bold">
-                    <th class="p-1.5 border border-black text-center w-8 bg-[#1e3a8a] text-white">#</th>
-                    <th class="p-1.5 border border-black bg-[#1e3a8a] text-white">Description of Packing Material</th>
-                    <th class="p-1.5 border border-black text-center w-16 bg-[#1e3a8a] text-white">HSN</th>
-                    <th class="p-1.5 border border-black text-right w-16 bg-[#1e3a8a] text-white">Qty</th>
-                    <th class="p-1.5 border border-black text-right w-18 bg-[#1e3a8a] text-white">Rate (₹)</th>
-                    <th class="p-1.5 border border-black text-right w-24 bg-[#1e3a8a] text-white">Total (₹)</th>
+                  <tr class="bg-[#34495e] text-white font-bold">
+                    <th class="p-[4px_5px] border border-[#b0b0b0] text-center w-8 bg-[#34495e] text-white">#</th>
+                    <th class="p-[4px_5px] border border-[#b0b0b0] text-left bg-[#34495e] text-white">Description of Packing Material</th>
+                    <th class="p-[4px_5px] border border-[#b0b0b0] text-center w-16 bg-[#34495e] text-white">HSN</th>
+                    <th class="p-[4px_5px] border border-[#b0b0b0] text-right w-16 bg-[#34495e] text-white">Qty</th>
+                    <th class="p-[4px_5px] border border-[#b0b0b0] text-right w-18 bg-[#34495e] text-white">Rate (₹)</th>
+                    <th class="p-[4px_5px] border border-[#b0b0b0] text-right w-24 bg-[#34495e] text-white">Total (₹)</th>
                   </tr>
                 </thead>
-                <tbody class="divide-y divide-black bg-white">
+                <tbody class="divide-y divide-[#b0b0b0] bg-white">
                   ${chunk.map((it, localIdx) => {
-                    const globalIdx = pageIdx * ITEMS_PER_PAGE + localIdx + 1;
+                    const globalIdx = itemsBeforeThisPage + localIdx + 1;
                     return `
                       <tr>
-                        <td class="p-1.5 border border-black text-center font-mono">${globalIdx}</td>
-                        <td class="p-1.5 border border-black font-semibold text-black">${it.productName || 'Thermocol Item'}</td>
-                        <td class="p-1.5 border border-black text-center font-mono">${it.hsnCode || '39239090'}</td>
-                        <td class="p-1.5 border border-black text-right font-mono font-bold">${it.qty}</td>
-                        <td class="p-1.5 border border-black text-right font-mono">₹${Number(it.rate || 0).toFixed(2)}</td>
-                        <td class="p-1.5 border border-black text-right font-mono font-bold">₹${Number(it.total || it.amount || (it.qty * it.rate)).toFixed(2)}</td>
+                        <td class="p-[4px_5px] border border-[#b0b0b0] text-center font-mono">${globalIdx}</td>
+                        <td class="p-[4px_5px] border border-[#b0b0b0] font-semibold text-black text-left">${it.productName || 'Thermocol Item'}</td>
+                        <td class="p-[4px_5px] border border-[#b0b0b0] text-center font-mono">${it.hsnCode || '39239090'}</td>
+                        <td class="p-[4px_5px] border border-[#b0b0b0] text-right font-mono font-bold">${it.qty}</td>
+                        <td class="p-[4px_5px] border border-[#b0b0b0] text-right font-mono">₹${Number(it.rate || 0).toFixed(2)}</td>
+                        <td class="p-[4px_5px] border border-[#b0b0b0] text-right font-mono font-bold">₹${Number(it.total || it.amount || (it.qty * it.rate)).toFixed(2)}</td>
                       </tr>
                     `;
                   }).join('')}
                 </tbody>
               </table>
 
-              <!-- Continuation Notice on Intermediate Pages -->
+              <!-- Continuation Notice on Intermediate Pages with #d35400 -->
               ${!isLastPage ? `
-                <div class="continuation-notice text-center font-bold text-red-700 border border-black py-2 my-2 bg-amber-50 text-xs">
+                <div class="continuation-notice text-right font-bold italic text-[9.5px] text-[#d35400] mt-[3px] pr-2">
                   To be continued... (शेष अगले पेज पर जारी)
                 </div>
               ` : ''}
 
-              <!-- Summary Section on Last Page Only -->
+              <!-- Bottom Section with 3 Boxes on Last Page Only -->
               ${isLastPage ? `
-                <div class="summary-section border border-black p-2 bg-slate-50 text-xs space-y-2 mb-2">
-                  <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <p class="text-[10px] font-bold text-slate-600 uppercase">Amount in Words:</p>
-                      <p class="font-extrabold text-black italic">${inv.totalInWords || numberToWordsINR(parseFloat(inv.grandTotal || 0))}</p>
-                    </div>
-                    <div class="text-right space-y-0.5">
-                      <p class="text-slate-700">Grand Total: <b class="font-mono text-sm text-[#1e3a8a]">₹${Number(inv.grandTotal || 0).toFixed(2)}</b></p>
-                      <p class="text-[10px] text-slate-500">Includes all applicable duties & taxes</p>
-                    </div>
+                <div class="bottom-section flex gap-[5px] mt-[5px] text-[9.5px]">
+                  <div class="amount-words-box flex-1 border border-[#b0b0b0] p-[6px] bg-[#fbfcfd]">
+                    <span class="text-[8px] font-bold text-slate-600 uppercase block mb-1">Amount in Words:</span>
+                    <p class="font-extrabold text-black italic text-[9.5px]">${inv.totalInWords || numberToWordsINR(parseFloat(inv.grandTotal || 0))}</p>
+                    <p class="text-[8px] text-slate-500 mt-2">Remarks: Thermocol &amp; Packing Material for warehouse logistics.</p>
                   </div>
-                  <div class="pt-4 flex justify-between items-end border-t border-black">
-                    <p class="text-[10px] text-slate-500 italic">Material for office & warehouse packing use - Not For Sale.</p>
-                    <p class="text-[10px] font-bold border-t border-black pt-1 px-3">Authorized Signatory</p>
+                  <div class="transporter-box flex-1 border border-[#b0b0b0] p-[6px] bg-[#fbfcfd]">
+                    <span class="text-[8px] font-bold text-slate-600 uppercase block mb-1">Transporter &amp; Logistics:</span>
+                    <p><b>Vehicle:</b> ${inv.vehicleNo || 'Direct Transport'}</p>
+                    <p><b>LR No:</b> ${inv.lrNo || 'N/A'}</p>
+                    <p><b>Transporter:</b> ${inv.transName || 'Direct Logistics'}</p>
+                  </div>
+                  <div class="summary-box flex-1 border border-[#b0b0b0] p-[6px] bg-white flex flex-col justify-between">
+                    <div>
+                      <div class="flex justify-between border-b border-[#b0b0b0] py-0.5">
+                        <span class="text-slate-600">Grand Total:</span>
+                        <b class="font-mono text-sm text-[#2c3e50]">₹${Number(inv.grandTotal || 0).toFixed(2)}</b>
+                      </div>
+                      <p class="text-[8px] text-slate-500 mt-0.5">Includes all applicable duties &amp; GST</p>
+                    </div>
+                    <div class="pt-2 text-right">
+                      <p class="text-[7.5px] text-slate-500">For ${inv.company === 'HPL' ? 'Abbott Healthcare Pvt Ltd' : 'Abbott India Ltd.'}</p>
+                      <p class="text-[8px] font-bold border-t border-[#b0b0b0] pt-0.5 inline-block">Authorized Signatory</p>
+                    </div>
                   </div>
                 </div>
               ` : ''}
             </div>
 
-            <!-- Page Footer -->
-            <div class="border-t-2 border-black pt-1.5 flex justify-between items-center text-[10px] text-black">
-              <p class="italic"><b>Declaration:</b> We certify that this consignment contains Stationary & Packing Material for office use Not For Sale.</p>
-              <span class="font-mono font-bold px-2 py-0.5 border border-black bg-slate-100">Page ${pageNumber} of ${totalPages}</span>
+            <!-- Page Footer & Declaration -->
+            <div class="declaration mt-[5px] text-[8px] border-t border-dashed border-[#b0b0b0] pt-[3px] flex justify-between items-center text-slate-700">
+              <p class="italic"><b>Declaration:</b> We certify that this consignment contains Stationary &amp; Packing Material for office use Not For Sale.</p>
+              <span class="font-mono font-bold text-black text-[8.5px]">Page ${pageNumber} of ${totalPages}</span>
             </div>
           </div>
         `;
@@ -1080,34 +1114,206 @@
       const fullHtml = `<!DOCTYPE html>
 <html lang="hi">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${docTitle}</title>
-  <script src="https://cdn.tailwindcss.com"><\/script>
-  <style>
-    body { font-family: Arial, sans-serif; background-color: #555; margin: 0; padding: 20px; color: #000; }
-    .action-bar { max-width: 210mm; margin: 0 auto 15px auto; text-align: right; display: flex; justify-content: flex-end; gap: 10px; }
-    .btn-primary { background-color: #1e3a8a; color: white; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
-    .btn-secondary { background-color: #28a745; color: white; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
-    @page { size: A4 portrait; margin: 0; }
-    @media print {
-      body { background: white !important; margin: 0 !important; padding: 0 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      .action-bar, .no-print { display: none !important; }
-      .invoice-page { width: 209mm !important; min-height: 296mm !important; margin: 0 !important; padding: 10mm 12mm !important; page-break-after: always !important; break-after: page !important; }
-      .invoice-page:last-child { page-break-after: avoid !important; }
-      .header-box, .details-box, table, th, td, .summary-section { border: 1px solid #000 !important; }
-      th { background-color: #1e3a8a !important; color: white !important; font-weight: bold !important; -webkit-print-color-adjust: exact !important; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${docTitle}</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #555;
+            margin: 0;
+            padding: 10px;
+            color: #000;
+        }
+
+        /* एक्शन बार: HTML डाउनलोड और PDF प्रिंट बटन */
+        .action-bar {
+            max-width: 297mm;
+            margin: 0 auto 10mm auto;
+            text-align: right;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .btn-primary {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .btn-secondary {
+            background-color: #27ae60;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .btn-primary:hover { background-color: #1a252f; }
+        .btn-secondary:hover { background-color: #219653; }
+
+        /* इनवॉइस का मुख्य पेज बॉक्स (सटीक A4 लैंडस्केप साइज और परफेक्ट मार्जिन) */
+        .invoice-page {
+            width: 297mm;
+            min-height: 210mm;
+            margin: 0 auto 8mm auto;
+            background: #fff;
+            padding: 10mm 12mm;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* तस्वीर के अनुसार सॉफ्ट प्रोफेशनल कलर्स और बॉर्डर्स */
+        .header-box { border: 1px solid #b0b0b0; padding: 6px 8px; margin-bottom: 5px; }
+        .header-title { 
+            background-color: #2c3e50; 
+            color: white; 
+            text-align: center; 
+            font-weight: bold; 
+            font-size: 12px; 
+            padding: 5px; 
+            margin: -6px -8px 6px -8px;
+        }
+        .company-header { display: flex; justify-content: space-between; font-size: 9.5px; }
+        
+        .parties-box { display: flex; gap: 5px; margin-bottom: 5px; }
+        .party-col { flex: 1; border: 1px solid #b0b0b0; padding: 5px 8px; font-size: 9.5px; box-sizing: border-box; }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+
+        th, td {
+            border: 1px solid #b0b0b0 !important;
+            padding: 4px 5px;
+            font-size: 9px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #34495e !important;
+            color: white !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .text-left { text-align: left; }
+
+        .bottom-section {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+        }
+        .amount-words-box {
+            flex: 1.5;
+            border: 1px solid #b0b0b0;
+            padding: 6px;
+            font-size: 9.5px;
+        }
+        .transporter-box {
+            flex: 1.5;
+            border: 1px solid #b0b0b0;
+            padding: 6px;
+            font-size: 9.5px;
+        }
+        .summary-box {
+            flex: 1.5;
+            border: 1px solid #b0b0b0;
+            padding: 6px;
+            font-size: 9.5px;
+        }
+
+        .declaration {
+            margin-top: 5px;
+            font-size: 8px;
+            border-top: 1px dashed #b0b0b0;
+            padding-top: 3px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .continuation-notice {
+            text-align: right;
+            font-weight: bold;
+            font-style: italic;
+            font-size: 9.5px;
+            color: #d35400;
+            margin-top: 3px;
+        }
+
+        /* --- PDF और प्रिंट के लिए सख्त नियम --- */
+        @media print {
+            @page {
+                size: A4 landscape;
+                margin: 3mm;
+            }
+
+            body {
+                background-color: #ffffff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .action-bar, .no-print {
+                display: none !important;
+            }
+
+            .invoice-page {
+                width: 100% !important;
+                min-height: 210mm !important;
+                height: auto !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                padding: 10mm 12mm !important;
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: space-between !important;
+            }
+
+            .header-box, .party-col, table, th, td, .amount-words-box, .transporter-box, .summary-box {
+                border: 1px solid #000 !important;
+            }
+
+            th {
+                background-color: #34495e !important;
+                color: white !important;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="action-bar no-print">
-    <button class="btn-secondary" onclick="window.location.reload()">Download HTML</button>
-    <button class="btn-primary" onclick="window.print()">📥 Download / Print PDF</button>
-  </div>
-  <div style="max-width: 210mm; margin: 0 auto;">
+
+<!-- एक्शन बार -->
+<div class="action-bar no-print">
+    <button id="downloadHtmlBtn" class="btn-secondary" onclick="window.location.reload()">📁 Download HTML</button>
+    <button id="downloadPdfBtn" class="btn-primary" onclick="window.print()">📥 Download / Print PDF</button>
+</div>
+
+<!-- इनवॉइस कंटेनर -->
+<div id="invoiceContainer" style="max-width: 297mm; margin: 0 auto;">
     ${htmlContent}
-  </div>
+</div>
+
 </body>
 </html>`;
 

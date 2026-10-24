@@ -169,11 +169,11 @@
       .btn-secondary:hover { background-color: #218838; }
 
       /* =========================================================================
-         Strict A4 Portrait Print Layout for Outward Tax Invoice & Stock Transfer Note
+         Strict A4 Landscape Print Layout for Outward Tax Invoice & Stock Transfer Note
          ========================================================================= */
       @page {
-        size: A4 portrait;
-        margin: 0;
+        size: A4 landscape;
+        margin: 3mm;
       }
 
       @media print {
@@ -181,8 +181,8 @@
           background-color: #ffffff !important;
           margin: 0 !important;
           padding: 0 !important;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
 
         /* प्रिंट के समय एक्शन बटन छुप जाएंगे */
@@ -190,10 +190,10 @@
           display: none !important;
         }
 
-        /* हर इनवॉइस पेज को एक अलग A4 शीट पर भेजने का नियम */
-        .invoice-page {
-          width: 209mm !important;
-          min-height: 296mm !important;
+        /* हर इनवॉइस पेज को एक अलग A4 Landscape शीट पर भेजने का नियम */
+        .invoice-page, .tax-invoice-page {
+          width: 100% !important;
+          min-height: 210mm !important;
           height: auto !important;
           margin: 0 !important;
           box-shadow: none !important;
@@ -201,9 +201,16 @@
           page-break-after: always !important;
           break-after: page !important;
           page-break-inside: avoid !important;
+          break-inside: avoid !important;
           display: flex !important;
           flex-direction: column !important;
           justify-content: space-between !important;
+          box-sizing: border-box !important;
+        }
+
+        .invoice-page:last-child, .tax-invoice-page:last-child {
+          page-break-after: avoid !important;
+          break-after: avoid !important;
         }
 
         .invoice-box, .invoice-container, .container {
@@ -216,13 +223,13 @@
           page-break-after: always;
         }
 
-        /* प्रिंट के दौरान सभी बॉर्डर्स और हेडर कलर्स को जबरन दिखाना */
-        .header-box, .details-box, table, th, td, .summary-section {
+        /* प्रिंट के दौरान सभी बॉर्डर्स और हेडर कलर्स को दिखाना */
+        .header-box, .party-col, .details-box, table, th, td, .amount-words-box, .transporter-box, .summary-box, .summary-section {
           border: 1px solid #000 !important;
         }
 
         th {
-          background-color: #1e3a8a !important;
+          background-color: #34495e !important;
           color: white !important;
         }
 
@@ -295,7 +302,7 @@
           overflow: visible !important;
           display: block !important;
           max-width: none !important;
-          width: 210mm !important;
+          width: 297mm !important;
           height: auto !important;
         }
 
@@ -320,9 +327,9 @@
           left: auto !important;
           right: auto !important;
           bottom: auto !important;
-          width: 209mm !important;
-          max-width: 209mm !important;
-          min-height: 296mm !important;
+          width: 100% !important;
+          max-width: 297mm !important;
+          min-height: 210mm !important;
           height: auto !important;
           max-height: none !important;
           margin: 0 auto !important;
