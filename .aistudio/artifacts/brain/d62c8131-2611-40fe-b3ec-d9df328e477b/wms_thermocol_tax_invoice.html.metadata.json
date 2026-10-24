@@ -1,5 +1,5 @@
 {
-  "summary":  "Single-file HTML and JavaScript module for WMS Thermocol Tax Invoice (Stock Transfer Note). Meets all requirements: A4 Landscape orientation, corporate blue #1e3a8a header with white text, Consignor on left / Invoice details on right, clean thin black borders, natural content-based page breaking without hardcoded limits, English-only 'To be continued...' continuation notice, summary totals and transporter details strictly on the last page, dynamic Page X of Y numbering, and working Download HTML / Download & Print PDF buttons.",
-  "updatedAt":  "2026-10-24T08:58:54.392117572Z",
+  "summary":  "Single-file HTML and JavaScript module for WMS Thermocol Tax Invoice (Stock Transfer Note) with strict A4 Landscape format, corporate navy blue (#1e3a8a) headers, crisp thin black borders, natural auto-fit pagination, continuation handling ('To be continued...'), final page summary & signatures, and working Download HTML and Download/Print PDF buttons.",
+  "updatedAt":  "2026-10-24T09:40:09.413463247Z",
   "userFacing":  true
 }
