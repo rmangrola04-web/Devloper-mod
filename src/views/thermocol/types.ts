@@ -92,6 +92,8 @@ export interface ThermocolInvoice {
   senderPan?: string;
   senderCin?: string;
   senderLogoUrl?: string;
+  logo?: string;
+  logoUrl?: string;
   senderContact?: string;
   senderEmail?: string;
   transName: string;

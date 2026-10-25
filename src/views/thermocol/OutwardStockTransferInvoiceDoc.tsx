@@ -31,6 +31,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
   const displaySenderPan = invoice.senderPan || (isHpl ? 'AABCA4612J' : 'AAACB5170B');
   const displaySenderCin = invoice.senderCin || (isHpl ? 'U24239MH1997PTC109594' : 'L24239MH1944PLC007330');
   const displaySenderContact = invoice.senderContact || '+91 9285061000';
+  const companyLogoSrc = (invoice as any).logo || invoice.logoUrl || invoice.senderLogoUrl;
 
   // Dynamic Rule: Destination Indore (0% GST / Delivery Challan) vs Other States (18% IGST / Tax Invoice)
   const isIndore = isIndoreDestination({
@@ -236,7 +237,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
               >
                 <div className="flex-row flex justify-between items-start mb-2">
                   <div>
-                    <AbbottLogo className="h-8 w-auto mb-1" showTitle={false} />
+                    <AbbottLogo className="h-8 w-auto mb-1" customLogoUrl={companyLogoSrc} showTitle={false} />
                     <div style={{ fontSize: '12.5px', marginTop: '3px', fontWeight: 'bold', color: '#002F6C', letterSpacing: '0.4px' }}>
                       {displaySenderName}
                     </div>
