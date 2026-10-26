@@ -99,11 +99,11 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
         .btn-primary:hover { background-color: #255280; }
         .btn-secondary:hover { background-color: #219653; }
 
-        /* A4 Landscape Page Box - Compact & Natural Content-based Layout */
+        /* A4 Landscape Page Box - Full A4 Landscape Height (204mm) & Flex Layout */
         .invoice-page {
             width: 297mm;
-            min-height: auto;
-            height: auto;
+            min-height: 204mm;
+            height: 204mm;
             margin: 0 auto 8mm auto;
             background: #fff;
             padding: 6mm 8mm;
@@ -111,12 +111,14 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
-            gap: 5px;
+            justify-content: space-between;
+            gap: 4px;
             position: relative;
+            border: 1px solid #b0b0b0;
         }
 
-        .header-box { border: 1px solid #b0b0b0; padding: 5px 8px; margin-bottom: 5px; }
+        .company-header { border: 1px solid #b0b0b0; padding: 8px 10px; margin-bottom: 2px; background: #fff; }
+        .company-header table { width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }
         .header-blue { 
             background-color: #316599; 
             color: white; 
@@ -124,6 +126,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             font-weight: bold; 
             font-size: 13px; 
             padding: 6px 10px; 
+            letter-spacing: 0.5px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
@@ -138,55 +141,50 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-        .company-header { display: flex; justify-content: space-between; font-size: 9.5px; }
         
-        .parties-box { display: flex; gap: 5px; margin-bottom: 5px; }
-        .party-col { flex: 1; border: 1px solid #b0b0b0; padding: 5px 7px; font-size: 9px; box-sizing: border-box; }
+        .section-box { border: 1px solid #b0b0b0; margin-bottom: 2px; background: #fff; }
+        .details-grid { display: flex; width: 100%; }
+        .details-col { flex: 1; padding: 6px; font-size: 10px; line-height: 1.35; }
+        .details-col:first-child { border-right: 1px solid #b0b0b0; }
         
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         th, td {
             border: 1px solid #b0b0b0 !important;
-            padding: 3px 5px;
-            font-size: 9px;
-            text-align: center;
+            padding: 4px 5px;
+            font-size: 10px;
+            line-height: 1.25;
+            vertical-align: middle;
         }
 
         th {
-            background-color: #316599 !important;
-            color: white !important;
+            background-color: #f0f0f0 !important;
+            color: #000000 !important;
+            font-weight: bold;
+            text-align: center;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
 
         .text-left { text-align: left; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
 
         .bottom-section {
             display: flex;
             gap: 5px;
-            margin-top: 4px;
+            margin-top: 3px;
         }
-        .amount-words-box {
-            flex: 1.5;
+        .amount-words-box, .transporter-box, .summary-box {
+            flex: 1;
             border: 1px solid #b0b0b0;
             padding: 5px 7px;
             font-size: 9px;
-        }
-        .transporter-box {
-            flex: 1.5;
-            border: 1px solid #b0b0b0;
-            padding: 5px 7px;
-            font-size: 9px;
-        }
-        .summary-box {
-            flex: 1.5;
-            border: 1px solid #b0b0b0;
-            padding: 5px 7px;
-            font-size: 9px;
+            background: #fff;
         }
 
         .declaration {
@@ -229,8 +227,8 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             .invoice-page {
                 width: 297mm !important;
                 max-width: 297mm !important;
-                min-height: auto !important;
-                height: auto !important;
+                min-height: 204mm !important;
+                height: 204mm !important;
                 margin: 0 auto !important;
                 box-shadow: none !important;
                 border: 1px solid #b0b0b0 !important;
@@ -240,7 +238,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
                 page-break-inside: avoid !important;
                 display: flex !important;
                 flex-direction: column !important;
-                justify-content: flex-start !important;
+                justify-content: space-between !important;
                 gap: 4px !important;
                 box-sizing: border-box !important;
             }

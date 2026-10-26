@@ -145,8 +145,8 @@
        ========================================================================== */
     .invoice-page {
       width: 297mm;
-      min-height: auto;
-      height: auto;
+      min-height: 204mm;
+      height: 204mm;
       margin: 0 auto 16px auto;
       background-color: #ffffff;
       padding: 6mm 8mm;
@@ -154,7 +154,7 @@
       border: 1px solid #b0b0b0;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
+      justify-content: space-between;
       gap: 4px;
       position: relative;
       box-sizing: border-box;
@@ -440,8 +440,8 @@
 
       .invoice-page {
         width: 297mm !important;
-        min-height: auto !important;
-        height: auto !important;
+        min-height: 204mm !important;
+        height: 204mm !important;
         margin: 0 !important;
         padding: 6mm 8mm !important;
         box-shadow: none !important;
@@ -451,7 +451,7 @@
         page-break-inside: avoid !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: flex-start !important;
+        justify-content: space-between !important;
         gap: 4px !important;
         box-sizing: border-box !important;
       }
@@ -728,6 +728,28 @@
       pages.forEach((pageItems, pageIdx) => {
         const pageNumber = pageIdx + 1;
         const isLastPage = (pageNumber === totalPages);
+        const targetRows = isLastPage ? 7 : 12;
+        const blankRowsCount = Math.max(0, targetRows - pageItems.length);
+        let blankRowsHtml = '';
+        for (let b = 0; b < blankRowsCount; b++) {
+          blankRowsHtml += `
+            <tr style="height: 22px;">
+              <td class="text-center">&nbsp;</td>
+              <td>&nbsp;</td>
+              <td class="text-center">&nbsp;</td>
+              <td class="text-center">&nbsp;</td>
+              <td class="text-center">&nbsp;</td>
+              <td class="text-center">&nbsp;</td>
+              <td class="text-center">&nbsp;</td>
+              <td class="text-center">&nbsp;</td>
+              <td class="text-right">&nbsp;</td>
+              <td class="text-right">&nbsp;</td>
+              <td class="text-right">&nbsp;</td>
+              <td class="text-center">&nbsp;</td>
+              <td class="text-right">&nbsp;</td>
+            </tr>
+          `;
+        }
 
         renderedHtml += `
           <div class="invoice-page">
@@ -735,23 +757,30 @@
               
               <!-- 1. मुख्य हेडर: Single ABBOTT title Left | Exact #316599 Title & Metadata Right -->
               <div class="company-header">
-                <div class="flex-row" style="margin-bottom: 8px;">
-                  <div>
-                    <img src="${companyLogoSrc}" alt="Company Logo" style="height: 32px; max-height: 40px; width: auto; object-fit: contain; margin-bottom: 4px;" />
-                    <div style="font-size: 12.5px; margin-top: 3px; font-weight: bold; color: #002F6C; letter-spacing: 0.4px;">${invoiceData.consignor.name || 'ABBOTT INDIA LIMITED'}</div>
-                  </div>
-                  <div style="text-align: right; width: 45%;">
-                    <div class="header-blue" style="text-align: center; margin-bottom: 5px;">TAX INVOICE (STOCK TRANSFER NOTE)</div>
-                    <div style="font-size: 10px; display: flex; justify-content: space-between;">
-                      <span><strong>Invoice No:</strong> <span style="font-family: Consolas, monospace; font-weight: bold;">${invoiceData.invoiceNo}</span></span>
-                      <span><strong>Invoice Date:</strong> <span style="font-family: Consolas, monospace; font-weight: bold;">${invoiceData.date}</span></span>
-                    </div>
-                    <!-- LR / GR No. यहाँ से पूरी तरह हटा दिया गया है -->
-                    <div style="font-size: 10px; margin-top: 4px; text-align: left;">
-                      <span><strong>Place of Supply:</strong> <b>${invoiceData.placeOfSupply}</b></span>
-                    </div>
-                  </div>
-                </div>
+                <table style="width: 100%; border-collapse: collapse; border: none; margin-bottom: 6px; table-layout: fixed;">
+                  <tbody>
+                    <tr>
+                      <td style="width: 58%; vertical-align: top; text-align: left; padding: 0; border: none;">
+                        <img src="${companyLogoSrc}" alt="Company Logo" style="height: 32px; max-height: 40px; width: auto; object-fit: contain; margin-bottom: 4px;" />
+                        <div style="font-size: 12.5px; margin-top: 3px; font-weight: bold; color: #002F6C; letter-spacing: 0.4px;">${invoiceData.consignor.name || 'ABBOTT INDIA LIMITED'}</div>
+                      </td>
+                      <td style="width: 42%; vertical-align: top; text-align: right; padding: 0; border: none;">
+                        <div class="header-blue" style="text-align: center; margin-bottom: 5px;">TAX INVOICE (STOCK TRANSFER NOTE)</div>
+                        <table style="width: 100%; border-collapse: collapse; border: none; font-size: 10px;">
+                          <tbody>
+                            <tr>
+                              <td style="text-align: left; border: none; padding: 0;"><strong>Invoice No:</strong> <span style="font-family: Consolas, monospace; font-weight: bold;">${invoiceData.invoiceNo}</span></td>
+                              <td style="text-align: right; border: none; padding: 0;"><strong>Invoice Date:</strong> <span style="font-family: Consolas, monospace; font-weight: bold;">${invoiceData.date}</span></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <div style="font-size: 10px; margin-top: 4px; text-align: left;">
+                          <span><strong>Place of Supply:</strong> <b>${invoiceData.placeOfSupply}</b></span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
                 <div style="font-size: 9.5px; line-height: 1.35; color: #222; border-top: 1px solid #b0b0b0; padding-top: 4px;">
                   ${invoiceData.consignor.address}<br />
                   <strong>GSTIN:</strong> ${invoiceData.consignor.gstin} &nbsp;&nbsp; <strong>PAN:</strong> ${invoiceData.consignor.pan} &nbsp;&nbsp; <strong>CIN:</strong> ${invoiceData.consignor.cin}<br />
@@ -809,7 +838,7 @@
                       const igstAmt = taxable * 0.18;
                       const rowFinalTotal = taxable + igstAmt;
                       return `
-                        <tr>
+                        <tr style="height: 22px;">
                           <td class="text-center" style="font-family: Consolas, monospace;">${globalIndex}</td>
                           <td style="font-weight: 600; text-align: left;">${item.name}</td>
                           <td class="text-center" style="font-family: Consolas, monospace;">${item.hsn}</td>
@@ -826,6 +855,7 @@
                         </tr>
                       `;
                     }).join('')}
+                    ${blankRowsHtml}
                   </tbody>
                   ${isLastPage ? `
                     <tfoot>
@@ -1012,9 +1042,9 @@
     .btn-download-html { background-color: #16a34a; color: #fff; }
     .btn-print-pdf { background-color: #316599; color: #fff; }
     #invoicePagesContainer { max-width: 297mm; margin: 0 auto; }
-    .invoice-page { width: 297mm; min-height: auto; height: auto; margin: 0 auto 16px auto; background-color: #fff; padding: 6mm 8mm; box-shadow: 0 4px 16px rgba(0,0,0,0.35); border: 1px solid #b0b0b0; display: flex; flex-direction: column; justify-content: flex-start; gap: 4px; box-sizing: border-box; }
-    .page-main-content { display: flex; flex-direction: column; gap: 4px; }
-    .company-header { border: 1px solid #b0b0b0; margin-bottom: 5px; padding: 8px 10px; background-color: #fff; }
+    .invoice-page { width: 297mm; min-height: 204mm; height: 204mm; margin: 0 auto 16px auto; background-color: #fff; padding: 6mm 8mm; box-shadow: 0 4px 16px rgba(0,0,0,0.35); border: 1px solid #b0b0b0; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; box-sizing: border-box; }
+    .company-header { border: 1px solid #b0b0b0; margin-bottom: 2px; padding: 8px 10px; background-color: #fff; }
+    .company-header table { width: 100%; border-collapse: collapse; border: none; table-layout: fixed; }
     .header-blue { background-color: #316599; color: #ffffff; font-weight: bold; padding: 6px 10px; font-size: 13px; text-align: center; letter-spacing: 0.5px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .section-box { border: 1px solid #b0b0b0; margin-bottom: 5px; background-color: #fff; }
     .section-title { background-color: #e6ecf2; font-weight: bold; padding: 4px 8px; border-bottom: 1px solid #b0b0b0; font-size: 10px; color: #1e3a5f; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; }

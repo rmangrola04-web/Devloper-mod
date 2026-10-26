@@ -180,14 +180,14 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             margin: 0 auto !important;
             width: 297mm !important;
             max-width: 297mm !important;
-            min-height: auto !important;
-            height: auto !important;
+            min-height: 204mm !important;
+            height: 204mm !important;
             box-sizing: border-box !important;
             box-shadow: none !important;
             padding: 6mm 8mm !important;
             display: flex !important;
             flex-direction: column !important;
-            justify-content: flex-start !important;
+            justify-content: space-between !important;
             gap: 4px !important;
           }
           .tax-invoice-page:last-child, .invoice-page:last-child {
@@ -222,52 +222,67 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
       {pageChunks.map((pageItems, pageIdx) => {
         const pageNumber = pageIdx + 1;
         const isLastPage = pageIdx === totalPages - 1;
+        const targetRows = isLastPage ? 7 : 12;
+        const blankRowsCount = Math.max(0, targetRows - pageItems.length);
 
         return (
           <div
             key={pageIdx}
-            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-0 h-auto mx-auto p-[6mm_8mm] text-[#333333] font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-[#b0b0b0] print:p-[6mm_8mm] print:w-full print:min-h-0 print:h-auto print:m-0 mb-6 print:mb-0 flex flex-col justify-start gap-[5px]"
+            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-[210mm] h-[210mm] mx-auto p-[6mm_8mm] text-[#333333] font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-[#b0b0b0] print:p-[6mm_8mm] print:w-full print:min-h-[204mm] print:h-[204mm] print:m-0 mb-6 print:mb-0 flex flex-col justify-between gap-[5px]"
             style={{ fontFamily: 'Arial, sans-serif' }}
           >
-            <div>
-              {/* 1. TOP HEADER SECTION */}
+            {/* TOP & MIDDLE CONTENT WRAPPER */}
+            <div className="flex-1 flex flex-col justify-start gap-[5px]">
+              {/* 1. TOP HEADER SECTION - STRICT TABLE LAYOUT PREVENTING ANY OVERLAP */}
               <div 
                 id="taxInvoiceHeader"
-                className="company-header border border-[#b0b0b0] p-[10px] mb-[5px] bg-white"
+                className="company-header border border-[#b0b0b0] p-[8px_10px] mb-[2px] bg-white"
               >
-                <div className="flex-row flex justify-between items-start mb-2">
-                  <div>
-                    <AbbottLogo className="h-8 w-auto mb-1" customLogoUrl={companyLogoSrc} showTitle={false} />
-                    <div style={{ fontSize: '12.5px', marginTop: '3px', fontWeight: 'bold', color: '#002F6C', letterSpacing: '0.4px' }}>
-                      {displaySenderName}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right', width: '45%' }}>
-                    <div 
-                      className="header-blue" 
-                      style={{ 
-                        backgroundColor: '#316599', 
-                        color: '#ffffff', 
-                        fontWeight: 'bold', 
-                        padding: '6px 10px', 
-                        fontSize: '13px', 
-                        textAlign: 'center', 
-                        marginBottom: '5px' 
-                      }}
-                    >
-                      {docTitle}
-                    </div>
-                    <div style={{ fontSize: '10px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span><strong>{isIndore ? 'Challan No:' : 'Invoice No:'}</strong> {invoice.invNo}</span>
-                      <span><strong>{isIndore ? 'Challan Date:' : 'Invoice Date:'}</strong> {formatDateDDMMYYYY(invoice.date)}</span>
-                    </div>
-                    {/* LR / GR No. यहाँ से पूरी तरह हटा दिया गया है */}
-                    <div style={{ fontSize: '10px', marginTop: '3px', textAlign: 'left' }}>
-                      <span><strong>Place of Supply:</strong> {formattedPlaceOfSupply}</span>
-                    </div>
-                  </div>
-                </div>
-                <div style={{ fontSize: '9.5px', lineHeight: 1.3 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', marginBottom: '6px', tableLayout: 'fixed' }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ width: '58%', verticalAlign: 'top', textAlign: 'left', padding: 0, border: 'none' }}>
+                        <AbbottLogo className="h-8 w-auto mb-1" customLogoUrl={companyLogoSrc} showTitle={false} />
+                        <div style={{ fontSize: '12.5px', marginTop: '3px', fontWeight: 'bold', color: '#002F6C', letterSpacing: '0.4px' }}>
+                          {displaySenderName}
+                        </div>
+                      </td>
+                      <td style={{ width: '42%', verticalAlign: 'top', textAlign: 'right', padding: 0, border: 'none' }}>
+                        <div 
+                          className="header-blue" 
+                          style={{ 
+                            backgroundColor: '#316599', 
+                            color: '#ffffff', 
+                            fontWeight: 'bold', 
+                            padding: '6px 10px', 
+                            fontSize: '13px', 
+                            textAlign: 'center', 
+                            marginBottom: '5px',
+                            letterSpacing: '0.5px'
+                          }}
+                        >
+                          {docTitle}
+                        </div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '10px' }}>
+                          <tbody>
+                            <tr>
+                              <td style={{ textAlign: 'left', border: 'none', padding: 0 }}>
+                                <strong>{isIndore ? 'Challan No:' : 'Invoice No:'}</strong> {invoice.invNo}
+                              </td>
+                              <td style={{ textAlign: 'right', border: 'none', padding: 0 }}>
+                                <strong>{isIndore ? 'Challan Date:' : 'Invoice Date:'}</strong> {formatDateDDMMYYYY(invoice.date)}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        <div style={{ fontSize: '10px', marginTop: '3px', textAlign: 'left' }}>
+                          <span><strong>Place of Supply:</strong> {formattedPlaceOfSupply}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div style={{ fontSize: '9.5px', lineHeight: 1.35, color: '#222', borderTop: '1px solid #b0b0b0', paddingTop: '4px' }}>
                   {displaySenderAddress}<br />
                   <strong>GSTIN:</strong> {displaySenderGstin} &nbsp;&nbsp; <strong>PAN:</strong> {displaySenderPan} &nbsp;&nbsp; <strong>CIN:</strong> {displaySenderCin}<br />
                   <strong>State:</strong> Madhya Pradesh (State Code: 23) &nbsp;&nbsp; <strong>Contact:</strong> {displaySenderContact}
@@ -275,7 +290,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
               </div>
 
               {/* 2. CONSIGNOR & CONSIGNEE DETAILS */}
-              <div className="section-box border border-[#b0b0b0] mb-[5px] bg-white">
+              <div className="section-box border border-[#b0b0b0] mb-[2px] bg-white">
                 <div className="details-grid flex w-full">
                   <div className="details-col flex-1 p-[6px] text-[10px] border-r border-[#b0b0b0]">
                     <div className="section-title bg-[#e6ecf2] font-bold py-1 px-2 border-b border-[#b0b0b0] text-[10px] -m-[6px] mb-[6px] text-[#1e3a5f]">
@@ -299,10 +314,10 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                 </div>
               </div>
 
-              {/* 3. DYNAMIC ITEM TABLE FOR THIS PAGE CHUNK */}
-              <div className="overflow-x-auto mb-[5px]">
+              {/* 3. DYNAMIC ITEM TABLE FOR THIS PAGE CHUNK WITH BLANK ROW PADDING */}
+              <div className="overflow-x-auto mb-[2px]">
                 {isIndore ? (
-                  <table className="w-full text-left border-collapse text-[10px] mb-[5px]">
+                  <table className="w-full text-left border-collapse text-[10px] mb-[2px]">
                     <thead>
                       <tr className="bg-[#f0f0f0] text-black font-bold border-b border-[#b0b0b0]">
                         <th style={{ width: '5%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Sr. No.</th>
@@ -329,7 +344,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           const itemsBeforeThisPage = pageChunks.slice(0, pageIdx).reduce((acc, c) => acc + c.length, 0);
                           const globalIdx = itemsBeforeThisPage + localIdx;
                           return (
-                            <tr key={it.id || globalIdx} className="hover:bg-slate-50 text-[10px]">
+                            <tr key={it.id || globalIdx} className="hover:bg-slate-50 text-[10px] h-[22px]">
                               <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{globalIdx + 1}</td>
                               <td className="border border-[#b0b0b0] p-[5px] font-semibold text-black text-left">
                                 {it.productName}
@@ -353,6 +368,21 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           );
                         })
                       )}
+                      {/* Blank Row Padding for Short Invoices to Maintain Uniform Full Page Height */}
+                      {Array.from({ length: blankRowsCount }).map((_, bIdx) => (
+                        <tr key={`blank-${bIdx}`} className="h-[22px] text-[10px]">
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px]">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
+                        </tr>
+                      ))}
                     </tbody>
                     {isLastPage && (
                       <tfoot>
@@ -372,7 +402,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     )}
                   </table>
                 ) : (
-                  <table className="w-full text-left border-collapse text-[10px] mb-[5px]">
+                  <table className="w-full text-left border-collapse text-[10px] mb-[2px]">
                     <thead>
                       <tr className="bg-[#f0f0f0] text-black font-bold border-b border-[#b0b0b0]">
                         <th style={{ width: '5%' }} className="border border-[#b0b0b0] p-[5px] text-center bg-[#f0f0f0] text-black">Sr. No.</th>
@@ -402,7 +432,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           const itemsBeforeThisPage = pageChunks.slice(0, pageIdx).reduce((acc, c) => acc + c.length, 0);
                           const globalIdx = itemsBeforeThisPage + localIdx;
                           return (
-                            <tr key={it.id || globalIdx} className="hover:bg-slate-50 text-[10px]">
+                            <tr key={it.id || globalIdx} className="hover:bg-slate-50 text-[10px] h-[22px]">
                               <td className="border border-[#b0b0b0] p-[5px] text-center font-mono text-black">{globalIdx + 1}</td>
                               <td className="border border-[#b0b0b0] p-[5px] font-semibold text-black text-left">
                                 {it.productName}
@@ -433,6 +463,24 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           );
                         })
                       )}
+                      {/* Blank Row Padding for Short Invoices to Maintain Uniform Full Page Height */}
+                      {Array.from({ length: blankRowsCount }).map((_, bIdx) => (
+                        <tr key={`blank-${bIdx}`} className="h-[22px] text-[10px]">
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px]">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
+                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
+                        </tr>
+                      ))}
                     </tbody>
                     {isLastPage && (
                       <tfoot>
@@ -463,12 +511,15 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                   To be continued...
                 </div>
               )}
+            </div>
 
+            {/* BOTTOM WRAPPER: LOCKED AT BOTTOM OF FULL A4 LANDSCAPE PAGE */}
+            <div>
               {/* 4. BOTTOM SECTION: 3 Boxes (amount-words-box, transporter-box, summary-box with #e6ecf2 section titles) */}
               {isLastPage && (
                 <div 
                   id="taxInvoiceFooter"
-                  className="bottom-section flex flex-col sm:flex-row gap-[5px] mt-[5px] text-[9.5px]"
+                  className="bottom-section flex flex-col sm:flex-row gap-[5px] mt-[3px] text-[9.5px]"
                 >
                   {/* Box 1: Amount in Words & Remarks */}
                   <div className="amount-words-box flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
@@ -582,15 +633,15 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Declaration & Page Numbering */}
-            <div className="declaration mt-[5px] text-[8px] border-t border-dashed border-[#b0b0b0] pt-[3px] flex flex-col sm:flex-row justify-between items-start sm:items-center text-slate-700">
-              <p className="italic">
-                <b>Declaration:</b> We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
-              </p>
-              <div className="font-mono font-bold text-black text-[8.5px]">
-                Page {pageNumber} of {totalPages}
+              {/* Declaration & Page Numbering */}
+              <div className="declaration mt-[4px] text-[8px] border-t border-dashed border-[#b0b0b0] pt-[3px] flex flex-col sm:flex-row justify-between items-start sm:items-center text-slate-700">
+                <p className="italic">
+                  <b>Declaration:</b> We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.
+                </p>
+                <div className="font-mono font-bold text-black text-[8.5px]">
+                  Page {pageNumber} of {totalPages}
+                </div>
               </div>
             </div>
           </div>
