@@ -44,10 +44,12 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('invoice-modal-open');
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = originalOverflow;
+      document.body.classList.remove('invoice-modal-open');
     };
   }, [isOpen, onClose]);
 
@@ -133,14 +135,14 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
         .btn-primary:hover { background-color: #255280; }
         .btn-secondary:hover { background-color: #219653; }
 
-        /* A4 Landscape Page Box - Full A4 Landscape Height (204mm) & Flex Layout */
+        /* A4 Landscape Page Box - Full A4 Landscape Height & Flex Layout */
         .invoice-page {
             width: 297mm;
-            min-height: 204mm;
-            height: 204mm;
+            min-height: 192mm;
+            height: auto;
             margin: 0 auto 8mm auto;
             background: #fff;
-            padding: 6mm 8mm;
+            padding: 5mm 8mm;
             box-sizing: border-box;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
             display: flex;
@@ -261,12 +263,12 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
             .invoice-page {
                 width: 297mm !important;
                 max-width: 297mm !important;
-                min-height: 204mm !important;
-                height: 204mm !important;
+                min-height: 192mm !important;
+                height: auto !important;
                 margin: 0 auto !important;
                 box-shadow: none !important;
                 border: 1px solid #b0b0b0 !important;
-                padding: 6mm 8mm !important;
+                padding: 5mm 8mm !important;
                 page-break-after: always !important;
                 break-after: page !important;
                 page-break-inside: avoid !important;
@@ -275,6 +277,11 @@ export const TaxInvoiceModalOverlay: React.FC<TaxInvoiceModalOverlayProps> = ({
                 justify-content: space-between !important;
                 gap: 4px !important;
                 box-sizing: border-box !important;
+            }
+
+            .invoice-page:first-child {
+                page-break-before: avoid !important;
+                break-before: avoid !important;
             }
 
             .invoice-page:last-child {

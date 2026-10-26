@@ -1,5 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { LoadUnloadEntry, PlanEntry, SecurityGateEntry, TrackingRecord } from '../types';
+import { ThermocolInward, ThermocolInvoice, ThermocolProduct } from './thermocol/types';
+import { SkuVelocityChart } from '../components/SkuVelocityChart';
+import {
+  subscribeToThermocolInwards,
+  subscribeToThermocolInvoices,
+  subscribeToThermocolProducts,
+  fetchIchOperationsWithGetDocs,
+  fetchInvoicesFromIchOperations
+} from '../services/firestoreService';
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -27,16 +37,63 @@ ChartJS.register(
 );
 
 interface AnalyticsViewProps {
-  planEntries: PlanEntry[];
-  loadEntries: LoadUnloadEntry[];
-  securityLogs: SecurityGateEntry[];
-  trackingRecords: TrackingRecord[];
+  planEntries?: PlanEntry[];
+  loadEntries?: LoadUnloadEntry[];
+  securityLogs?: SecurityGateEntry[];
+  trackingRecords?: TrackingRecord[];
+  inwards?: ThermocolInward[];
+  invoices?: ThermocolInvoice[];
+  products?: ThermocolProduct[];
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
-  loadEntries,
-  securityLogs,
+  loadEntries = [],
+  securityLogs = [],
+  inwards: propInwards,
+  invoices: propInvoices,
+  products: propProducts
 }) => {
+  const [inwards, setInwards] = useState<ThermocolInward[]>(propInwards || []);
+  const [invoices, setInvoices] = useState<ThermocolInvoice[]>(propInvoices || []);
+  const [products, setProducts] = useState<ThermocolProduct[]>(propProducts || []);
+
+  useEffect(() => {
+    if (propInwards && propInwards.length > 0) setInwards(propInwards);
+    if (propInvoices && propInvoices.length > 0) setInvoices(propInvoices);
+    if (propProducts && propProducts.length > 0) setProducts(propProducts);
+  }, [propInwards, propInvoices, propProducts]);
+
+  useEffect(() => {
+    if (!propInwards || propInwards.length === 0) {
+      fetchIchOperationsWithGetDocs().then(res => {
+        if (res.inwards && res.inwards.length > 0) setInwards(res.inwards);
+        if (res.invoices && res.invoices.length > 0) setInvoices(res.invoices);
+        if (res.products && res.products.length > 0) setProducts(res.products);
+      }).catch(err => console.warn('AnalyticsView startup fetch error:', err));
+
+      fetchInvoicesFromIchOperations().then(invs => {
+        if (invs && invs.length > 0) {
+          setInvoices(prev => {
+            const map = new Map<string, ThermocolInvoice>();
+            prev.forEach(i => map.set(i.invNo, i));
+            invs.forEach(i => map.set(i.invNo, i));
+            return Array.from(map.values());
+          });
+        }
+      }).catch(err => console.warn('AnalyticsView direct invoices fetch error:', err));
+
+      const unsubInw = subscribeToThermocolInwards(data => { if (data) setInwards(data); });
+      const unsubInv = subscribeToThermocolInvoices(data => { if (data) setInvoices(data); });
+      const unsubProd = subscribeToThermocolProducts(data => { if (data) setProducts(data); });
+
+      return () => {
+        unsubInw();
+        unsubInv();
+        unsubProd();
+      };
+    }
+  }, [propInwards]);
+
   // Chart A: Supervisor Workload (Bar Chart)
   const supervisorWorkloadData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -198,7 +255,16 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   };
 
   return (
-    <section className="space-y-4">
+    <section className="space-y-6">
+      
+      {/* 1. D3.js SKU Movement Velocity Chart */}
+      <SkuVelocityChart
+        inwards={inwards}
+        invoices={invoices}
+        products={products}
+      />
+
+      {/* 2. Operations & Vehicle Logistics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         
         {/* Chart A: Supervisor Workload */}

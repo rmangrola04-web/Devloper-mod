@@ -128,8 +128,8 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
   // When the full Summary Section (totals, words, transporter, metrics, signature) is on the page:
   // comfortably fits up to 7 items without any overflow.
   // When continuation page (no summary): comfortably fits up to 12 items.
-  const MAX_ITEMS_ON_FINAL_PAGE = 8;
-  const MAX_ITEMS_ON_CONTINUATION_PAGE = 14;
+  const MAX_ITEMS_ON_FINAL_PAGE = 7;
+  const MAX_ITEMS_ON_CONTINUATION_PAGE = 12;
 
   const pageChunks: typeof processedItems[] = [];
   if (processedItems.length === 0) {
@@ -180,15 +180,19 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             margin: 0 auto !important;
             width: 297mm !important;
             max-width: 297mm !important;
-            min-height: 204mm !important;
-            height: 204mm !important;
+            min-height: 192mm !important;
+            height: auto !important;
             box-sizing: border-box !important;
             box-shadow: none !important;
-            padding: 6mm 8mm !important;
+            padding: 5mm 8mm !important;
             display: flex !important;
             flex-direction: column !important;
             justify-content: space-between !important;
             gap: 4px !important;
+          }
+          .tax-invoice-page:first-child, .invoice-page:first-child {
+            page-break-before: avoid !important;
+            break-before: avoid !important;
           }
           .tax-invoice-page:last-child, .invoice-page:last-child {
             page-break-after: avoid !important;
@@ -228,7 +232,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
         return (
           <div
             key={pageIdx}
-            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-[210mm] h-[210mm] mx-auto p-[6mm_8mm] text-[#333333] font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-[#b0b0b0] print:p-[6mm_8mm] print:w-full print:min-h-[204mm] print:h-[204mm] print:m-0 mb-6 print:mb-0 flex flex-col justify-between gap-[5px]"
+            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-[192mm] mx-auto p-[5mm_8mm] text-[#333333] font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-[#b0b0b0] print:p-[5mm_8mm] print:w-full print:min-h-[192mm] print:h-auto print:m-0 mb-6 print:mb-0 flex flex-col justify-between gap-[5px]"
             style={{ fontFamily: 'Arial, sans-serif' }}
           >
             {/* TOP & MIDDLE CONTENT WRAPPER */}

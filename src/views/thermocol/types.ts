@@ -117,6 +117,7 @@ export interface ThermocolInvoice {
   };
   cancelReason?: string;
   cancelNotes?: string;
+  isCancelled?: boolean;
   id?: string;
   type?: string;
   createdAt?: string;

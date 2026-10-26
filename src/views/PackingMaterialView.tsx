@@ -152,7 +152,9 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   const [modalPreviewInvoice, setModalPreviewInvoice] = useState<ThermocolInvoice | null>(null);
 
   // Sub-tab for Reports & Stock Status
-  const [reportSubTab, setReportSubTab] = useState<'billing' | 'demandSupply' | 'stock' | 'auditLogs'>('billing');
+  const [reportSubTab, setReportSubTab] = useState<'billing' | 'demandSupply' | 'stock' | 'dateWiseLedger' | 'auditLogs'>('billing');
+  const [ledgerDateFilter, setLedgerDateFilter] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [reportCompanyFilter, setReportCompanyFilter] = useState<'AIL' | 'HPL' | 'ALL'>('AIL');
   const [stockViewMode, setStockViewMode] = useState<'mrpWise' | 'consolidated'>('mrpWise');
 
   // Sub-tab for Masters & Data Cleanup
@@ -551,6 +553,197 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     return inwards
       .filter(i => i.productName === prod.name && normalizeCompany(i.company) === prodComp)
       .reduce((sum, i) => sum + (Number(i.availableQty) || 0), 0);
+  };
+
+  const ledgerDate = ledgerDateFilter || new Date().toISOString().split('T')[0];
+
+  const sapDateWiseLedger = useMemo(() => {
+    const companyFilteredProducts = products.filter(p => {
+      if (reportCompanyFilter === 'ALL') return true;
+      return normalizeCompany(p.company) === reportCompanyFilter;
+    });
+
+    return companyFilteredProducts.map(prod => {
+      const prodComp = normalizeCompany(prod.company);
+      const productName = prod.name;
+      const mrp = prod.price;
+
+      // Filter Inwards for this product & company
+      const prodInwards = inwards.filter(
+        i => i.productName === productName && normalizeCompany(i.company) === prodComp
+      );
+
+      // Inwards received BEFORE ledgerDate
+      const inwardsBefore = prodInwards
+        .filter(i => (i.receiveDate || i.date || '') < ledgerDate)
+        .reduce((s, i) => s + (Number(i.qty || i.initialQty || 0)), 0);
+
+      // Inwards ON ledgerDate
+      const inwardsTodayList = prodInwards.filter(i => (i.receiveDate || i.date || '') === ledgerDate);
+      const receiptsToday = inwardsTodayList.reduce((s, i) => s + (Number(i.qty || i.initialQty || 0)), 0);
+      const grRefsToday = Array.from(new Set(inwardsTodayList.map(i => i.grNo).filter(Boolean))).join(', ') || '-';
+
+      // Outward dispatches on active (non-cancelled) invoices
+      const activeInvoicesForComp = invoices.filter(
+        inv => (!inv.isCancelled && !inv.cancelReason) && getInvoiceCompany(inv) === prodComp
+      );
+
+      // Dispatches BEFORE ledgerDate
+      let dispatchesBefore = 0;
+      activeInvoicesForComp.forEach(inv => {
+        if ((inv.date || '') < ledgerDate) {
+          (inv.items || []).forEach(it => {
+            if (it.productName === productName) {
+              dispatchesBefore += Number(it.qty) || 0;
+            }
+          });
+        }
+      });
+
+      // Dispatches ON ledgerDate
+      let dispatchesToday = 0;
+      const invRefsTodaySet = new Set<string>();
+      activeInvoicesForComp.forEach(inv => {
+        if ((inv.date || '') === ledgerDate) {
+          (inv.items || []).forEach(it => {
+            if (it.productName === productName) {
+              dispatchesToday += Number(it.qty) || 0;
+              invRefsTodaySet.add(inv.invNo);
+            }
+          });
+        }
+      });
+      const invRefsToday = Array.from(invRefsTodaySet).join(', ') || '-';
+
+      // Stock Write-offs BEFORE ledgerDate
+      let writeoffsBefore = 0;
+      prodInwards.forEach(i => {
+        (i.writeOffs || []).forEach(w => {
+          if ((w.date || '').split('T')[0] < ledgerDate) {
+            writeoffsBefore += Number(w.qty || 0);
+          }
+        });
+      });
+
+      // Stock Write-offs ON ledgerDate
+      let writeoffsToday = 0;
+      prodInwards.forEach(i => {
+        (i.writeOffs || []).forEach(w => {
+          if ((w.date || '').split('T')[0] === ledgerDate) {
+            writeoffsToday += Number(w.qty || 0);
+          }
+        });
+      });
+
+      const openingBalance = Math.max(0, inwardsBefore - dispatchesBefore - writeoffsBefore);
+      const closingBalance = Math.max(0, openingBalance + receiptsToday - dispatchesToday - writeoffsToday);
+
+      const packMult = prod.packSizeMultiple || 1;
+      const openingCases = packMult > 0 ? (openingBalance % packMult === 0 ? openingBalance / packMult : Number((openingBalance / packMult).toFixed(1))) : openingBalance;
+      const closingCases = packMult > 0 ? (closingBalance % packMult === 0 ? closingBalance / packMult : Number((closingBalance / packMult).toFixed(1))) : closingBalance;
+
+      const valuation = closingBalance * mrp;
+
+      return {
+        prodId: prod.id,
+        company: prodComp,
+        productName,
+        hsnCode: prod.hsnCode || '39239090',
+        packSize: prod.packSize,
+        mrp,
+        openingBalance,
+        openingCases,
+        receiptsToday,
+        grRefsToday,
+        dispatchesToday,
+        invRefsToday,
+        writeoffsToday,
+        closingBalance,
+        closingCases,
+        valuation,
+        rawProduct: prod
+      };
+    });
+  }, [products, inwards, invoices, reportCompanyFilter, ledgerDate]);
+
+  const ledgerSummaryKPIs = useMemo(() => {
+    let totOpening = 0;
+    let totReceipts = 0;
+    let totIssues = 0;
+    let totWriteoffs = 0;
+    let totClosing = 0;
+    let totValuation = 0;
+
+    sapDateWiseLedger.forEach(row => {
+      totOpening += row.openingBalance;
+      totReceipts += row.receiptsToday;
+      totIssues += row.dispatchesToday;
+      totWriteoffs += row.writeoffsToday;
+      totClosing += row.closingBalance;
+      totValuation += row.valuation;
+    });
+
+    return {
+      count: sapDateWiseLedger.length,
+      totOpening,
+      totReceipts,
+      totIssues,
+      totWriteoffs,
+      totClosing,
+      totValuation: totValuation.toFixed(2)
+    };
+  }, [sapDateWiseLedger]);
+
+  const exportSapDateWiseLedgerCsv = () => {
+    const headers = [
+      'Company',
+      'Material Description / SKU',
+      'MRP (INR)',
+      'HSN Code',
+      'Pack Size',
+      'Ledger Date',
+      'Opening Balance (Pcs)',
+      'Opening Balance (Cases)',
+      'Goods Receipts + (GR 101/561)',
+      'GR References',
+      'Goods Issues - (GI 601)',
+      'Invoice References',
+      'Write-offs / Adjustments (-)',
+      'Closing Balance (Pcs)',
+      'Closing Balance (Cases)',
+      'Unit Rate (INR)',
+      'Total Stock Valuation (INR)'
+    ];
+
+    const rows = sapDateWiseLedger.map(row => [
+      row.company === 'HPL' ? 'AHPL' : 'AIL',
+      `"${row.productName.replace(/"/g, '""')}"`,
+      row.mrp.toFixed(2),
+      row.hsnCode,
+      `"${row.packSize}"`,
+      ledgerDate,
+      row.openingBalance,
+      row.openingCases,
+      row.receiptsToday,
+      `"${row.grRefsToday}"`,
+      row.dispatchesToday,
+      `"${row.invRefsToday}"`,
+      row.writeoffsToday,
+      row.closingBalance,
+      row.closingCases,
+      row.mrp.toFixed(2),
+      row.valuation.toFixed(2)
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `SAP_Date_Wise_Stock_Ledger_${ledgerDate}_${reportCompanyFilter}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   // Preview & Print Selection State
@@ -1438,7 +1631,6 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   // ----------------------------------------------------
   // Module E: Reports & Stock Status Calculations (Company-Wise Segregation)
   // ----------------------------------------------------
-  const [reportCompanyFilter, setReportCompanyFilter] = useState<'AIL' | 'HPL' | 'ALL'>(() => selectedCompany);
   const [reportDateFilter, setReportDateFilter] = useState('');
   const [reportView, setReportView] = useState<'summary' | 'detailed'>('summary');
 
@@ -3590,6 +3782,16 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
               </button>
 
               <button
+                onClick={() => setReportSubTab('dateWiseLedger')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                  reportSubTab === 'dateWiseLedger' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <Calendar className="w-3.5 h-3.5 text-blue-300" />
+                <span>📅 SAP Date-Wise Movement Ledger</span>
+              </button>
+
+              <button
                 onClick={() => setReportSubTab('auditLogs')}
                 className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
                   reportSubTab === 'auditLogs' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -4180,6 +4382,177 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* Sub-View: SAP Date-Wise Material Movement Stock Ledger */}
+            {reportSubTab === 'dateWiseLedger' && (
+              <div className="space-y-4">
+                {/* Header & Date Controls */}
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-800 uppercase flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <span>SAP MM Date-Wise Material Movement Stock Ledger</span>
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Real-time opening balance, daily goods receipts (+ 101/561), goods issues (- 601), and closing balance per SKU & MRP.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <div className="flex items-center gap-2 bg-white border border-slate-300 rounded-lg px-3 py-1.5 shadow-2xs">
+                      <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                      <span className="text-xs font-bold text-slate-700">Audit Date:</span>
+                      <input
+                        type="date"
+                        value={ledgerDateFilter}
+                        onChange={(e) => setLedgerDateFilter(e.target.value)}
+                        className="bg-transparent text-xs font-bold font-mono text-slate-900 outline-none cursor-pointer"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => setLedgerDateFilter(new Date().toISOString().split('T')[0])}
+                      className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-lg text-xs font-bold transition cursor-pointer"
+                    >
+                      Today
+                    </button>
+
+                    <button
+                      onClick={exportSapDateWiseLedgerCsv}
+                      className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Export SAP Date-Wise Ledger CSV</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Summary KPI Cards */}
+                <div className="grid grid-cols-2 sm:grid-cols-6 gap-2.5">
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase block">SKUs Tracked</span>
+                    <span className="text-sm font-extrabold font-mono text-slate-900">{ledgerSummaryKPIs.count}</span>
+                  </div>
+                  <div className="p-3 bg-slate-100 border border-slate-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-slate-600 uppercase block">Opening Balance</span>
+                    <span className="text-sm font-extrabold font-mono text-slate-900">{ledgerSummaryKPIs.totOpening} Pcs</span>
+                  </div>
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase block">Receipts (101/561)</span>
+                    <span className="text-sm font-extrabold font-mono text-emerald-900">+{ledgerSummaryKPIs.totReceipts} Pcs</span>
+                  </div>
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-blue-700 uppercase block">Dispatches (601)</span>
+                    <span className="text-sm font-extrabold font-mono text-blue-900">-{ledgerSummaryKPIs.totIssues} Pcs</span>
+                  </div>
+                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-rose-700 uppercase block">Adjustments (-)</span>
+                    <span className="text-sm font-extrabold font-mono text-rose-900">-{ledgerSummaryKPIs.totWriteoffs} Pcs</span>
+                  </div>
+                  <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                    <span className="text-[10px] font-bold text-indigo-700 uppercase block">Closing Valuation</span>
+                    <span className="text-sm font-extrabold font-mono text-indigo-950">₹{ledgerSummaryKPIs.totValuation}</span>
+                  </div>
+                </div>
+
+                {/* Ledger Table */}
+                <SynchronizedTableScroll className="rounded-xl border border-slate-200 shadow-xs">
+                  <table className="w-full text-xs text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-800 text-white font-bold border-b border-slate-700 text-[11px]">
+                        <th className="py-3 px-3">Company</th>
+                        <th className="py-3 px-3">Material Description / SKU</th>
+                        <th className="py-3 px-3 text-right">MRP (₹)</th>
+                        <th className="py-3 px-3">HSN Code</th>
+                        <th className="py-3 px-3 text-right">Opening Bal (Pcs)</th>
+                        <th className="py-3 px-3 text-right text-emerald-300">Goods Receipts + (101)</th>
+                        <th className="py-3 px-3 text-right text-blue-300">Goods Issues - (601)</th>
+                        <th className="py-3 px-3 text-right text-rose-300">Write-offs -</th>
+                        <th className="py-3 px-3 text-right font-extrabold text-amber-300">Closing Bal (Pcs)</th>
+                        <th className="py-3 px-3 text-right">Closing (Cases)</th>
+                        <th className="py-3 px-3 text-right font-mono text-indigo-300">Total Valuation (₹)</th>
+                        <th className="py-3 px-3 text-center">History</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {sapDateWiseLedger.length === 0 ? (
+                        <tr>
+                          <td colSpan={12} className="py-6 text-center text-slate-400 italic">
+                            No material movement records found for {ledgerDate} ({reportCompanyFilter}).
+                          </td>
+                        </tr>
+                      ) : (
+                        sapDateWiseLedger.map(row => (
+                          <tr key={row.prodId || row.productName} className="hover:bg-slate-50 transition">
+                            <td className="py-2.5 px-3">
+                              <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-black font-mono border ${
+                                row.company === 'HPL'
+                                  ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                  : 'bg-blue-50 text-blue-800 border-blue-200'
+                              }`}>
+                                {row.company === 'HPL' ? 'AHPL' : 'AIL'}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-extrabold text-slate-900">{row.productName}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-blue-700">₹{row.mrp.toFixed(2)}</td>
+                            <td className="py-2.5 px-3 font-mono text-slate-600">{row.hsnCode}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-slate-700">{row.openingBalance}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-700">
+                              {row.receiptsToday > 0 ? (
+                                <div>
+                                  <span>+{row.receiptsToday}</span>
+                                  <div className="text-[10px] text-slate-400 font-sans font-normal truncate max-w-[120px]" title={row.grRefsToday}>
+                                    {row.grRefsToday}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">0</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-blue-700">
+                              {row.dispatchesToday > 0 ? (
+                                <div>
+                                  <span>-{row.dispatchesToday}</span>
+                                  <div className="text-[10px] text-slate-400 font-sans font-normal truncate max-w-[120px]" title={row.invRefsToday}>
+                                    {row.invRefsToday}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-slate-400">0</span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-rose-600">
+                              {row.writeoffsToday > 0 ? `-${row.writeoffsToday}` : <span className="text-slate-400">0</span>}
+                            </td>
+                            <td className={`py-2.5 px-3 text-right font-mono font-black text-sm ${
+                              row.closingBalance > 0 ? 'text-amber-700' : 'text-slate-400'
+                            }`}>
+                              {row.closingBalance} Pcs
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono text-slate-700 font-bold">
+                              {row.closingCases} Cases
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-extrabold text-indigo-900">
+                              ₹{row.valuation.toFixed(2)}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => setHistoryProduct(row.rawProduct)}
+                                className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded transition cursor-pointer"
+                                title="View SAP Material Lifecycle History"
+                              >
+                                <History className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </SynchronizedTableScroll>
               </div>
             )}
 

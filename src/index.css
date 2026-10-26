@@ -749,6 +749,12 @@ html.light aside .nav-link, body.light aside .nav-link {
     display: none !important;
   }
 
+  /* Hide main screen background when invoice modal or print area is active */
+  body.invoice-modal-open main,
+  body:has(#taxInvoicePrintArea) main > *:not(:has(#taxInvoicePrintArea)) {
+    display: none !important;
+  }
+
   /* Reset outer application containers so invoice prints cleanly without black backdrops or scrollbars */
   html, body, #root, #root > div, main, #master-logs-container {
     background: #ffffff !important;
@@ -768,10 +774,10 @@ html.light aside .nav-link, body.light aside .nav-link {
   .invoice-page {
     width: 297mm !important;
     max-width: 297mm !important;
-    min-height: auto !important;
+    min-height: 192mm !important;
     height: auto !important;
     margin: 0 auto !important;
-    padding: 6mm 8mm !important;
+    padding: 5mm 8mm !important;
     box-shadow: none !important;
     border: 1px solid #b0b0b0 !important;
     page-break-after: always !important;
@@ -780,7 +786,7 @@ html.light aside .nav-link, body.light aside .nav-link {
     break-inside: avoid !important;
     display: flex !important;
     flex-direction: column !important;
-    justify-content: flex-start !important;
+    justify-content: space-between !important;
     gap: 4px !important;
     box-sizing: border-box !important;
     clear: both !important;
@@ -790,8 +796,8 @@ html.light aside .nav-link, body.light aside .nav-link {
 
   .tax-invoice-page:first-child,
   .invoice-page:first-child {
-    page-break-before: auto !important;
-    break-before: auto !important;
+    page-break-before: avoid !important;
+    break-before: avoid !important;
   }
 
   .tax-invoice-page:last-child,
