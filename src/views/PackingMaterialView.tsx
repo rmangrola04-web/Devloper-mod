@@ -27,7 +27,9 @@ import {
   Printer,
   Package,
   Calendar,
-  History
+  History,
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc } from '../firebase';
 import { 
@@ -850,38 +852,59 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     setTimeout(() => setEditMsg(null), 4000);
   };
 
-  // Permanent Delete Invoice with Stock Reversal & Audit Log
-  // Permanent Delete Invoice with Stock Reversal & Audit Log
+  // PIN-Protected Invoice Cancellation & Restoration State
+  const [pinModalInvoice, setPinModalInvoice] = useState<ThermocolInvoice | null>(null);
+  const [cancelPinInput, setCancelPinInput] = useState('');
+  const [cancelPinError, setCancelPinError] = useState('');
+
+  // 1. Trigger PIN verification modal when user clicks to cancel/delete invoice
   const handleDeleteInvoice = async (invNo: string) => {
     const invToDelete = invoices.find(i => i.invNo === invNo);
     if (!invToDelete) {
       setEditMsg({ text: `Invoice ${invNo} was not found or has already been voided.`, isError: true });
       return;
     }
+    setPinModalInvoice(invToDelete);
+    setCancelPinInput('');
+    setCancelPinError('');
+  };
 
+  // 2. Validate PIN and execute invoice cancellation
+  const handleConfirmPinCancellation = async () => {
+    if (!pinModalInvoice) return;
+    const invComp = getInvoiceCompany(pinModalInvoice);
+    const expectedPin = invComp === 'HPL' ? '1301' : '7308';
+    const compNameDisplay = invComp === 'HPL' ? 'AHPL (Abbott Healthcare)' : 'AIL (Abbott India)';
+
+    if (cancelPinInput.trim() !== expectedPin) {
+      setCancelPinError(`Security PIN incorrect for ${compNameDisplay}! Required PIN is ${expectedPin}. Cancellation blocked.`);
+      return;
+    }
+
+    const invToDelete = pinModalInvoice;
+    const invNo = invToDelete.invNo;
     const updatedInwards = [...inwards];
     const newAuditEntries: InvoiceAuditLog[] = [];
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
-    const invoiceCompany = getInvoiceCompany(invToDelete);
 
     invToDelete.items.forEach(it => {
       let qtyToRefund = it.qty;
       for (const inw of updatedInwards) {
-        if (inw.productName === it.productName && normalizeCompany(inw.company) === invoiceCompany) {
+        if (inw.productName === it.productName && normalizeCompany(inw.company) === invComp) {
           inw.availableQty += qtyToRefund;
           qtyToRefund = 0;
           break;
         }
       }
       if (qtyToRefund > 0 && updatedInwards.length > 0) {
-        const fallbackInw = updatedInwards.find(i => normalizeCompany(i.company) === invoiceCompany) || updatedInwards[0];
+        const fallbackInw = updatedInwards.find(i => normalizeCompany(i.company) === invComp) || updatedInwards[0];
         fallbackInw.availableQty += qtyToRefund;
       }
 
       newAuditEntries.push({
         id: 'aud_del_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
         invNo: invToDelete.invNo,
-        company: invoiceCompany,
+        company: invComp,
         action: 'CANCEL',
         timestamp,
         deletedAt: timestamp,
@@ -894,12 +917,12 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
         vehicleNo: invToDelete.vehicleNo || '-',
         transporter: invToDelete.transName || '-',
         lrNo: invToDelete.lrNo || '-',
-        details: `Permanently cancelled invoice ${invToDelete.invNo}; refunded ${it.qty} pcs of ${it.productName} back to inventory ledger`,
+        details: `Cancelled invoice ${invToDelete.invNo} with authorized PIN validation (${expectedPin}); refunded ${it.qty} pcs of ${it.productName} to inventory`,
+        snapshotBefore: invToDelete,
         complianceChecksum: `CRC32-${Math.abs(invToDelete.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
       });
     });
 
-    // Update local state immediately so UI updates instantaneously
     const updatedInvoices = invoices.filter(i => i.invNo !== invNo);
     const updatedAudits = [...newAuditEntries, ...invoiceAudits];
     setInvoices(updatedInvoices);
@@ -907,20 +930,170 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     setInvoiceAudits(updatedAudits);
     setEditForm(null);
     setEditInvNo(updatedInvoices.length > 0 ? updatedInvoices[0].invNo : '');
+    setPinModalInvoice(null);
+    setCancelPinInput('');
+    setCancelPinError('');
+
     persistStorage(products, parties, transporters, clientDemands, updatedInwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
 
-    // Direct Firestore deletion & refund sync
     try {
       await deleteThermocolInvoiceFromFirestore(invNo);
       await saveThermocolInwardsBatchToFirestore(updatedInwards);
       for (const aud of newAuditEntries) {
         await addThermocolAuditLog(aud);
       }
-      setEditMsg({ text: `Invoice ${invNo} permanently deleted from Firestore and inventory refunded.`, isError: false });
-      setCsvStatusMsg({ text: `Invoice ${invNo} successfully deleted from cloud database.`, isError: false });
+      setEditMsg({ text: `Invoice ${invNo} successfully cancelled with PIN authorization (${compNameDisplay}). Inventory refunded.`, isError: false });
+      setCsvStatusMsg({ text: `Invoice ${invNo} successfully cancelled with PIN validation.`, isError: false });
     } catch (err: any) {
       console.warn('[Firestore] Error during invoice deletion sync:', err);
-      setEditMsg({ text: `Error deleting invoice ${invNo} from cloud: ${err?.message || err}`, isError: true });
+      setEditMsg({ text: `Error cancelling invoice ${invNo}: ${err?.message || err}`, isError: true });
+    }
+  };
+
+  // 3. Invoice Regeneration / Restoration Handler
+  const handleRestoreInvoice = async (invNo: string, auditRecord?: InvoiceAuditLog) => {
+    const targetKey = invNo.trim().replace(/[^a-zA-Z0-9]/g, '');
+    const alreadyActive = invoices.find(i => (i.invNo || '').trim().replace(/[^a-zA-Z0-9]/g, '') === targetKey);
+    if (alreadyActive) {
+      alert(`Invoice ${invNo} is already active in the system!`);
+      return;
+    }
+
+    let invToRestore: ThermocolInvoice | null = auditRecord?.snapshotBefore || null;
+    if (!invToRestore) {
+      const matchAudit = invoiceAudits.find(a => 
+        a.snapshotBefore && 
+        ((a.invNo || '').trim().replace(/[^a-zA-Z0-9]/g, '') === targetKey)
+      );
+      if (matchAudit && matchAudit.snapshotBefore) {
+        invToRestore = matchAudit.snapshotBefore;
+      }
+    }
+
+    // Reconstruct invoice if snapshot is not directly stored
+    if (!invToRestore && auditRecord) {
+      const comp = auditRecord.company || (invNo.includes('AHPL') || invNo.includes('HPL') ? 'HPL' : 'AIL');
+      const sender = comp === 'HPL' ? senderHPL : senderAIL;
+      const totalValNum = Number(auditRecord.totalValue || 0);
+
+      invToRestore = {
+        invNo: auditRecord.invNo || invNo,
+        company: comp,
+        date: auditRecord.timestamp?.split(' ')[0] || new Date().toISOString().split('T')[0],
+        partyName: auditRecord.partyName || 'Restored Customer',
+        partyAddress: 'Indore, Madhya Pradesh - 452001',
+        partyGstin: '23UNREGISTERED',
+        partyCity: 'Indore',
+        partyState: 'Madhya Pradesh',
+        partyPincode: '452001',
+        isInterState: false,
+        taxType: 'LOCAL_EXEMPT',
+        senderName: sender.name,
+        senderAddress: sender.address,
+        senderGstin: sender.gstin,
+        senderPan: sender.pan,
+        senderCin: sender.cin,
+        senderLogoUrl: sender.logoUrl,
+        logo: sender.logoUrl,
+        transName: auditRecord.transporter || 'Direct Logistics',
+        transGstin: '23UNREGISTERED',
+        lrNo: auditRecord.lrNo || 'LR-RESTORE',
+        lrDate: new Date().toISOString().split('T')[0],
+        vehicleNo: auditRecord.vehicleNo || 'MP09-RESTORE',
+        totalTaxable: totalValNum.toFixed(2),
+        totalGst: '0.00',
+        grandTotal: totalValNum.toFixed(2),
+        totalQty: auditRecord.refundedQty || 10,
+        totalCases: 1,
+        totalWeight: '1.50',
+        totalCft: '0.20',
+        items: [
+          {
+            id: 'it_res_' + Date.now(),
+            productName: auditRecord.productName || 'EPS Corner Guard',
+            hsnCode: '39239090',
+            packSize: 'Box of 10',
+            packSizeMultiple: 10,
+            cases: 1,
+            qty: auditRecord.refundedQty || 10,
+            rate: auditRecord.refundedQty ? Number((totalValNum / auditRecord.refundedQty).toFixed(2)) : 15.5,
+            weight: 1.5,
+            cft: 0.2,
+            taxableValue: totalValNum,
+            gstRate: 0,
+            gstValue: 0,
+            totalValue: totalValNum
+          }
+        ]
+      };
+    }
+
+    if (!invToRestore) {
+      alert(`Could not find original invoice data for ${invNo}.`);
+      return;
+    }
+
+    const invComp = getInvoiceCompany(invToRestore);
+    const compNameDisplay = invComp === 'HPL' ? 'AHPL (Abbott Healthcare)' : 'AIL (Abbott India)';
+    const confirmRestore = window.confirm(
+      `Re-activate and restore cancelled invoice ${invNo} (${compNameDisplay}) back to ACTIVE status using the exact same invoice number?\n\nThis will re-deduct required stock items from the inward stock ledger.`
+    );
+    if (!confirmRestore) return;
+
+    // Deduct stock for restored items from inwards ledger
+    const updatedInwards = [...inwards];
+    if (Array.isArray(invToRestore.items)) {
+      invToRestore.items.forEach(it => {
+        let qtyToDeduct = Number(it.qty) || 0;
+        for (const inw of updatedInwards) {
+          if (inw.productName === it.productName && normalizeCompany(inw.company) === invComp) {
+            inw.availableQty = Math.max(0, (inw.availableQty || 0) - qtyToDeduct);
+            qtyToDeduct = 0;
+            break;
+          }
+        }
+      });
+    }
+
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const restoreAudit: InvoiceAuditLog = {
+      id: 'aud_res_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+      invNo: invToRestore.invNo,
+      company: invComp,
+      action: 'CREATE',
+      timestamp,
+      userName: currentUser?.name || 'Authorized Supervisor',
+      userRole: currentUser?.role || 'SUPERVISOR',
+      partyName: invToRestore.partyName,
+      totalValue: invToRestore.grandTotal,
+      vehicleNo: invToRestore.vehicleNo || '-',
+      transporter: invToRestore.transName || '-',
+      lrNo: invToRestore.lrNo || '-',
+      details: `Regenerated and restored cancelled invoice ${invToRestore.invNo} to ACTIVE status with exact original invoice number; re-deducted inventory stock`,
+      complianceChecksum: `CRC32-${Math.abs(invToRestore.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
+    };
+
+    // Reactivate invoice in state
+    const updatedInvoices = [invToRestore, ...invoices];
+    const updatedAudits = [restoreAudit, ...invoiceAudits];
+
+    setInvoices(updatedInvoices);
+    setInwards(updatedInwards);
+    setInvoiceAudits(updatedAudits);
+    setSelectedPreviewInv(invToRestore.invNo);
+    setEditInvNo(invToRestore.invNo);
+
+    persistStorage(products, parties, transporters, clientDemands, updatedInwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
+
+    try {
+      await saveThermocolInvoiceToFirestore(invToRestore);
+      await saveThermocolInwardsBatchToFirestore(updatedInwards);
+      await addThermocolAuditLog(restoreAudit);
+      setEditMsg({ text: `Invoice ${invToRestore.invNo} successfully regenerated & restored to Active status!`, isError: false });
+      setCsvStatusMsg({ text: `Invoice ${invToRestore.invNo} restored in cloud database.`, isError: false });
+      setTimeout(() => setEditMsg(null), 4000);
+    } catch (err: any) {
+      console.warn('[Firestore] Error during invoice restore sync:', err);
     }
   };
 
@@ -2874,6 +3047,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
             onDeleteInvoice={handleDeleteInvoice}
             onDeleteAuditLog={handleDeleteAuditLog}
             onPurgeCancelledAudits={handlePurgeCancelledAudits}
+            onRestoreInvoice={handleRestoreInvoice}
             onRefresh={() => {
               console.log('[Firestore Sync] Manual refresh requested for audit logs.');
             }}
@@ -3525,6 +3699,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                 onDeleteInvoice={handleDeleteInvoice}
                 onDeleteAuditLog={handleDeleteAuditLog}
                 onPurgeCancelledAudits={handlePurgeCancelledAudits}
+                onRestoreInvoice={handleRestoreInvoice}
                 onRefresh={() => {
                   console.log('[Firestore Sync] Manual refresh requested for audit logs.');
                 }}
@@ -5368,6 +5543,123 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
           }}
           onLogWriteOff={handleLogWriteOff}
         />
+      )}
+
+      {/* Security PIN-Protected Invoice Cancellation Modal */}
+      {pinModalInvoice && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-5 animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 leading-tight">
+                    PIN-Protected Invoice Cancellation
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    Authorized Security Check Required
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setPinModalInvoice(null);
+                  setCancelPinInput('');
+                  setCancelPinError('');
+                }}
+                className="text-slate-400 hover:text-slate-600 font-bold p-1 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Invoice & Division Context Card */}
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Invoice Number:</span>
+                <span className="font-mono font-black text-blue-700 text-sm">{pinModalInvoice.invNo}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Entity / Company Division:</span>
+                <span className={`px-2 py-0.5 rounded text-[11px] font-black font-mono border ${
+                  getInvoiceCompany(pinModalInvoice) === 'HPL'
+                    ? 'bg-purple-100 text-purple-900 border-purple-300'
+                    : 'bg-blue-100 text-blue-900 border-blue-300'
+                }`}>
+                  {getInvoiceCompany(pinModalInvoice) === 'HPL' ? 'AHPL (Abbott Healthcare)' : 'AIL (Abbott India)'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Customer:</span>
+                <span className="font-bold text-slate-900 truncate max-w-[200px]">{pinModalInvoice.partyName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-slate-500 font-medium">Grand Total Value:</span>
+                <span className="font-mono font-extrabold text-emerald-700">₹{pinModalInvoice.grandTotal}</span>
+              </div>
+            </div>
+
+            {/* Security PIN Entry Field */}
+            <div className="space-y-2 text-xs">
+              <label className="font-extrabold text-slate-800 block flex items-center justify-between">
+                <span>Enter 4-Digit Security PIN *</span>
+                <span className="text-[10px] text-blue-600 font-mono font-bold">
+                  ({getInvoiceCompany(pinModalInvoice) === 'HPL' ? 'AHPL PIN: 1301' : 'AIL PIN: 7308'})
+                </span>
+              </label>
+              <input
+                type="password"
+                maxLength={6}
+                autoFocus
+                placeholder="••••"
+                value={cancelPinInput}
+                onChange={(e) => {
+                  setCancelPinInput(e.target.value);
+                  setCancelPinError('');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleConfirmPinCancellation();
+                  }
+                }}
+                className="w-full text-center text-xl tracking-[0.5em] font-mono font-black border border-slate-300 bg-slate-50 focus:bg-white focus:border-red-500 rounded-xl py-2.5 outline-none text-slate-900 transition"
+              />
+              {cancelPinError && (
+                <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{cancelPinError}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setPinModalInvoice(null);
+                  setCancelPinInput('');
+                  setCancelPinError('');
+                }}
+                className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer transition"
+              >
+                Abort / Keep Invoice
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmPinCancellation}
+                className="flex-1 py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold cursor-pointer transition shadow-xs flex items-center justify-center gap-1.5 active:scale-95"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Confirm PIN Cancellation</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -36,6 +36,7 @@ interface InvoiceAuditLogViewProps {
   onRefresh?: () => void;
   onDeleteInvoice?: (invNo: string) => void;
   onDeleteAuditLog?: (auditId: string) => void;
+  onRestoreInvoice?: (invNo: string, audit: InvoiceAuditLog) => void;
 }
 
 // Compact Action Dropdown Component per Audit Log Row
@@ -46,7 +47,8 @@ const RowActionDropdown: React.FC<{
   onPreview?: () => void;
   onDelete?: () => void;
   onDeleteAuditLog?: () => void;
-}> = ({ aud, invoiceExists, onInspect, onPreview, onDelete, onDeleteAuditLog }) => {
+  onRestoreInvoice?: () => void;
+}> = ({ aud, invoiceExists, onInspect, onPreview, onDelete, onDeleteAuditLog, onRestoreInvoice }) => {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +74,7 @@ const RowActionDropdown: React.FC<{
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-1 w-52 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 text-xs animate-in zoom-in-95 duration-100">
+        <div className="absolute right-0 mt-1 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1 text-xs animate-in zoom-in-95 duration-100">
           <button
             type="button"
             onClick={() => {
@@ -96,6 +98,20 @@ const RowActionDropdown: React.FC<{
             >
               <FileText className="w-3.5 h-3.5 text-indigo-600" />
               <span>View Delivery Challan</span>
+            </button>
+          )}
+
+          {!invoiceExists && onRestoreInvoice && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                onRestoreInvoice();
+              }}
+              className="w-full px-3 py-2 text-left text-emerald-700 hover:bg-emerald-50 flex items-center gap-2 font-bold border-t border-slate-100 cursor-pointer"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-emerald-600" />
+              <span>🔄 Regenerate / Restore Invoice</span>
             </button>
           )}
 
@@ -147,7 +163,8 @@ export const InvoiceAuditLogView: React.FC<InvoiceAuditLogViewProps> = ({
   onPurgeCancelledAudits,
   onRefresh,
   onDeleteInvoice,
-  onDeleteAuditLog
+  onDeleteAuditLog,
+  onRestoreInvoice
 }) => {
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
@@ -730,6 +747,17 @@ export const InvoiceAuditLogView: React.FC<InvoiceAuditLogViewProps> = ({
                       {/* Compact Actions Dropdown Menu */}
                       <td className="py-3 px-3 text-center whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
+                          {isCancel && onRestoreInvoice && !invoices.some(i => i.invNo === aud.invNo || i.invNo.replace(/[^a-zA-Z0-9]/g, '') === aud.invNo.replace(/[^a-zA-Z0-9]/g, '')) && (
+                            <button
+                              type="button"
+                              onClick={() => onRestoreInvoice(aud.invNo, aud)}
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 hover:text-white text-emerald-800 rounded-lg text-xs font-bold transition flex items-center gap-1 border border-emerald-300 cursor-pointer shadow-2xs"
+                              title="Regenerate / Restore cancelled invoice using exact original invoice number"
+                            >
+                              <RefreshCw className="w-3 h-3 text-emerald-600" />
+                              <span>🔄 Restore</span>
+                            </button>
+                          )}
                           {isCancel && onDeleteAuditLog && (
                             <button
                               type="button"
@@ -748,6 +776,7 @@ export const InvoiceAuditLogView: React.FC<InvoiceAuditLogViewProps> = ({
                             onPreview={() => onSelectInvoiceForPreview && onSelectInvoiceForPreview(aud.invNo)}
                             onDelete={() => onDeleteInvoice && onDeleteInvoice(aud.invNo)}
                             onDeleteAuditLog={() => onDeleteAuditLog && onDeleteAuditLog(aud.id)}
+                            onRestoreInvoice={onRestoreInvoice ? () => onRestoreInvoice(aud.invNo, aud) : undefined}
                           />
                         </div>
                       </td>
