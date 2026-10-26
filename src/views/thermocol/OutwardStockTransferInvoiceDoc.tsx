@@ -296,7 +296,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                     <div className="section-title bg-[#e6ecf2] font-bold py-1 px-2 border-b border-[#b0b0b0] text-[10px] -m-[6px] mb-[6px] text-[#1e3a5f]">
                       DETAILS OF CONSIGNOR (SHIPPED &amp; DISPATCHED FROM)
                     </div>
-                    {/* Duplicate header/name hidden so Abbott India Limited appears strictly once */}
+                    <strong>{displaySenderName}</strong><br />
                     {displaySenderAddress}<br /><br />
                     <strong>GSTIN:</strong> {displaySenderGstin} &nbsp;&nbsp; <strong>PAN:</strong> {displaySenderPan} &nbsp;&nbsp; <strong>CIN:</strong> {displaySenderCin}<br />
                     <strong>State:</strong> Madhya Pradesh (State Code: 23)
@@ -521,22 +521,17 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                   id="taxInvoiceFooter"
                   className="bottom-section flex flex-col sm:flex-row gap-[5px] mt-[3px] text-[9.5px]"
                 >
-                  {/* Box 1: Amount in Words & Remarks */}
-                  <div className="amount-words-box flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-between overflow-hidden">
+                  {/* Box 1: Amount in Words */}
+                  <div className="amount-words-box flex-1 border border-[#b0b0b0] bg-white flex flex-col justify-start overflow-hidden">
                     <div>
                       <div className="section-title bg-[#e6ecf2] text-[#1e3a5f] font-bold px-2 py-1 border-b border-[#b0b0b0] text-[9px] uppercase tracking-wider">
                         Amount Chargeable (in words)
                       </div>
-                      <div className="p-[6px]">
+                      <div className="p-[6px_8px]">
                         <p className="font-extrabold text-black italic text-[9.5px] leading-snug">
                           Rupees {amountWords} Only
                         </p>
                       </div>
-                    </div>
-                    <div className="p-[5px_6px] border-t border-[#b0b0b0] text-[8.5px] text-slate-700 bg-[#fafbfc]">
-                      <p><b>Company PAN:</b> {displaySenderPan}</p>
-                      <p><b>Bank:</b> HDFC Bank Ltd. | A/C: 00030310002134</p>
-                      <p><b>Remarks:</b> Inter-branch stock transfer of packing material for production/packaging.</p>
                     </div>
                   </div>
 

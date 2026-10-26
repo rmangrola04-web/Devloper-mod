@@ -793,6 +793,7 @@
                 <div class="details-grid">
                   <div class="details-col">
                     <div class="section-title" style="margin: -6px -6px 6px -6px;">DETAILS OF CONSIGNOR (SHIPPED &amp; DISPATCHED FROM)</div>
+                    <strong>${invoiceData.consignor.name || 'Abbott India Ltd.'}</strong><br />
                     ${invoiceData.consignor.address}<br /><br />
                     <strong>GSTIN:</strong> ${invoiceData.consignor.gstin} &nbsp;&nbsp; <strong>PAN:</strong> ${invoiceData.consignor.pan} &nbsp;&nbsp; <strong>CIN:</strong> ${invoiceData.consignor.cin}<br />
                     <strong>State:</strong> ${invoiceData.consignor.state} (State Code: ${invoiceData.consignor.stateCode})
@@ -884,19 +885,13 @@
               <!-- 5. Bottom Section: Financial Totals, Transporter, Metrics & Signature (ONLY on Final Page) -->
               ${isLastPage ? `
                 <div class="bottom-summary-section">
-                  <!-- Box 1: Amount in Words & Transfer Remarks -->
+                  <!-- Box 1: Amount in Words -->
                   <div class="summary-box">
                     <div>
                       <div class="section-title">Total Invoice Amount in Words</div>
                       <div class="summary-box-body">
                         <div class="amount-words-text">${totalInWords}</div>
-                        <div style="font-size: 8px; color: #444444; margin-top: 4px; line-height: 1.25;">
-                          <b>Purpose:</b> Inter-branch stock transfer of temperature-controlled secondary packing material for warehouse cold-chain distribution. Not intended for commercial sale.
-                        </div>
                       </div>
-                    </div>
-                    <div style="font-size: 8px; color: #444444; padding: 4px 8px; border-top: 1px solid #b0b0b0; background-color: #fafbfc;">
-                      <b>PO Reference:</b> ${invoiceData.poReference} | <b>Reverse Charge:</b> ${invoiceData.reverseCharge}
                     </div>
                   </div>
 
