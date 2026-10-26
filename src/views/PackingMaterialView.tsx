@@ -29,7 +29,8 @@ import {
   Calendar,
   History,
   X,
-  RefreshCw
+  RefreshCw,
+  ShieldAlert
 } from 'lucide-react';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc } from '../firebase';
 import { 
@@ -44,7 +45,9 @@ import {
   ClientDemand,
   InvoiceAuditLog,
   InvoiceFieldChange,
-  StockWriteOff
+  StockWriteOff,
+  PendingStockQueueItem,
+  QueueStatus
 } from './thermocol/types';
 import { 
   DEFAULT_SENDER, 
@@ -77,6 +80,9 @@ import { DataCleanupView } from './thermocol/DataCleanupView';
 import { OutwardOrderEntryForm } from './thermocol/OutwardOrderEntryForm';
 import { InvoiceAuditLogView } from './thermocol/InvoiceAuditLogView';
 import { ProductHistoryModal } from './thermocol/ProductHistoryModal';
+import { InvoiceCancellationQueueView } from './thermocol/InvoiceCancellationQueueView';
+import { DeletePinModal } from './thermocol/DeletePinModal';
+
 import { SynchronizedTableScroll } from '../components/SynchronizedTableScroll';
 import { normalizeWmsDate } from '../utils/wmsDataEngine';
 import {
@@ -127,14 +133,27 @@ interface PackingMaterialViewProps {
 export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ currentUser }) => {
   // Navigation Tabs: Dedicated and cleanly separated
   const [activeTab, setActiveTab] = useState<
-    'orderTab' | 'previewPrintTab' | 'editInvoiceTab' | 'auditLogTab' | 'reportTab' | 'inwardTab' | 'masterTab'
+    'orderTab' | 'previewPrintTab' | 'editInvoiceTab' | 'cancellationQueueTab' | 'auditLogTab' | 'reportTab' | 'inwardTab' | 'masterTab'
   >('orderTab');
+
+  // Pending Stock Queue state for PIN-gated cancellation stock reconciliation
+  const [pendingStockQueue, setPendingStockQueue] = useState<PendingStockQueueItem[]>([]);
+
+  // Global Delete PIN Modal State
+  const [activeDeleteModal, setActiveDeleteModal] = useState<{
+    title: string;
+    itemDescription: string;
+    company: CompanyType;
+    action: () => Promise<void> | void;
+  } | null>(null);
+
 
   // Modal overlay preview state
   const [modalPreviewInvoice, setModalPreviewInvoice] = useState<ThermocolInvoice | null>(null);
 
   // Sub-tab for Reports & Stock Status
   const [reportSubTab, setReportSubTab] = useState<'billing' | 'demandSupply' | 'stock' | 'auditLogs'>('billing');
+  const [stockViewMode, setStockViewMode] = useState<'mrpWise' | 'consolidated'>('mrpWise');
 
   // Sub-tab for Masters & Data Cleanup
   const [masterSubTab, setMasterSubTab] = useState<'templates' | 'cleanup'>('templates');
@@ -869,7 +888,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     setCancelPinError('');
   };
 
-  // 2. Validate PIN and execute invoice cancellation
+  // 2. Validate PIN and execute invoice cancellation (Routes stock to Pending Stock Queue)
   const handleConfirmPinCancellation = async () => {
     if (!pinModalInvoice) return;
     const invComp = getInvoiceCompany(pinModalInvoice);
@@ -883,50 +902,57 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
 
     const invToDelete = pinModalInvoice;
     const invNo = invToDelete.invNo;
-    const updatedInwards = [...inwards];
-    const newAuditEntries: InvoiceAuditLog[] = [];
     const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const totQty = invToDelete.items?.reduce((s, it) => s + (Number(it.qty) || 0), 0) || invToDelete.totalQty || 0;
 
-    invToDelete.items.forEach(it => {
-      let qtyToRefund = it.qty;
-      for (const inw of updatedInwards) {
-        if (inw.productName === it.productName && normalizeCompany(inw.company) === invComp) {
-          inw.availableQty += qtyToRefund;
-          qtyToRefund = 0;
-          break;
-        }
-      }
-      if (qtyToRefund > 0 && updatedInwards.length > 0) {
-        const fallbackInw = updatedInwards.find(i => normalizeCompany(i.company) === invComp) || updatedInwards[0];
-        fallbackInw.availableQty += qtyToRefund;
-      }
+    // Route stock to Pending Stock Queue (Do NOT merge back into active inwards automatically)
+    const newQueueItem: PendingStockQueueItem = {
+      id: 'psq_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      invNo: invToDelete.invNo,
+      company: invComp,
+      cancelledAt: timestamp,
+      cancelledBy: currentUser?.name || 'Authorized Supervisor',
+      userRole: currentUser?.role || 'SUPERVISOR',
+      partyName: invToDelete.partyName,
+      vehicleNo: invToDelete.vehicleNo || '-',
+      transporter: invToDelete.transName || '-',
+      lrNo: invToDelete.lrNo || '-',
+      totalQty: totQty,
+      totalValue: invToDelete.grandTotal,
+      items: JSON.parse(JSON.stringify(invToDelete.items || [])),
+      status: 'PENDING_STOCK_VERIFICATION',
+      invoiceSnapshot: JSON.parse(JSON.stringify(invToDelete)),
+      pinVerified: true
+    };
 
-      newAuditEntries.push({
-        id: 'aud_del_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
-        invNo: invToDelete.invNo,
-        company: invComp,
-        action: 'CANCEL',
-        timestamp,
-        deletedAt: timestamp,
-        userName: currentUser?.name || 'Authorized Supervisor',
-        userRole: currentUser?.role || 'SUPERVISOR',
-        partyName: invToDelete.partyName,
-        productName: it.productName,
-        refundedQty: it.qty,
-        totalValue: invToDelete.grandTotal,
-        vehicleNo: invToDelete.vehicleNo || '-',
-        transporter: invToDelete.transName || '-',
-        lrNo: invToDelete.lrNo || '-',
-        details: `Cancelled invoice ${invToDelete.invNo} with authorized PIN validation (${expectedPin}); refunded ${it.qty} pcs of ${it.productName} to inventory`,
-        snapshotBefore: invToDelete,
-        complianceChecksum: `CRC32-${Math.abs(invToDelete.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
-      });
-    });
+    const cancelAudit: InvoiceAuditLog = {
+      id: 'aud_del_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+      invNo: invToDelete.invNo,
+      company: invComp,
+      action: 'CANCEL',
+      timestamp,
+      deletedAt: timestamp,
+      userName: currentUser?.name || 'Authorized Supervisor',
+      userRole: currentUser?.role || 'SUPERVISOR',
+      partyName: invToDelete.partyName,
+      productName: invToDelete.items && invToDelete.items.length > 0 ? invToDelete.items.map(i => i.productName).join(', ') : 'EPS Products',
+      refundedQty: totQty,
+      totalValue: invToDelete.grandTotal,
+      itemsCount: invToDelete.items?.length || 1,
+      vehicleNo: invToDelete.vehicleNo || '-',
+      transporter: invToDelete.transName || '-',
+      lrNo: invToDelete.lrNo || '-',
+      details: `Cancelled invoice ${invToDelete.invNo} with authorized PIN validation (${expectedPin}); routed ${totQty} pcs across ${invToDelete.items?.length || 0} line items to Pending Stock Queue`,
+      snapshotBefore: JSON.parse(JSON.stringify(invToDelete)),
+      complianceChecksum: `CRC32-${Math.abs(invToDelete.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
+    };
 
     const updatedInvoices = invoices.filter(i => i.invNo !== invNo);
-    const updatedAudits = [...newAuditEntries, ...invoiceAudits];
+    const updatedAudits = [cancelAudit, ...invoiceAudits];
+    const updatedQueue = [newQueueItem, ...pendingStockQueue];
+
     setInvoices(updatedInvoices);
-    setInwards(updatedInwards);
+    setPendingStockQueue(updatedQueue);
     setInvoiceAudits(updatedAudits);
     setEditForm(null);
     setEditInvNo(updatedInvoices.length > 0 ? updatedInvoices[0].invNo : '');
@@ -934,20 +960,196 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     setCancelPinInput('');
     setCancelPinError('');
 
-    persistStorage(products, parties, transporters, clientDemands, updatedInwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
+    persistStorage(products, parties, transporters, clientDemands, inwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
 
     try {
       await deleteThermocolInvoiceFromFirestore(invNo);
-      await saveThermocolInwardsBatchToFirestore(updatedInwards);
-      for (const aud of newAuditEntries) {
-        await addThermocolAuditLog(aud);
-      }
-      setEditMsg({ text: `Invoice ${invNo} successfully cancelled with PIN authorization (${compNameDisplay}). Inventory refunded.`, isError: false });
-      setCsvStatusMsg({ text: `Invoice ${invNo} successfully cancelled with PIN validation.`, isError: false });
+      await addThermocolAuditLog(cancelAudit);
+      setEditMsg({ text: `Invoice ${invNo} cancelled with PIN authorization (${compNameDisplay}). ${totQty} pcs routed to Pending Stock Queue.`, isError: false });
+      setCsvStatusMsg({ text: `Invoice ${invNo} cancelled & routed to Pending Stock Queue.`, isError: false });
     } catch (err: any) {
       console.warn('[Firestore] Error during invoice deletion sync:', err);
       setEditMsg({ text: `Error cancelling invoice ${invNo}: ${err?.message || err}`, isError: true });
     }
+  };
+
+  // Handler for PIN-Protected Stock Verification & Crediting
+  const handleVerifyAndCreditStock = async (queueItemId: string, pin: string) => {
+    const targetItem = pendingStockQueue.find(i => i.id === queueItemId);
+    if (!targetItem) return { success: false, error: 'Queue record not found.' };
+
+    const expectedPin = targetItem.company === 'HPL' ? '1301' : '7308';
+    if (pin.trim() !== expectedPin) {
+      return { success: false, error: `Invalid PIN for ${targetItem.company === 'HPL' ? 'AHPL' : 'AIL'}. Required PIN is ${expectedPin}.` };
+    }
+
+    // Credit stock to active inwards inventory
+    const updatedInwards = [...inwards];
+    if (Array.isArray(targetItem.items)) {
+      targetItem.items.forEach(it => {
+        let qtyToCredit = Number(it.qty) || 0;
+        for (const inw of updatedInwards) {
+          if (inw.productName === it.productName && normalizeCompany(inw.company) === targetItem.company) {
+            inw.availableQty = (inw.availableQty || 0) + qtyToCredit;
+            qtyToCredit = 0;
+            break;
+          }
+        }
+        if (qtyToCredit > 0 && updatedInwards.length > 0) {
+          const fallbackInw = updatedInwards.find(i => normalizeCompany(i.company) === targetItem.company) || updatedInwards[0];
+          fallbackInw.availableQty = (fallbackInw.availableQty || 0) + qtyToCredit;
+        }
+      });
+    }
+
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const updatedQueue = pendingStockQueue.map(i => {
+      if (i.id === queueItemId) {
+        return {
+          ...i,
+          status: 'STOCKS_CREDITED' as QueueStatus,
+          stockCreditedAt: timestamp,
+          stockCreditedBy: currentUser?.name || 'Authorized Supervisor'
+        };
+      }
+      return i;
+    });
+
+    const stockAudit: InvoiceAuditLog = {
+      id: 'aud_stk_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      invNo: targetItem.invNo,
+      company: targetItem.company,
+      action: 'STOCK_ADJUSTMENT',
+      timestamp,
+      userName: currentUser?.name || 'Authorized Supervisor',
+      userRole: currentUser?.role || 'SUPERVISOR',
+      partyName: targetItem.partyName,
+      refundedQty: targetItem.totalQty,
+      totalValue: targetItem.totalValue,
+      details: `PIN verified (${expectedPin}) & credited ${targetItem.totalQty} returned pcs for invoice ${targetItem.invNo} back to active inventory stock`,
+      complianceChecksum: `CRC32-${Math.abs(targetItem.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
+    };
+
+    const updatedAudits = [stockAudit, ...invoiceAudits];
+    setInwards(updatedInwards);
+    setPendingStockQueue(updatedQueue);
+    setInvoiceAudits(updatedAudits);
+
+    persistStorage(products, parties, transporters, clientDemands, updatedInwards, invoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
+
+    try {
+      await saveThermocolInwardsBatchToFirestore(updatedInwards);
+      await addThermocolAuditLog(stockAudit);
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Error syncing verified stock:', err);
+      return { success: true };
+    }
+  };
+
+  // Handler for PIN-Protected Invoice Restoration from Queue
+  const handleRestoreInvoiceFromQueue = async (queueItemId: string, pin: string) => {
+    const targetItem = pendingStockQueue.find(i => i.id === queueItemId);
+    if (!targetItem) return { success: false, error: 'Queue record not found.' };
+
+    const expectedPin = targetItem.company === 'HPL' ? '1301' : '7308';
+    if (pin.trim() !== expectedPin) {
+      return { success: false, error: `Invalid PIN for ${targetItem.company === 'HPL' ? 'AHPL' : 'AIL'}. Required PIN is ${expectedPin}.` };
+    }
+
+    const invToRestore = targetItem.invoiceSnapshot;
+    if (!invToRestore) {
+      return { success: false, error: 'Original invoice snapshot not found.' };
+    }
+
+    const invNoKey = invToRestore.invNo.trim().replace(/[^a-zA-Z0-9]/g, '');
+    const alreadyActive = invoices.some(i => (i.invNo || '').trim().replace(/[^a-zA-Z0-9]/g, '') === invNoKey);
+    if (alreadyActive) {
+      return { success: false, error: `Invoice ${invToRestore.invNo} is already active in system!` };
+    }
+
+    // If stock was credited earlier, re-deduct it from inwards
+    const updatedInwards = [...inwards];
+    if (targetItem.status === 'STOCKS_CREDITED' && Array.isArray(invToRestore.items)) {
+      invToRestore.items.forEach(it => {
+        let qtyToDeduct = Number(it.qty) || 0;
+        for (const inw of updatedInwards) {
+          if (inw.productName === it.productName && normalizeCompany(inw.company) === targetItem.company) {
+            inw.availableQty = Math.max(0, (inw.availableQty || 0) - qtyToDeduct);
+            qtyToDeduct = 0;
+            break;
+          }
+        }
+      });
+    }
+
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const updatedQueue = pendingStockQueue.map(i => {
+      if (i.id === queueItemId) {
+        return {
+          ...i,
+          status: 'RESTORED' as QueueStatus,
+          restoredAt: timestamp,
+          restoredBy: currentUser?.name || 'Authorized Supervisor'
+        };
+      }
+      return i;
+    });
+
+    const restoreAudit: InvoiceAuditLog = {
+      id: 'aud_res_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+      invNo: invToRestore.invNo,
+      company: targetItem.company,
+      action: 'CREATE',
+      timestamp,
+      userName: currentUser?.name || 'Authorized Supervisor',
+      userRole: currentUser?.role || 'SUPERVISOR',
+      partyName: invToRestore.partyName,
+      totalValue: invToRestore.grandTotal,
+      itemsCount: invToRestore.items?.length || 1,
+      vehicleNo: invToRestore.vehicleNo || '-',
+      transporter: invToRestore.transName || '-',
+      lrNo: invToRestore.lrNo || '-',
+      details: `Regenerated and restored cancelled invoice ${invToRestore.invNo} (${invToRestore.items?.length || 0} items) to ACTIVE status with PIN verification (${expectedPin})`,
+      complianceChecksum: `CRC32-${Math.abs(invToRestore.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
+    };
+
+    const updatedInvoices = [invToRestore, ...invoices];
+    const updatedAudits = [restoreAudit, ...invoiceAudits];
+
+    setInvoices(updatedInvoices);
+    setInwards(updatedInwards);
+    setPendingStockQueue(updatedQueue);
+    setInvoiceAudits(updatedAudits);
+    setSelectedPreviewInv(invToRestore.invNo);
+
+    persistStorage(products, parties, transporters, clientDemands, updatedInwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
+
+    try {
+      await saveThermocolInvoiceToFirestore(invToRestore);
+      await saveThermocolInwardsBatchToFirestore(updatedInwards);
+      await addThermocolAuditLog(restoreAudit);
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Error syncing restored invoice:', err);
+      return { success: true };
+    }
+  };
+
+  const handlePurgeQueueItem = async (queueItemId: string, pin: string) => {
+    const targetItem = pendingStockQueue.find(i => i.id === queueItemId);
+    if (!targetItem) return { success: false, error: 'Queue record not found.' };
+
+    const expectedPin = targetItem.company === 'HPL' ? '1301' : '7308';
+    if (pin.trim() !== expectedPin) {
+      return { success: false, error: `Invalid PIN for ${targetItem.company === 'HPL' ? 'AHPL' : 'AIL'}. Required PIN is ${expectedPin}.` };
+    }
+
+    const updatedQueue = pendingStockQueue.filter(i => i.id !== queueItemId);
+    setPendingStockQueue(updatedQueue);
+
+    persistStorage(products, parties, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+    return { success: true };
   };
 
   // 3. Invoice Regeneration / Restoration Handler
@@ -959,73 +1161,143 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       return;
     }
 
-    let invToRestore: ThermocolInvoice | null = auditRecord?.snapshotBefore || null;
-    if (!invToRestore) {
+    let invToRestore: ThermocolInvoice | null = null;
+
+    // 1st Preference: Retrieve snapshotBefore directly from auditRecord or invoiceAudits history
+    if (auditRecord?.snapshotBefore && Array.isArray(auditRecord.snapshotBefore.items) && auditRecord.snapshotBefore.items.length > 0) {
+      invToRestore = JSON.parse(JSON.stringify(auditRecord.snapshotBefore));
+    } else {
       const matchAudit = invoiceAudits.find(a => 
         a.snapshotBefore && 
+        Array.isArray(a.snapshotBefore.items) &&
+        a.snapshotBefore.items.length > 0 &&
         ((a.invNo || '').trim().replace(/[^a-zA-Z0-9]/g, '') === targetKey)
       );
       if (matchAudit && matchAudit.snapshotBefore) {
-        invToRestore = matchAudit.snapshotBefore;
+        invToRestore = JSON.parse(JSON.stringify(matchAudit.snapshotBefore));
       }
     }
 
-    // Reconstruct invoice if snapshot is not directly stored
-    if (!invToRestore && auditRecord) {
-      const comp = auditRecord.company || (invNo.includes('AHPL') || invNo.includes('HPL') ? 'HPL' : 'AIL');
-      const sender = comp === 'HPL' ? senderHPL : senderAIL;
-      const totalValNum = Number(auditRecord.totalValue || 0);
+    // 2nd Preference: Reconstruct invoice with ALL items if snapshot is not directly stored
+    if (!invToRestore) {
+      const matchingAudits = invoiceAudits.filter(a => 
+        ((a.invNo || '').trim().replace(/[^a-zA-Z0-9]/g, '') === targetKey)
+      );
+      const primaryAudit = auditRecord || matchingAudits[0];
 
-      invToRestore = {
-        invNo: auditRecord.invNo || invNo,
-        company: comp,
-        date: auditRecord.timestamp?.split(' ')[0] || new Date().toISOString().split('T')[0],
-        partyName: auditRecord.partyName || 'Restored Customer',
-        partyAddress: 'Indore, Madhya Pradesh - 452001',
-        partyGstin: '23UNREGISTERED',
-        partyCity: 'Indore',
-        partyState: 'Madhya Pradesh',
-        partyPincode: '452001',
-        isInterState: false,
-        taxType: 'LOCAL_EXEMPT',
-        senderName: sender.name,
-        senderAddress: sender.address,
-        senderGstin: sender.gstin,
-        senderPan: sender.pan,
-        senderCin: sender.cin,
-        senderLogoUrl: sender.logoUrl,
-        logo: sender.logoUrl,
-        transName: auditRecord.transporter || 'Direct Logistics',
-        transGstin: '23UNREGISTERED',
-        lrNo: auditRecord.lrNo || 'LR-RESTORE',
-        lrDate: new Date().toISOString().split('T')[0],
-        vehicleNo: auditRecord.vehicleNo || 'MP09-RESTORE',
-        totalTaxable: totalValNum.toFixed(2),
-        totalGst: '0.00',
-        grandTotal: totalValNum.toFixed(2),
-        totalQty: auditRecord.refundedQty || 10,
-        totalCases: 1,
-        totalWeight: '1.50',
-        totalCft: '0.20',
-        items: [
-          {
+      if (primaryAudit) {
+        const comp = primaryAudit.company || (invNo.includes('AHPL') || invNo.includes('HPL') ? 'HPL' : 'AIL');
+        const sender = comp === 'HPL' ? senderHPL : senderAIL;
+
+        // Collect all items from matching audit logs or snapshotBefore properties
+        const restoredItems: InvoiceLineItem[] = [];
+
+        matchingAudits.forEach(a => {
+          if (a.snapshotBefore && Array.isArray(a.snapshotBefore.items)) {
+            a.snapshotBefore.items.forEach(it => {
+              if (!restoredItems.some(existing => existing.productName === it.productName || existing.id === it.id)) {
+                restoredItems.push(JSON.parse(JSON.stringify(it)));
+              }
+            });
+          }
+        });
+
+        if (restoredItems.length === 0) {
+          matchingAudits.forEach((aud, idx) => {
+            if (aud.productName) {
+              const prodName = aud.productName;
+              const qty = Number(aud.refundedQty) || 10;
+              const prodMaster = products.find(p => p.name === prodName) || null;
+              const rate = prodMaster?.price || 15.5;
+              const taxableValue = Number((qty * rate).toFixed(2));
+              const gstRate = 0;
+              const gstValue = 0;
+              const totalValue = taxableValue;
+
+              if (!restoredItems.some(it => it.productName === prodName)) {
+                restoredItems.push({
+                  id: `it_res_${Date.now()}_${idx}`,
+                  productName: prodName,
+                  hsnCode: prodMaster?.hsnCode || '39239090',
+                  packSize: prodMaster?.packSize || 'Box of 10',
+                  packSizeMultiple: prodMaster?.packSizeMultiple || 10,
+                  cases: Math.ceil(qty / (prodMaster?.packSizeMultiple || 10)),
+                  qty: qty,
+                  rate: rate,
+                  weight: Number((qty * (prodMaster?.weight || 0.15)).toFixed(2)),
+                  cft: Number((qty * (prodMaster?.cft || 0.02)).toFixed(2)),
+                  taxableValue: taxableValue,
+                  gstRate: gstRate,
+                  gstValue: gstValue,
+                  totalValue: totalValue
+                });
+              }
+            }
+          });
+        }
+
+        if (restoredItems.length === 0) {
+          const totalValNum = Number(primaryAudit.totalValue || 0);
+          restoredItems.push({
             id: 'it_res_' + Date.now(),
-            productName: auditRecord.productName || 'EPS Corner Guard',
+            productName: primaryAudit.productName || 'EPS Corner Guard',
             hsnCode: '39239090',
             packSize: 'Box of 10',
             packSizeMultiple: 10,
             cases: 1,
-            qty: auditRecord.refundedQty || 10,
-            rate: auditRecord.refundedQty ? Number((totalValNum / auditRecord.refundedQty).toFixed(2)) : 15.5,
+            qty: primaryAudit.refundedQty || 10,
+            rate: primaryAudit.refundedQty ? Number((totalValNum / primaryAudit.refundedQty).toFixed(2)) : 15.5,
             weight: 1.5,
             cft: 0.2,
             taxableValue: totalValNum,
             gstRate: 0,
             gstValue: 0,
             totalValue: totalValNum
-          }
-        ]
-      };
+          });
+        }
+
+        const totTaxableNum = restoredItems.reduce((s, it) => s + (Number(it.taxableValue) || 0), 0);
+        const totGstNum = restoredItems.reduce((s, it) => s + (Number(it.gstValue) || 0), 0);
+        const grandTotalNum = restoredItems.reduce((s, it) => s + (Number(it.totalValue) || 0), 0);
+        const totQtyNum = restoredItems.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+        const totCasesNum = restoredItems.reduce((s, it) => s + (Number(it.cases) || 1), 0);
+        const totWeightNum = restoredItems.reduce((s, it) => s + (Number(it.weight) || 0), 0);
+        const totCftNum = restoredItems.reduce((s, it) => s + (Number(it.cft) || 0), 0);
+
+        invToRestore = {
+          invNo: primaryAudit.invNo || invNo,
+          company: comp,
+          date: primaryAudit.timestamp?.split(' ')[0] || new Date().toISOString().split('T')[0],
+          partyName: primaryAudit.partyName || 'Restored Customer',
+          partyAddress: 'Indore, Madhya Pradesh - 452001',
+          partyGstin: '23UNREGISTERED',
+          partyCity: 'Indore',
+          partyState: 'Madhya Pradesh',
+          partyPincode: '452001',
+          isInterState: false,
+          taxType: 'LOCAL_EXEMPT',
+          senderName: sender.name,
+          senderAddress: sender.address,
+          senderGstin: sender.gstin,
+          senderPan: sender.pan,
+          senderCin: sender.cin,
+          senderLogoUrl: sender.logoUrl,
+          logo: sender.logoUrl,
+          transName: primaryAudit.transporter || 'Direct Logistics',
+          transGstin: '23UNREGISTERED',
+          lrNo: primaryAudit.lrNo || 'LR-RESTORE',
+          lrDate: new Date().toISOString().split('T')[0],
+          vehicleNo: primaryAudit.vehicleNo || 'MP09-RESTORE',
+          totalTaxable: totTaxableNum.toFixed(2),
+          totalGst: totGstNum.toFixed(2),
+          grandTotal: (primaryAudit.totalValue && Number(primaryAudit.totalValue) > 0 ? Number(primaryAudit.totalValue).toFixed(2) : grandTotalNum.toFixed(2)),
+          totalQty: totQtyNum,
+          totalCases: totCasesNum,
+          totalWeight: totWeightNum.toFixed(2),
+          totalCft: totCftNum.toFixed(2),
+          items: restoredItems
+        };
+      }
     }
 
     if (!invToRestore) {
@@ -1033,10 +1305,23 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       return;
     }
 
+    // Ensure invToRestore has valid totals matching items array
+    if (Array.isArray(invToRestore.items) && invToRestore.items.length > 0) {
+      const totQtyNum = invToRestore.items.reduce((s, it) => s + (Number(it.qty) || 0), 0);
+      const totTaxableNum = invToRestore.items.reduce((s, it) => s + (Number(it.taxableValue) || 0), 0);
+      const totGstNum = invToRestore.items.reduce((s, it) => s + (Number(it.gstValue) || 0), 0);
+      const grandTotalNum = invToRestore.items.reduce((s, it) => s + (Number(it.totalValue) || 0), 0);
+
+      invToRestore.totalQty = totQtyNum;
+      invToRestore.totalTaxable = totTaxableNum.toFixed(2);
+      invToRestore.totalGst = totGstNum.toFixed(2);
+      invToRestore.grandTotal = grandTotalNum.toFixed(2);
+    }
+
     const invComp = getInvoiceCompany(invToRestore);
     const compNameDisplay = invComp === 'HPL' ? 'AHPL (Abbott Healthcare)' : 'AIL (Abbott India)';
     const confirmRestore = window.confirm(
-      `Re-activate and restore cancelled invoice ${invNo} (${compNameDisplay}) back to ACTIVE status using the exact same invoice number?\n\nThis will re-deduct required stock items from the inward stock ledger.`
+      `Re-activate and restore cancelled invoice ${invNo} (${compNameDisplay}) with ${invToRestore.items?.length || 0} line items (${invToRestore.totalQty} pcs total) back to ACTIVE status using the exact same invoice number?\n\nThis will re-deduct required stock items from the inward stock ledger.`
     );
     if (!confirmRestore) return;
 
@@ -1066,10 +1351,11 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       userRole: currentUser?.role || 'SUPERVISOR',
       partyName: invToRestore.partyName,
       totalValue: invToRestore.grandTotal,
+      itemsCount: invToRestore.items?.length || 1,
       vehicleNo: invToRestore.vehicleNo || '-',
       transporter: invToRestore.transName || '-',
       lrNo: invToRestore.lrNo || '-',
-      details: `Regenerated and restored cancelled invoice ${invToRestore.invNo} to ACTIVE status with exact original invoice number; re-deducted inventory stock`,
+      details: `Regenerated and restored cancelled invoice ${invToRestore.invNo} with ${invToRestore.items?.length || 0} line items (${invToRestore.totalQty} pcs) to ACTIVE status with exact original invoice number; re-deducted inventory stock`,
       complianceChecksum: `CRC32-${Math.abs(invToRestore.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
     };
 
@@ -1089,7 +1375,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       await saveThermocolInvoiceToFirestore(invToRestore);
       await saveThermocolInwardsBatchToFirestore(updatedInwards);
       await addThermocolAuditLog(restoreAudit);
-      setEditMsg({ text: `Invoice ${invToRestore.invNo} successfully regenerated & restored to Active status!`, isError: false });
+      setEditMsg({ text: `Invoice ${invToRestore.invNo} (${invToRestore.items?.length || 0} items) successfully regenerated & restored to Active status!`, isError: false });
       setCsvStatusMsg({ text: `Invoice ${invToRestore.invNo} restored in cloud database.`, isError: false });
       setTimeout(() => setEditMsg(null), 4000);
     } catch (err: any) {
@@ -1098,44 +1384,55 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   };
 
   // Permanent Delete an Individual Audit / Cancel History Record from Firestore
-  const handleDeleteAuditLog = async (id: string) => {
+  const handleDeleteAuditLog = (id: string) => {
     const aud = invoiceAudits.find(a => a.id === id || a.invNo === id);
     const identifier = aud?.invNo || id;
     const targetId = aud?.id || id;
+    const comp = aud?.company || (aud?.invNo?.includes('AHPL') || aud?.invNo?.includes('HPL') ? 'HPL' : selectedCompany);
 
-    // Update local state immediately
-    setInvoiceAudits(prev => prev.filter(a => a.id !== targetId && a.invNo !== identifier));
-
-    try {
-      await deleteThermocolAuditLogFromFirestore(targetId);
-      if (aud?.invNo && aud.invNo !== targetId) {
-        await deleteThermocolAuditLogFromFirestore(aud.invNo);
+    setActiveDeleteModal({
+      title: 'Delete Invoice Audit Trail Record',
+      itemDescription: `Audit Record ID: ${targetId} | Invoice No: ${identifier} (${comp === 'HPL' ? 'AHPL' : 'AIL'})`,
+      company: comp,
+      action: async () => {
+        setInvoiceAudits(prev => prev.filter(a => a.id !== targetId && a.invNo !== identifier));
+        try {
+          await deleteThermocolAuditLogFromFirestore(targetId);
+          if (aud?.invNo && aud.invNo !== targetId) {
+            await deleteThermocolAuditLogFromFirestore(aud.invNo);
+          }
+          setCsvStatusMsg({ text: `Audit record for invoice ${identifier} deleted from Firestore with PIN authorization.`, isError: false });
+        } catch (err: any) {
+          console.error('[Firestore] Error deleting audit log:', err);
+          setCsvStatusMsg({ text: `Error deleting audit record: ${err?.message || err}`, isError: true });
+        }
       }
-      setCsvStatusMsg({ text: `Audit record for invoice ${identifier} deleted from Firestore.`, isError: false });
-    } catch (err: any) {
-      console.error('[Firestore] Error deleting audit log:', err);
-      setCsvStatusMsg({ text: `Error deleting audit record: ${err?.message || err}`, isError: true });
-    }
+    });
   };
 
   // Purge All Cancelled Invoice Records from Firestore
-  const handlePurgeCancelledAudits = async () => {
+  const handlePurgeCancelledAudits = () => {
     const cancelledCount = invoiceAudits.filter(a => a.action === 'CANCEL' || a.deletedAt).length;
     if (cancelledCount === 0) {
       setCsvStatusMsg({ text: 'No cancelled invoice history records to purge.', isError: false });
       return;
     }
 
-    // Update local state immediately
-    setInvoiceAudits(prev => prev.filter(a => a.action !== 'CANCEL' && !a.deletedAt));
-
-    try {
-      await clearThermocolCancelledAuditsFromFirestore();
-      setCsvStatusMsg({ text: `Purged ${cancelledCount} cancelled invoice records from Firestore.`, isError: false });
-    } catch (err: any) {
-      console.error('[Firestore] Error purging cancelled audits:', err);
-      setCsvStatusMsg({ text: `Failed to purge records: ${err?.message || err}`, isError: true });
-    }
+    setActiveDeleteModal({
+      title: 'Purge All Cancelled Audit Logs',
+      itemDescription: `Purge ${cancelledCount} cancelled invoice audit history records from database for ${selectedCompany === 'HPL' ? 'AHPL' : 'AIL'}`,
+      company: selectedCompany,
+      action: async () => {
+        setInvoiceAudits(prev => prev.filter(a => a.action !== 'CANCEL' && !a.deletedAt));
+        try {
+          await clearThermocolCancelledAuditsFromFirestore();
+          setCsvStatusMsg({ text: `Purged ${cancelledCount} cancelled invoice records from Firestore with PIN authorization.`, isError: false });
+        } catch (err: any) {
+          console.error('[Firestore] Error purging cancelled audits:', err);
+          setCsvStatusMsg({ text: `Failed to purge records: ${err?.message || err}`, isError: true });
+        }
+      }
+    });
   };
 
   // ----------------------------------------------------
@@ -1341,6 +1638,110 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     return inwards.filter(i => normalizeCompany(i.company) === reportCompanyFilter);
   }, [inwards, reportCompanyFilter]);
 
+  // MRP-Wise Stock Variant Grouping Engine (Segregated by SKU + Company + MRP Variant)
+  const mrpStockVariants = useMemo(() => {
+    const filteredInwards = inwards.filter(i => {
+      if (reportCompanyFilter === 'ALL') return true;
+      return normalizeCompany(i.company) === reportCompanyFilter;
+    });
+
+    const variantMap = new Map<string, {
+      id: string;
+      company: CompanyType;
+      productName: string;
+      hsnCode: string;
+      mrp: number;
+      packSize: string;
+      packSizeMultiple: number;
+      weight: number;
+      cft: number;
+      availableStock: number;
+      inwardGrNos: string[];
+      productRef?: ThermocolProduct;
+      inwardLots: ThermocolInward[];
+    }>();
+
+    filteredInwards.forEach(inw => {
+      const comp = normalizeCompany(inw.company);
+      const prodName = (inw.productName || '').trim();
+      const mrp = Number(inw.mrp || inw.price || inw.rate || 0);
+      const key = `${comp}_${prodName.toLowerCase()}_MRP_${mrp.toFixed(2)}`;
+
+      const prodRef = products.find(p => p.name.trim().toLowerCase() === prodName.toLowerCase() && normalizeCompany(p.company) === comp);
+
+      const hsnCode = prodRef?.hsnCode || inw.hsnCode || '39239090';
+      const packSize = prodRef?.packSize || inw.packSize || 'Box of 10';
+      const packSizeMultiple = prodRef?.packSizeMultiple || 10;
+      const weight = prodRef?.weight || inw.weight || 0.15;
+      const cft = prodRef?.cft || inw.cft || 0.02;
+
+      if (!variantMap.has(key)) {
+        variantMap.set(key, {
+          id: key,
+          company: comp,
+          productName: prodName,
+          hsnCode,
+          mrp,
+          packSize,
+          packSizeMultiple,
+          weight,
+          cft,
+          availableStock: 0,
+          inwardGrNos: [],
+          productRef: prodRef,
+          inwardLots: []
+        });
+      }
+
+      const item = variantMap.get(key)!;
+      item.availableStock += Number(inw.availableQty || 0);
+      item.inwardLots.push(inw);
+      if (inw.grNo && !item.inwardGrNos.includes(inw.grNo)) {
+        item.inwardGrNos.push(inw.grNo);
+      }
+    });
+
+    // Also include master products that have no inward lots yet so they aren't hidden
+    const filteredMasterProducts = products.filter(p => {
+      if (reportCompanyFilter === 'ALL') return true;
+      return normalizeCompany(p.company) === reportCompanyFilter;
+    });
+
+    filteredMasterProducts.forEach(prod => {
+      const comp = normalizeCompany(prod.company);
+      const prodName = prod.name.trim();
+      const mrp = Number(prod.price || 0);
+      const key = `${comp}_${prodName.toLowerCase()}_MRP_${mrp.toFixed(2)}`;
+
+      if (!variantMap.has(key)) {
+        const hasAnyInward = filteredInwards.some(i => i.productName.trim().toLowerCase() === prodName.toLowerCase() && normalizeCompany(i.company) === comp);
+        if (!hasAnyInward) {
+          variantMap.set(key, {
+            id: key,
+            company: comp,
+            productName: prodName,
+            hsnCode: prod.hsnCode || '39239090',
+            mrp,
+            packSize: prod.packSize || 'Box of 10',
+            packSizeMultiple: prod.packSizeMultiple || 10,
+            weight: prod.weight || 0.15,
+            cft: prod.cft || 0.02,
+            availableStock: 0,
+            inwardGrNos: [],
+            productRef: prod,
+            inwardLots: []
+          });
+        }
+      }
+    });
+
+    return Array.from(variantMap.values()).sort((a, b) => {
+      if (a.company !== b.company) return a.company.localeCompare(b.company);
+      if (a.productName !== b.productName) return a.productName.localeCompare(b.productName);
+      return b.mrp - a.mrp;
+    });
+  }, [inwards, products, reportCompanyFilter]);
+
   const exportDemandSupplyCsv = () => {
     if (demandVsSupplyData.length === 0) {
       alert("No client demands configured to export.");
@@ -1367,29 +1768,65 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   };
 
   const exportStockReportCsv = () => {
-    const targetProds = reportProducts;
+    if (stockViewMode === 'mrpWise') {
+      if (mrpStockVariants.length === 0) {
+        alert("No MRP stock variants found for selected company filter.");
+        return;
+      }
+      const headers = [
+        "Company", "Product SKU Name", "MRP (INR)", "HSN Code", "Pack Size", 
+        "Pack Multiple", "Available Stock (Pcs)", "Available Stock (Cases)", 
+        "Inward Reference GR Nos", "Weight Per Unit (kg)", "Total Weight (kg)", 
+        "Total Weight (MT)", "Total Volume (CFT)"
+      ];
+      const rows = mrpStockVariants.map(variant => {
+        const currentStock = variant.availableStock;
+        const totalWeightKg = (currentStock * variant.weight).toFixed(2);
+        const totalWeightMt = (Number(totalWeightKg) / 1000).toFixed(3);
+        const totalCft = (currentStock * variant.cft).toFixed(2);
+        const compName = variant.company === 'HPL' ? 'AHPL' : 'AIL';
+        const cases = variant.packSizeMultiple > 0 
+          ? (currentStock % variant.packSizeMultiple === 0 
+              ? currentStock / variant.packSizeMultiple 
+              : Number((currentStock / variant.packSizeMultiple).toFixed(1))) 
+          : currentStock;
+        const grRefs = variant.inwardGrNos.length > 0 ? variant.inwardGrNos.join("; ") : "N/A";
 
-    if (targetProds.length === 0) {
-      alert("No products found in the Product Master for selected company filter.");
-      return;
+        return `"${compName}","${variant.productName}",${variant.mrp.toFixed(2)},"${variant.hsnCode}","${variant.packSize}",${variant.packSizeMultiple},${currentStock},${cases},"${grRefs}",${variant.weight},${totalWeightKg},${totalWeightMt},${totalCft}`;
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Thermocol_MRP_Wise_Stock_Report_${reportCompanyFilter}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    } else {
+      const targetProds = reportProducts;
+
+      if (targetProds.length === 0) {
+        alert("No products found in the Product Master for selected company filter.");
+        return;
+      }
+      const headers = ["Company", "Product Name", "HSN Code", "Selling Rate (INR)", "Pack Size", "Pack Multiple", "Available Stock (Pcs)", "Weight Per Unit (kg)", "Total Weight (kg)", "Total Weight (MT)", "Total Volume (CFT)"];
+      const rows = targetProds.map(prod => {
+        const currentStock = getProductStock(prod);
+        const totalWeightKg = (currentStock * prod.weight).toFixed(2);
+        const totalWeightMt = (Number(totalWeightKg) / 1000).toFixed(3);
+        const totalCft = (currentStock * prod.cft).toFixed(2);
+        const compName = prod.company === 'HPL' ? 'AHPL' : 'AIL';
+        return `"${compName}","${prod.name}","${prod.hsnCode || '39239090'}",${prod.price},"${prod.packSize}",${prod.packSizeMultiple},${currentStock},${prod.weight},${totalWeightKg},${totalWeightMt},${totalCft}`;
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Thermocol_Consolidated_Stock_Report_${reportCompanyFilter}_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
     }
-    const headers = ["Company", "Product Name", "HSN Code", "Selling Rate (INR)", "Pack Size", "Pack Multiple", "Available Stock (Pcs)", "Weight Per Unit (kg)", "Total Weight (kg)", "Total Weight (MT)", "Total Volume (CFT)"];
-    const rows = targetProds.map(prod => {
-      const currentStock = getProductStock(prod);
-      const totalWeightKg = (currentStock * prod.weight).toFixed(2);
-      const totalWeightMt = (Number(totalWeightKg) / 1000).toFixed(3);
-      const totalCft = (currentStock * prod.cft).toFixed(2);
-      const compName = prod.company === 'HPL' ? 'AHPL' : 'AIL';
-      return `"${compName}","${prod.name}","${prod.hsnCode || '39239090'}",${prod.price},"${prod.packSize}",${prod.packSizeMultiple},${currentStock},${prod.weight},${totalWeightKg},${totalWeightMt},${totalCft}`;
-    });
-
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Thermocol_Available_Stock_Report_${reportCompanyFilter}_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
   };
 
   // Filtered transaction & audit logs segregated by active company filter
@@ -1878,36 +2315,55 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     }
   };
 
-  const handleDeleteProduct = async (id: string) => {
+  const handleDeleteProduct = (id: string) => {
     const prod = products.find(p => p.id === id);
     if (!prod) return;
-    if (confirm(`Are you sure you want to delete product "${prod.name}" from ${prod.company === 'HPL' ? 'AHPL' : 'AIL'} Master?`)) {
-      try {
-        await deleteThermocolProductFromFirestore(id, prod.name, prod.company);
-        setCsvStatusMsg({
-          text: `Product "${prod.name}" removed from ${prod.company === 'HPL' ? 'AHPL' : 'AIL'} Master successfully.`,
-          isError: false
-        });
-      } catch (e) {
-        console.error('Error deleting product from firestore:', e);
-        alert('Failed to delete product from database.');
+    const comp = normalizeCompany(prod.company);
+    setActiveDeleteModal({
+      title: 'Delete Product Master Record',
+      itemDescription: `Product Name: ${prod.name} | HSN Code: ${prod.hsnCode || '39239090'} | Company: ${comp === 'HPL' ? 'AHPL' : 'AIL'}`,
+      company: comp,
+      action: async () => {
+        try {
+          await deleteThermocolProductFromFirestore(id, prod.name, prod.company);
+          const updated = products.filter(p => p.id !== id);
+          setProducts(updated);
+          persistStorage(updated, parties, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setCsvStatusMsg({
+            text: `Product "${prod.name}" removed from ${comp === 'HPL' ? 'AHPL' : 'AIL'} Master successfully with PIN authorization!`,
+            isError: false
+          });
+        } catch (e) {
+          console.error('Error deleting product from firestore:', e);
+          alert('Failed to delete product from database.');
+        }
       }
-    }
+    });
   };
 
-  const handleDeleteParty = async (name: string) => {
-    if (confirm(`Are you sure you want to delete customer "${name}" from ${selectedCompany === 'HPL' ? 'AHPL' : 'AIL'} Master?`)) {
-      try {
-        await deleteThermocolPartyFromFirestore(name, selectedCompany);
-        setCsvStatusMsg({
-          text: `Customer "${name}" removed from ${selectedCompany === 'HPL' ? 'AHPL' : 'AIL'} Master successfully.`,
-          isError: false
-        });
-      } catch (e) {
-        console.error('Error deleting party from firestore:', e);
-        alert('Failed to delete party from database.');
+  const handleDeleteParty = (name: string) => {
+    const party = parties.find(p => p.name === name);
+    const comp = party ? normalizeCompany(party.company) : selectedCompany;
+    setActiveDeleteModal({
+      title: 'Delete Customer Master Record',
+      itemDescription: `Customer Name: ${name} | Company: ${comp === 'HPL' ? 'AHPL' : 'AIL'}`,
+      company: comp,
+      action: async () => {
+        try {
+          await deleteThermocolPartyFromFirestore(name, comp);
+          const updated = parties.filter(p => !(p.name === name && normalizeCompany(p.company) === comp));
+          setParties(updated);
+          persistStorage(products, updated, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setCsvStatusMsg({
+            text: `Customer "${name}" removed from ${comp === 'HPL' ? 'AHPL' : 'AIL'} Master successfully with PIN authorization!`,
+            isError: false
+          });
+        } catch (e) {
+          console.error('Error deleting party from firestore:', e);
+          alert('Failed to delete party from database.');
+        }
       }
-    }
+    });
   };
 
   const handleDeleteInward = (id: string) => deleteInwardStockRow(id);
@@ -1986,47 +2442,60 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     }
   };
 
-  const handleDeleteProductStock = async (prod: ThermocolProduct) => {
-    if (!confirm(`Are you sure you want to delete all inward entries for ${prod.name}?`)) return;
+  const handleDeleteProductStock = (prod: ThermocolProduct) => {
     const prodComp = normalizeCompany(prod.company);
-    const targetInwards = inwards.filter(i => i.productName === prod.name && normalizeCompany(i.company) === prodComp);
-    for (const inw of targetInwards) {
-      await deleteThermocolInwardFromFirestore(inw.id);
-    }
+    setActiveDeleteModal({
+      title: 'Delete Product Inward Entries',
+      itemDescription: `Product Name: ${prod.name} | Company: ${prodComp === 'HPL' ? 'AHPL' : 'AIL'} (Delete all associated inward entries)`,
+      company: prodComp,
+      action: async () => {
+        const targetInwards = inwards.filter(i => i.productName === prod.name && normalizeCompany(i.company) === prodComp);
+        for (const inw of targetInwards) {
+          await deleteThermocolInwardFromFirestore(inw.id);
+        }
+        const updatedInwards = inwards.filter(i => !(i.productName === prod.name && normalizeCompany(i.company) === prodComp));
+        setInwards(updatedInwards);
+        persistStorage(products, parties, transporters, clientDemands, updatedInwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+        setCsvStatusMsg({ text: `Deleted inward entries for ${prod.name} with PIN authorization.`, isError: false });
+      }
+    });
   };
 
   // User-defined real-time inward stock row deletion handler
-  const deleteInwardStockRow = async (docId: string) => {
-    if (!docId) {
-      console.warn("अमान्य डॉक्यूमेंट आईडी!");
-      return;
-    }
-    try {
-      // केवल इसी विशिष्ट रिकॉर्ड को फायरबेस से परमानेंटली डिलीट करेगा
-      await deleteDoc(doc(db, 'packing_inwards', docId));
+  const deleteInwardStockRow = (docId: string) => {
+    if (!docId) return;
+    const inw = inwards.find(i => i.id === docId);
+    const comp = inw ? normalizeCompany(inw.company) : selectedCompany;
+    const desc = inw ? `Inward GR #${inw.grNo} - ${inw.productName} (${inw.qty} pcs, Inv: ${inw.invNo})` : `Inward Stock Lot ID: ${docId}`;
 
-      // Also clean up companion collections so record does not reappear
-      await deleteThermocolInwardFromFirestore(docId).catch(() => {});
+    setActiveDeleteModal({
+      title: 'Delete Inward Stock Lot Record',
+      itemDescription: desc,
+      company: comp,
+      action: async () => {
+        try {
+          await deleteDoc(doc(db, 'packing_inwards', docId));
+          await deleteThermocolInwardFromFirestore(docId).catch(() => {});
 
-      // लोकल स्टेट और यूआई तुरंत सिंक हो जाएगी
-      setInwards(prev => {
-        const updated = prev.filter(item => item.id !== docId);
-        persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-        return updated;
-      });
+          setInwards(prev => {
+            const updated = prev.filter(item => item.id !== docId);
+            persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+            return updated;
+          });
 
-      console.log("Inward stock record successfully deleted from Firestore:", docId);
-      setCsvStatusMsg({
-        text: `Inward stock lot (${docId}) permanently deleted from Firestore!`,
-        isError: false
-      });
-    } catch (err: any) {
-      console.error("Error deleting inward record:", err);
-      setCsvStatusMsg({
-        text: "डेटाबेस से डिलीट करने में विफल: " + (err?.message || String(err)),
-        isError: true
-      });
-    }
+          setCsvStatusMsg({
+            text: `Inward stock lot (${docId}) permanently deleted from Firestore with PIN authorization!`,
+            isError: false
+          });
+        } catch (err: any) {
+          console.error("Error deleting inward record:", err);
+          setCsvStatusMsg({
+            text: "Error deleting inward record: " + (err?.message || String(err)),
+            isError: true
+          });
+        }
+      }
+    });
   };
 
   const deleteInwardEntry = deleteInwardStockRow;
@@ -2672,6 +3141,21 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
           </button>
 
           <button
+            onClick={() => setActiveTab('cancellationQueueTab')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'cancellationQueueTab' ? 'bg-gradient-to-r from-rose-600 to-amber-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <ShieldAlert className="w-4 h-4 text-amber-300" />
+            <span>🚫 Invoice Cancellation Queue</span>
+            {pendingStockQueue.filter(i => i.status === 'PENDING_STOCK_VERIFICATION').length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 bg-amber-400 text-amber-950 text-[10px] rounded-full font-mono font-bold animate-pulse">
+                {pendingStockQueue.filter(i => i.status === 'PENDING_STOCK_VERIFICATION').length}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('reportTab')}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'reportTab' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -3051,6 +3535,20 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
             onRefresh={() => {
               console.log('[Firestore Sync] Manual refresh requested for audit logs.');
             }}
+          />
+        )}
+
+        {/* ========================================================
+            MODULE: INVOICE CANCELLATION & PENDING STOCK QUEUE
+            ======================================================== */}
+        {activeTab === 'cancellationQueueTab' && (
+          <InvoiceCancellationQueueView
+            queueItems={pendingStockQueue}
+            currentUser={currentUser}
+            selectedCompany={selectedCompany}
+            onVerifyAndCreditStock={handleVerifyAndCreditStock}
+            onRestoreInvoiceFromQueue={handleRestoreInvoiceFromQueue}
+            onPurgeQueueItem={handlePurgeQueueItem}
           />
         )}
 
@@ -5534,6 +6032,8 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
           product={historyProduct}
           inwards={inwards}
           invoices={invoices}
+          pendingStockQueue={pendingStockQueue}
+          audits={invoiceAudits}
           onClose={() => setHistoryProduct(null)}
           onPreviewInvoice={(invNo) => {
             setSelectedPreviewInv(invNo);
@@ -5660,6 +6160,18 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
             </div>
           </div>
         </div>
+      )}
+
+      {/* Global Delete PIN Verification Modal */}
+      {activeDeleteModal && (
+        <DeletePinModal
+          isOpen={!!activeDeleteModal}
+          title={activeDeleteModal.title}
+          itemDescription={activeDeleteModal.itemDescription}
+          company={activeDeleteModal.company}
+          onConfirm={activeDeleteModal.action}
+          onClose={() => setActiveDeleteModal(null)}
+        />
       )}
     </div>
   );

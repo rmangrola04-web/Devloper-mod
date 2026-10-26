@@ -14,32 +14,66 @@ import {
   Info,
   TrendingDown,
   Layers,
-  History
+  History,
+  Clock,
+  ShieldCheck,
+  RefreshCw,
+  Lock,
+  Search
 } from 'lucide-react';
-import { ThermocolProduct, ThermocolInward, ThermocolInvoice, StockWriteOff } from './types';
+import {
+  ThermocolProduct,
+  ThermocolInward,
+  ThermocolInvoice,
+  StockWriteOff,
+  PendingStockQueueItem,
+  InvoiceAuditLog
+} from './types';
 import { formatDateDDMMYYYY, normalizeCompany } from './utils';
 
 interface ProductHistoryModalProps {
   product: ThermocolProduct;
   inwards: ThermocolInward[];
   invoices: ThermocolInvoice[];
+  pendingStockQueue?: PendingStockQueueItem[];
+  audits?: InvoiceAuditLog[];
   onClose: () => void;
   onPreviewInvoice?: (invNo: string) => void;
   onLogWriteOff?: (inwardId: string, qty: number, reason: string) => void;
+}
+
+export interface MaterialMovementEntry {
+  id: string;
+  type: 'INWARD' | 'OUTWARD' | 'QUEUED' | 'RESTORED' | 'REFUND_CREDITED' | 'WRITE_OFF';
+  typeLabel: string;
+  date: string;
+  timestamp: string;
+  refNo: string;
+  partyName: string;
+  qtyChange: number; // positive or negative or zero
+  runningBalance?: number;
+  rate: number;
+  totalValue: number;
+  context: string;
+  badgeBg: string;
+  badgeText: string;
 }
 
 export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
   product,
   inwards,
   invoices,
+  pendingStockQueue = [],
+  audits = [],
   onClose,
   onPreviewInvoice,
   onLogWriteOff
 }) => {
-  const [activeTab, setActiveTab] = useState<'inward' | 'outward' | 'writeoff'>('inward');
+  const [activeTab, setActiveTab] = useState<'timeline' | 'inward' | 'outward' | 'queue' | 'writeoff'>('timeline');
   const [showWriteOffForm, setShowWriteOffForm] = useState<string | null>(null); // inward id
   const [writeOffQty, setWriteOffQty] = useState('');
   const [writeOffReason, setWriteOffReason] = useState('');
+  const [searchFilter, setSearchFilter] = useState('');
 
   const targetComp = normalizeCompany(product.company);
 
@@ -91,7 +125,31 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [invoices, product, targetComp]);
 
-  // 3. Aggregate all write-offs across all inward lots of this product
+  // 3. Filter Pending Stock Queue Entries for this product
+  const productQueue = useMemo(() => {
+    const list: Array<{
+      queueItem: PendingStockQueueItem;
+      qty: number;
+      status: string;
+    }> = [];
+
+    pendingStockQueue.forEach(q => {
+      if (q.company === targetComp && Array.isArray(q.items)) {
+        const line = q.items.find(it => it.productName === product.name);
+        if (line) {
+          list.push({
+            queueItem: q,
+            qty: Number(line.qty) || 0,
+            status: q.status
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [pendingStockQueue, product, targetComp]);
+
+  // 4. Aggregate all write-offs across all inward lots of this product
   const allWriteOffs = useMemo(() => {
     const list: Array<StockWriteOff & { grNo: string; inwardInvNo: string }> = [];
     productInwards.forEach(inw => {
@@ -108,7 +166,132 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
     return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [productInwards]);
 
-  // 4. Calculate Summary KPI Metrics
+  // 5. Build Unified SAP Chronological Material Movement Ledger (MB51 Style)
+  const chronologicalMovements = useMemo(() => {
+    const movements: MaterialMovementEntry[] = [];
+
+    // Inward Receipts
+    productInwards.forEach(inw => {
+      const q = Number(inw.initialQty) || Number(inw.qty) || 0;
+      const rate = Number(inw.price) || Number(inw.rate) || Number(product.price) || 0;
+      movements.push({
+        id: 'mv_inw_' + inw.id,
+        type: 'INWARD',
+        typeLabel: '+ INWARD RECEIPT',
+        date: inw.receiveDate || inw.recdDate || inw.date || new Date().toISOString().split('T')[0],
+        timestamp: inw.updatedAt || inw.recdDate || inw.date || '',
+        refNo: inw.grNo || 'GRN',
+        partyName: inw.supplyPlant || inw.supplierName || 'Supply Plant / Vendor',
+        qtyChange: q,
+        rate,
+        totalValue: q * rate,
+        context: `Received ${q} pcs into warehouse inventory (Inward Inv #${inw.invNo || '-'})`,
+        badgeBg: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+        badgeText: 'text-emerald-700 font-extrabold'
+      });
+    });
+
+    // Outward Dispatches
+    productOutwards.forEach(out => {
+      movements.push({
+        id: 'mv_out_' + out.invNo,
+        type: 'OUTWARD',
+        typeLabel: '- OUTWARD DISPATCH',
+        date: out.date || new Date().toISOString().split('T')[0],
+        timestamp: out.date,
+        refNo: out.invNo,
+        partyName: out.partyName,
+        qtyChange: -out.qty,
+        rate: out.rate,
+        totalValue: out.totalValue,
+        context: `Dispatched ${out.qty} pcs to customer on Outward Tax Invoice #${out.invNo}`,
+        badgeBg: 'bg-blue-100 text-blue-900 border-blue-300',
+        badgeText: 'text-blue-700 font-extrabold'
+      });
+    });
+
+    // Pending Inactive Queue items
+    productQueue.forEach(q => {
+      if (q.status === 'PENDING_STOCK_VERIFICATION') {
+        movements.push({
+          id: 'mv_q_' + q.queueItem.id,
+          type: 'QUEUED',
+          typeLabel: '⌛ PENDING INACTIVE QUEUE',
+          date: q.queueItem.cancelledAt?.split(' ')[0] || new Date().toISOString().split('T')[0],
+          timestamp: q.queueItem.cancelledAt,
+          refNo: q.queueItem.invNo,
+          partyName: q.queueItem.partyName,
+          qtyChange: 0, // Held inactive; 0 active impact
+          rate: Number(product.price) || 0,
+          totalValue: q.qty * (Number(product.price) || 0),
+          context: `Cancelled invoice #${q.queueItem.invNo}; ${q.qty} pcs routed to Pending Inactive Queue awaiting PIN verification`,
+          badgeBg: 'bg-amber-100 text-amber-900 border-amber-300',
+          badgeText: 'text-amber-800 font-bold'
+        });
+      } else if (q.status === 'STOCKS_CREDITED') {
+        movements.push({
+          id: 'mv_cred_' + q.queueItem.id,
+          type: 'REFUND_CREDITED',
+          typeLabel: '+ PIN REFUND CREDITED',
+          date: q.queueItem.stockCreditedAt?.split(' ')[0] || new Date().toISOString().split('T')[0],
+          timestamp: q.queueItem.stockCreditedAt || '',
+          refNo: q.queueItem.invNo,
+          partyName: q.queueItem.partyName,
+          qtyChange: q.qty,
+          rate: Number(product.price) || 0,
+          totalValue: q.qty * (Number(product.price) || 0),
+          context: `Explicit PIN stock refund verified; credited ${q.qty} returned pcs for #${q.queueItem.invNo} back to active stock`,
+          badgeBg: 'bg-indigo-100 text-indigo-900 border-indigo-300',
+          badgeText: 'text-indigo-700 font-extrabold'
+        });
+      }
+    });
+
+    // Write-offs
+    allWriteOffs.forEach(wo => {
+      movements.push({
+        id: 'mv_wo_' + wo.id,
+        type: 'WRITE_OFF',
+        typeLabel: '- WRITE-OFF / DAMAGE',
+        date: wo.date?.split('T')[0] || new Date().toISOString().split('T')[0],
+        timestamp: wo.date,
+        refNo: wo.grNo || 'GRN-WO',
+        partyName: `Reason: ${wo.reason}`,
+        qtyChange: -wo.qty,
+        rate: Number(product.price) || 0,
+        totalValue: wo.qty * (Number(product.price) || 0),
+        context: `Reduced ${wo.qty} pcs from GR #${wo.grNo} balance. Reason: "${wo.reason}"`,
+        badgeBg: 'bg-rose-100 text-rose-900 border-rose-300',
+        badgeText: 'text-rose-700 font-extrabold'
+      });
+    });
+
+    // Sort chronologically ascending to compute accurate running balance
+    movements.sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
+
+    let running = 0;
+    movements.forEach(m => {
+      running += m.qtyChange;
+      m.runningBalance = running;
+    });
+
+    // Return descending for display
+    return movements.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+  }, [productInwards, productOutwards, productQueue, allWriteOffs, product.price]);
+
+  // Filtered movements based on search query
+  const filteredMovements = useMemo(() => {
+    if (!searchFilter.trim()) return chronologicalMovements;
+    const q = searchFilter.toLowerCase().trim();
+    return chronologicalMovements.filter(m => 
+      m.refNo?.toLowerCase().includes(q) ||
+      m.partyName?.toLowerCase().includes(q) ||
+      m.context?.toLowerCase().includes(q) ||
+      m.typeLabel?.toLowerCase().includes(q)
+    );
+  }, [chronologicalMovements, searchFilter]);
+
+  // KPI Summary Metrics
   const totalInwardReceived = useMemo(() => {
     return productInwards.reduce((sum, i) => sum + (Number(i.initialQty) || Number(i.qty) || 0), 0);
   }, [productInwards]);
@@ -116,6 +299,12 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
   const totalOutwardDispatched = useMemo(() => {
     return productOutwards.reduce((sum, o) => sum + o.qty, 0);
   }, [productOutwards]);
+
+  const totalPendingQueue = useMemo(() => {
+    return productQueue
+      .filter(q => q.status === 'PENDING_STOCK_VERIFICATION')
+      .reduce((sum, q) => sum + q.qty, 0);
+  }, [productQueue]);
 
   const totalWrittenOff = useMemo(() => {
     return allWriteOffs.reduce((sum, w) => sum + w.qty, 0);
@@ -148,62 +337,32 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
   // Export Product Traceability Ledger to CSV
   const handleExportProductLedgerCsv = () => {
     const headers = [
-      'Type', 'Reference No', 'Date', 'Party / Source / Reason', 'Quantity (Pcs)', 'Rate (INR)', 'Total Value (INR)'
+      'Movement Type', 'Reference Document No', 'Date', 'Party / Context', 'Qty Change (Pcs)', 'Running Balance (Pcs)', 'Rate (INR)', 'Total Value (INR)'
     ];
 
-    const rows: string[] = [];
+    const rows = chronologicalMovements.map(m => [
+      `"${m.typeLabel}"`,
+      `"${m.refNo}"`,
+      `"${formatDateDDMMYYYY(m.date)}"`,
+      `"${m.partyName.replace(/"/g, '""')}"`,
+      m.qtyChange,
+      m.runningBalance || 0,
+      m.rate,
+      m.totalValue
+    ]);
 
-    // Inwards
-    productInwards.forEach(inw => {
-      rows.push([
-        '"INWARD (GRN)"',
-        `"${inw.grNo}"`,
-        `"${formatDateDDMMYYYY(inw.receiveDate || inw.recdDate || inw.date || '')}"`,
-        `"${inw.supplyPlant || 'Supply Plant'}"`,
-        inw.initialQty || inw.qty || 0,
-        inw.price || inw.rate || 0,
-        inw.totalAmount || inw.invoiceValue || 0
-      ].join(','));
-    });
-
-    // Outwards
-    productOutwards.forEach(out => {
-      rows.push([
-        '"OUTWARD (DISPATCH)"',
-        `"${out.invNo}"`,
-        `"${formatDateDDMMYYYY(out.date)}"`,
-        `"${out.partyName}"`,
-        out.qty,
-        out.rate,
-        out.totalValue
-      ].join(','));
-    });
-
-    // Write-offs
-    allWriteOffs.forEach(wo => {
-      rows.push([
-        '"WRITE-OFF / REDUCTION"',
-        `"${wo.grNo}"`,
-        `"${formatDateDDMMYYYY(wo.date)}"`,
-        `"${wo.reason}"`,
-        `-${wo.qty}`,
-        0,
-        0
-      ].join(','));
-    });
-
-    const csvContent = [headers.join(','), ...rows].join('\n');
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Traceability_Ledger_${product.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `SAP_Material_Ledger_${product.name.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl my-auto overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl my-auto overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -220,6 +379,10 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                 }`}>
                   {targetComp === 'HPL' ? 'AHPL' : 'AIL'}
                 </span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-900/80 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                  <span>SAP Anti-Duplication Engine Verified</span>
+                </span>
               </div>
               <p className="text-xs text-slate-300 font-mono mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                 <span>HSN: <strong className="text-white">{product.hsnCode || '39239090'}</strong></span>
@@ -234,10 +397,10 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
             <button
               onClick={handleExportProductLedgerCsv}
               className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-xs"
-              title="Download Product Lifecycle CSV Ledger"
+              title="Download SAP Material Movement Ledger CSV"
             >
               <Download className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Export Ledger CSV</span>
+              <span className="hidden sm:inline">Export SAP Ledger CSV</span>
             </button>
             <button
               onClick={onClose}
@@ -249,88 +412,221 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-4 sm:p-5 overflow-y-auto space-y-5 flex-1 bg-slate-50">
+        <div className="p-4 sm:p-5 overflow-y-auto space-y-4 flex-1 bg-slate-50">
           {/* KPI Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 block">Total Received (Inward)</span>
-              <div className="text-base sm:text-lg font-black font-mono text-emerald-700 mt-1 flex items-center gap-1">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 block">Inward Received</span>
+              <div className="text-base font-black font-mono text-emerald-700 mt-1 flex items-center gap-1">
                 <ArrowDownLeft className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{totalInwardReceived} Pcs</span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">{productInwards.length} Stock Lots</span>
+              <span className="text-[10px] text-slate-400 font-mono">{productInwards.length} Inward Lots</span>
             </div>
 
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 block">Total Dispatched (Outward)</span>
-              <div className="text-base sm:text-lg font-black font-mono text-blue-700 mt-1 flex items-center gap-1">
+            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 block">Outward Dispatched</span>
+              <div className="text-base font-black font-mono text-blue-700 mt-1 flex items-center gap-1">
                 <ArrowUpRight className="w-4 h-4 text-blue-600 shrink-0" />
                 <span>{totalOutwardDispatched} Pcs</span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">{productOutwards.length} Invoices</span>
+              <span className="text-[10px] text-slate-400 font-mono">{productOutwards.length} Active Invoices</span>
             </div>
 
-            <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-2xs">
-              <span className="text-[10px] font-extrabold uppercase text-slate-500 block">Written-Off / Adjusted</span>
-              <div className="text-base sm:text-lg font-black font-mono text-red-600 mt-1 flex items-center gap-1">
-                <TrendingDown className="w-4 h-4 text-red-500 shrink-0" />
+            <div className="bg-amber-50/70 p-3 rounded-xl border border-amber-200 shadow-2xs">
+              <span className="text-[10px] font-extrabold uppercase text-amber-800 block">Pending Inactive Queue</span>
+              <div className="text-base font-black font-mono text-amber-900 mt-1 flex items-center gap-1">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{totalPendingQueue} Pcs</span>
+              </div>
+              <span className="text-[10px] text-amber-700 font-semibold font-mono">Held Inactive (0 Active Impact)</span>
+            </div>
+
+            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+              <span className="text-[10px] font-extrabold uppercase text-slate-500 block">Written-Off / Damaged</span>
+              <div className="text-base font-black font-mono text-rose-600 mt-1 flex items-center gap-1">
+                <TrendingDown className="w-4 h-4 text-rose-500 shrink-0" />
                 <span>{totalWrittenOff} Pcs</span>
               </div>
-              <span className="text-[10px] text-slate-400 font-mono">{allWriteOffs.length} Write-Off Entries</span>
+              <span className="text-[10px] text-slate-400 font-mono">{allWriteOffs.length} Reductions</span>
             </div>
 
-            <div className="bg-white p-3.5 rounded-xl border border-emerald-300 bg-emerald-50/40 shadow-2xs">
-              <span className="text-[10px] font-extrabold uppercase text-emerald-800 block">Current Available Balance</span>
-              <div className="text-base sm:text-lg font-black font-mono text-emerald-900 mt-1 flex items-center gap-1">
+            <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-300 shadow-2xs">
+              <span className="text-[10px] font-extrabold uppercase text-emerald-900 block">Active Available Balance</span>
+              <div className="text-base font-black font-mono text-emerald-950 mt-1 flex items-center gap-1">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                 <span>{currentAvailableStock} Pcs</span>
               </div>
-              <span className="text-[10px] text-emerald-700 font-bold font-mono">
+              <span className="text-[10px] text-emerald-800 font-bold font-mono">
                 (~{product.packSizeMultiple > 0 ? Math.floor(currentAvailableStock / product.packSizeMultiple) : currentAvailableStock} Cases)
               </span>
             </div>
           </div>
 
           {/* Sub-tabs Selector */}
-          <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
-            <button
-              onClick={() => setActiveTab('inward')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'inward'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <ArrowDownLeft className="w-3.5 h-3.5" />
-              <span>Inward Lots ({productInwards.length})</span>
-            </button>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+            <div className="flex items-center gap-1.5 flex-wrap text-xs">
+              <button
+                onClick={() => setActiveTab('timeline')}
+                className={`px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'timeline'
+                    ? 'bg-slate-900 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <History className="w-3.5 h-3.5 text-amber-400" />
+                <span>SAP Material Movement Ledger ({chronologicalMovements.length})</span>
+              </button>
 
-            <button
-              onClick={() => setActiveTab('outward')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'outward'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <ArrowUpRight className="w-3.5 h-3.5" />
-              <span>Outward Dispatches ({productOutwards.length})</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('inward')}
+                className={`px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'inward'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <ArrowDownLeft className="w-3.5 h-3.5" />
+                <span>Inward Lots ({productInwards.length})</span>
+              </button>
 
-            <button
-              onClick={() => setActiveTab('writeoff')}
-              className={`px-3.5 py-1.5 rounded-lg text-xs font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
-                activeTab === 'writeoff'
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
-              }`}
-            >
-              <TrendingDown className="w-3.5 h-3.5" />
-              <span>Write-Off History ({allWriteOffs.length})</span>
-            </button>
+              <button
+                onClick={() => setActiveTab('outward')}
+                className={`px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'outward'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                <span>Outward Dispatches ({productOutwards.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('queue')}
+                className={`px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'queue'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Pending Queue ({productQueue.length})</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('writeoff')}
+                className={`px-3 py-1.5 rounded-lg font-extrabold transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'writeoff'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                <TrendingDown className="w-3.5 h-3.5" />
+                <span>Write-Offs ({allWriteOffs.length})</span>
+              </button>
+            </div>
+
+            {/* Quick Search inside movements */}
+            <div className="relative w-48">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Filter movements..."
+                value={searchFilter}
+                onChange={e => setSearchFilter(e.target.value)}
+                className="w-full bg-white border border-slate-300 rounded-lg pl-8 pr-2 py-1 text-xs text-slate-800 outline-none focus:border-blue-500"
+              />
+            </div>
           </div>
 
-          {/* Tab 1: Inward Stock History */}
+          {/* TAB 1: SAP MATERIAL MOVEMENT LEDGER (MB51 STYLE) */}
+          {activeTab === 'timeline' && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+              <div className="p-3 bg-slate-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs font-black uppercase tracking-wider">
+                    SAP Material Movement Ledger (Strict Chronological Sequence)
+                  </span>
+                </div>
+                <span className="text-xs text-slate-300 font-mono">
+                  Showing {filteredMovements.length} material movements
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[10px] uppercase">
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Movement Type</th>
+                      <th className="py-2.5 px-3">Reference Doc / Inv No</th>
+                      <th className="py-2.5 px-3">Party / Context & Operational Reason</th>
+                      <th className="py-2.5 px-3 text-right">Qty Delta</th>
+                      <th className="py-2.5 px-3 text-right">Running Stock Balance</th>
+                      <th className="py-2.5 px-3 text-right">Rate</th>
+                      <th className="py-2.5 px-3 text-center">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredMovements.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-8 text-center text-slate-400 italic">
+                          No material movement records found matching criteria.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredMovements.map((m) => (
+                        <tr key={m.id} className="hover:bg-slate-50 transition">
+                          <td className="py-2.5 px-3 font-mono text-slate-600 whitespace-nowrap">
+                            {formatDateDDMMYYYY(m.date)}
+                          </td>
+                          <td className="py-2.5 px-3 whitespace-nowrap">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] ${m.badgeBg}`}>
+                              {m.typeLabel}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-700 whitespace-nowrap">
+                            {m.refNo}
+                          </td>
+                          <td className="py-2.5 px-3 max-w-xs">
+                            <div className="font-bold text-slate-800 truncate" title={m.partyName}>
+                              {m.partyName}
+                            </div>
+                            <div className="text-[10px] text-slate-500">{m.context}</div>
+                          </td>
+                          <td className={`py-2.5 px-3 text-right font-mono font-black ${
+                            m.qtyChange > 0 ? 'text-emerald-700' : m.qtyChange < 0 ? 'text-rose-600' : 'text-amber-800'
+                          }`}>
+                            {m.qtyChange > 0 ? `+${m.qtyChange}` : m.qtyChange} Pcs
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 bg-slate-50/80">
+                            {m.runningBalance !== undefined ? `${m.runningBalance} Pcs` : '-'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-slate-600">
+                            ₹{m.rate.toFixed(2)}
+                          </td>
+                          <td className="py-2.5 px-3 text-center whitespace-nowrap">
+                            {m.type === 'OUTWARD' && onPreviewInvoice && (
+                              <button
+                                onClick={() => onPreviewInvoice(m.refNo)}
+                                className="px-2 py-0.5 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 rounded text-[10px] font-bold cursor-pointer transition border border-blue-200"
+                              >
+                                View Inv
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: INWARD STOCK LOTS */}
           {activeTab === 'inward' && (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
               <div className="p-3 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between">
@@ -403,7 +699,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                                         setWriteOffReason('');
                                       }
                                     }}
-                                    className="px-2.5 py-1 bg-red-50 hover:bg-red-600 hover:text-white text-red-700 rounded text-[11px] font-bold cursor-pointer transition border border-red-200"
+                                    className="px-2.5 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded text-[11px] font-bold cursor-pointer transition border border-rose-200"
                                   >
                                     Write-Off / Reduce
                                   </button>
@@ -411,12 +707,11 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                               </td>
                             </tr>
 
-                            {/* Write-Off Inline Form Row */}
                             {isWritingOff && (
-                              <tr className="bg-red-50/50">
+                              <tr className="bg-rose-50/50">
                                 <td colSpan={9} className="p-3">
                                   <form onSubmit={(e) => handleWriteOffSubmit(e, inw.id)} className="flex flex-col sm:flex-row items-center gap-3">
-                                    <div className="text-xs font-bold text-red-900 shrink-0">
+                                    <div className="text-xs font-bold text-rose-900 shrink-0">
                                       Write-off from GR #{inw.grNo} (Max: {avail} Pcs):
                                     </div>
                                     <input
@@ -426,7 +721,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                                       placeholder="Qty to reduce"
                                       value={writeOffQty}
                                       onChange={(e) => setWriteOffQty(e.target.value)}
-                                      className="w-28 bg-white border border-red-300 rounded px-2.5 py-1 text-xs font-mono font-bold outline-none focus:border-red-500"
+                                      className="w-28 bg-white border border-rose-300 rounded px-2.5 py-1 text-xs font-mono font-bold outline-none focus:border-rose-500"
                                       required
                                     />
                                     <input
@@ -434,13 +729,13 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                                       placeholder="Reason / Remark (e.g. Damaged in transit / Count adjustment)"
                                       value={writeOffReason}
                                       onChange={(e) => setWriteOffReason(e.target.value)}
-                                      className="flex-1 bg-white border border-red-300 rounded px-2.5 py-1 text-xs font-medium outline-none focus:border-red-500"
+                                      className="flex-1 bg-white border border-rose-300 rounded px-2.5 py-1 text-xs font-medium outline-none focus:border-rose-500"
                                       required
                                     />
                                     <div className="flex items-center gap-2 shrink-0">
                                       <button
                                         type="submit"
-                                        className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs font-bold cursor-pointer transition shadow-xs"
+                                        className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-bold cursor-pointer transition shadow-xs"
                                       >
                                         Submit Write-Off
                                       </button>
@@ -466,7 +761,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
             </div>
           )}
 
-          {/* Tab 2: Outward Sales & Dispatches */}
+          {/* TAB 3: OUTWARD DISPATCHES */}
           {activeTab === 'outward' && (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
               <div className="p-3 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between">
@@ -532,7 +827,65 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
             </div>
           )}
 
-          {/* Tab 3: Write-Offs & Reductions Log */}
+          {/* TAB 4: PENDING INACTIVE QUEUE */}
+          {activeTab === 'queue' && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
+              <div className="p-3 bg-amber-50/80 border-b border-amber-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-700" />
+                  <span className="text-xs font-extrabold text-amber-900 uppercase tracking-wide">
+                    Pending Inactive Queue (Cancelled Unverified Stock)
+                  </span>
+                </div>
+                <span className="text-xs text-amber-800 font-mono">
+                  Total Held: {totalPendingQueue} Pcs (Zero Active Impact)
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+                      <th className="py-2.5 px-3">Cancelled Invoice No</th>
+                      <th className="py-2.5 px-3">Cancelled Date</th>
+                      <th className="py-2.5 px-3">Consignee</th>
+                      <th className="py-2.5 px-3 text-right">Held Qty</th>
+                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-center">Reconciliation Required</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {productQueue.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-400 italic">
+                          No pending inactive queue items recorded for this product.
+                        </td>
+                      </tr>
+                    ) : (
+                      productQueue.map((q, idx) => (
+                        <tr key={q.queueItem.id || idx} className="hover:bg-amber-50/40 transition">
+                          <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{q.queueItem.invNo}</td>
+                          <td className="py-2.5 px-3 font-mono text-slate-600">{q.queueItem.cancelledAt}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-800">{q.queueItem.partyName}</td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-amber-900">{q.qty} Pcs</td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                              {q.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-slate-600 text-[11px]">
+                            PIN Verification ({q.queueItem.company === 'HPL' ? '1301' : '7308'}) Required in Cancellation Tab
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 5: WRITE-OFFS */}
           {activeTab === 'writeoff' && (
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-2xs">
               <div className="p-3 bg-slate-100/70 border-b border-slate-200 flex items-center justify-between">
@@ -550,7 +903,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                     <tr className="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
                       <th className="py-2.5 px-3">Date & Time</th>
                       <th className="py-2.5 px-3">GR No / Lot Ref</th>
-                      <th className="py-2.5 px-3 text-right font-bold text-red-700">Written-Off Qty</th>
+                      <th className="py-2.5 px-3 text-right font-bold text-rose-700">Written-Off Qty</th>
                       <th className="py-2.5 px-3">Mandatory Reason / Remark</th>
                       <th className="py-2.5 px-3">Logged By</th>
                     </tr>
@@ -564,10 +917,10 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
                       </tr>
                     ) : (
                       allWriteOffs.map((wo, idx) => (
-                        <tr key={wo.id || idx} className="hover:bg-red-50/40 transition">
+                        <tr key={wo.id || idx} className="hover:bg-rose-50/40 transition">
                           <td className="py-2.5 px-3 font-mono text-slate-600">{formatDateDDMMYYYY(wo.date)}</td>
                           <td className="py-2.5 px-3 font-mono font-bold text-blue-700">{wo.grNo}</td>
-                          <td className="py-2.5 px-3 text-right font-mono font-extrabold text-red-600">
+                          <td className="py-2.5 px-3 text-right font-mono font-extrabold text-rose-600">
                             -{wo.qty} Pcs
                           </td>
                           <td className="py-2.5 px-3 font-medium text-slate-800">{wo.reason}</td>
@@ -585,7 +938,7 @@ export const ProductHistoryModal: React.FC<ProductHistoryModalProps> = ({
         {/* Modal Footer */}
         <div className="bg-white p-3 border-t border-slate-200 flex items-center justify-between shrink-0">
           <span className="text-xs text-slate-500 font-mono">
-            WMS Product Lifecycle & Traceability Audit Engine
+            SAP-Style Product Lifecycle & Anti-Duplication Inventory Engine
           </span>
           <button
             onClick={onClose}

@@ -231,4 +231,33 @@ export interface ThermocolInward {
   transporter?: string;
   partyName?: string;
   writeOffs?: StockWriteOff[];
+  mrp?: number;
+  weight?: number;
+  cft?: number;
 }
+
+export type QueueStatus = 'PENDING_STOCK_VERIFICATION' | 'STOCKS_CREDITED' | 'RESTORED';
+
+export interface PendingStockQueueItem {
+  id: string;
+  invNo: string;
+  company: 'AIL' | 'HPL';
+  cancelledAt: string;
+  cancelledBy: string;
+  userRole?: string;
+  partyName: string;
+  vehicleNo?: string;
+  transporter?: string;
+  lrNo?: string;
+  totalQty: number;
+  totalValue: string | number;
+  items: InvoiceLineItem[];
+  status: QueueStatus;
+  stockCreditedAt?: string;
+  stockCreditedBy?: string;
+  restoredAt?: string;
+  restoredBy?: string;
+  invoiceSnapshot: ThermocolInvoice;
+  pinVerified: boolean;
+}
+

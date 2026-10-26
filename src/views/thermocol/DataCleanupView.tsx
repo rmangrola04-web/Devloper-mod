@@ -3,6 +3,7 @@ import {
   Trash2, CheckSquare, Square, AlertTriangle, Database, 
   Package, Users, Truck, ClipboardList, Warehouse, FileText, RotateCcw, Building2
 } from 'lucide-react';
+import { DeletePinModal } from './DeletePinModal';
 import { 
   ThermocolProduct, ThermocolParty, ThermocolTransporter, 
   ClientDemand, ThermocolInward, ThermocolInvoice, InvoiceAuditLog 
@@ -80,6 +81,7 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
   setChallanSeqHPL,
   invoiceAudits,
   setInvoiceAudits,
+  selectedCompany = 'AIL',
   persistStorage,
 }) => {
   // Selected IDs / keys for batch deletion
@@ -149,18 +151,36 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
     setStatusMsg({ text: `Delivery Challan sequence counter for ${resetChallanDivision} (AIL / AHPL) has been successfully set to ${targetSeq}! Subsequent challans will continue from ${targetSeq}.`, isError: false });
   };
 
-  const handleClearCancelledInvoiceHistory = async () => {
-    if (confirm("Are you sure you want to permanently delete and purge all cancelled invoice audit history/logs from Firestore?")) {
-      const remainingAudits = invoiceAudits.filter(a => a.action !== 'CANCEL' && !a.deletedAt);
-      setInvoiceAudits(remainingAudits);
-      try {
-        await clearThermocolCancelledAuditsFromFirestore();
-      } catch (err) {
-        console.warn('[Firestore] Error clearing cancelled audits:', err);
-      }
-      persistStorage(products, parties, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, remainingAudits);
-      setStatusMsg({ text: "Cancelled invoice history and audit logs have been permanently deleted and purged from Firestore!", isError: false });
+  const [activeDeleteModal, setActiveDeleteModal] = useState<{
+    title: string;
+    itemDescription: string;
+    company: CompanyType;
+    action: () => Promise<void> | void;
+  } | null>(null);
+
+  const handleClearCancelledInvoiceHistory = () => {
+    const cancelledCount = invoiceAudits.filter(a => a.action === 'CANCEL' || a.deletedAt).length;
+    if (cancelledCount === 0) {
+      setStatusMsg({ text: 'No cancelled invoice history records to purge.', isError: false });
+      return;
     }
+    const comp = selectedCompany || 'AIL';
+    setActiveDeleteModal({
+      title: 'Purge Cancelled Audit History',
+      itemDescription: `Purge ${cancelledCount} cancelled invoice audit history records from database for ${comp === 'HPL' ? 'AHPL' : 'AIL'}`,
+      company: comp,
+      action: async () => {
+        const remainingAudits = invoiceAudits.filter(a => a.action !== 'CANCEL' && !a.deletedAt);
+        setInvoiceAudits(remainingAudits);
+        try {
+          await clearThermocolCancelledAuditsFromFirestore();
+        } catch (err) {
+          console.warn('[Firestore] Error clearing cancelled audits:', err);
+        }
+        persistStorage(products, parties, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, remainingAudits);
+        setStatusMsg({ text: "Cancelled invoice history and audit logs have been permanently deleted with PIN verification!", isError: false });
+      }
+    });
   };
 
   // --- Product Master Selection & Deletion ---
@@ -178,23 +198,29 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
     );
   };
 
-  const handleBatchDeleteProducts = async () => {
+  const handleBatchDeleteProducts = () => {
     if (selectedProductIds.length === 0) return;
-    if (confirm(`Are you sure you want to permanently delete ${selectedProductIds.length} selected product master records?`)) {
-      try {
-        for (const id of selectedProductIds) {
-          await deleteThermocolProductFromFirestore(id);
+    const comp = selectedCompany || 'AIL';
+    setActiveDeleteModal({
+      title: 'Batch Delete Product Master Records',
+      itemDescription: `Permanently delete ${selectedProductIds.length} selected product master records from ${comp === 'HPL' ? 'AHPL' : 'AIL'} database`,
+      company: comp,
+      action: async () => {
+        try {
+          for (const id of selectedProductIds) {
+            await deleteThermocolProductFromFirestore(id);
+          }
+          const updated = products.filter(p => !selectedProductIds.includes(p.id));
+          setProducts(updated);
+          persistStorage(updated, parties, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setSelectedProductIds([]);
+          setStatusMsg({ text: `Successfully deleted ${selectedProductIds.length} product records with PIN authorization!`, isError: false });
+        } catch (err) {
+          console.error("Error deleting products:", err);
+          setStatusMsg({ text: "Error deleting products. Please try again.", isError: true });
         }
-        const updated = products.filter(p => !selectedProductIds.includes(p.id));
-        setProducts(updated);
-        persistStorage(updated, parties, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-        setSelectedProductIds([]);
-        setStatusMsg({ text: `Successfully deleted ${selectedProductIds.length} product records from Firestore!`, isError: false });
-      } catch (err) {
-        console.error("Error deleting products:", err);
-        setStatusMsg({ text: "Error deleting products. Please try again.", isError: true });
       }
-    }
+    });
   };
 
   // --- Party Master Selection & Deletion ---
@@ -212,23 +238,29 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
     );
   };
 
-  const handleBatchDeleteParties = async () => {
+  const handleBatchDeleteParties = () => {
     if (selectedPartyNames.length === 0) return;
-    if (confirm(`Are you sure you want to permanently delete ${selectedPartyNames.length} selected customer records?`)) {
-      try {
-        for (const name of selectedPartyNames) {
-          await deleteThermocolPartyFromFirestore(name);
+    const comp = selectedCompany || 'AIL';
+    setActiveDeleteModal({
+      title: 'Batch Delete Customer Master Records',
+      itemDescription: `Permanently delete ${selectedPartyNames.length} selected customer records (${selectedPartyNames.slice(0, 3).join(', ')}${selectedPartyNames.length > 3 ? '...' : ''})`,
+      company: comp,
+      action: async () => {
+        try {
+          for (const name of selectedPartyNames) {
+            await deleteThermocolPartyFromFirestore(name);
+          }
+          const updated = parties.filter(p => !selectedPartyNames.includes(p.name));
+          setParties(updated);
+          persistStorage(products, updated, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setSelectedPartyNames([]);
+          setStatusMsg({ text: `Successfully deleted ${selectedPartyNames.length} customer records with PIN authorization!`, isError: false });
+        } catch (err) {
+          console.error("Error deleting customers:", err);
+          setStatusMsg({ text: "Error deleting customers. Please try again.", isError: true });
         }
-        const updated = parties.filter(p => !selectedPartyNames.includes(p.name));
-        setParties(updated);
-        persistStorage(products, updated, transporters, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-        setSelectedPartyNames([]);
-        setStatusMsg({ text: `Successfully deleted ${selectedPartyNames.length} customer records from Firestore!`, isError: false });
-      } catch (err) {
-        console.error("Error deleting customers:", err);
-        setStatusMsg({ text: "Error deleting customers. Please try again.", isError: true });
       }
-    }
+    });
   };
 
   // --- Transporter Master Selection & Deletion ---
@@ -246,23 +278,29 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
     );
   };
 
-  const handleBatchDeleteTransporters = async () => {
+  const handleBatchDeleteTransporters = () => {
     if (selectedTransNames.length === 0) return;
-    if (confirm(`Are you sure you want to permanently delete ${selectedTransNames.length} selected transporter records?`)) {
-      try {
-        for (const name of selectedTransNames) {
-          await deleteThermocolTransporterFromFirestore(name);
+    const comp = selectedCompany || 'AIL';
+    setActiveDeleteModal({
+      title: 'Batch Delete Transporter Records',
+      itemDescription: `Permanently delete ${selectedTransNames.length} selected transporter records`,
+      company: comp,
+      action: async () => {
+        try {
+          for (const name of selectedTransNames) {
+            await deleteThermocolTransporterFromFirestore(name);
+          }
+          const updated = transporters.filter(t => !selectedTransNames.includes(t.name));
+          setTransporters(updated);
+          persistStorage(products, parties, updated, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setSelectedTransNames([]);
+          setStatusMsg({ text: `Successfully deleted ${selectedTransNames.length} transporter records with PIN authorization!`, isError: false });
+        } catch (err) {
+          console.error("Error deleting transporters:", err);
+          setStatusMsg({ text: "Error deleting transporters from Firestore. Please try again.", isError: true });
         }
-        const updated = transporters.filter(t => !selectedTransNames.includes(t.name));
-        setTransporters(updated);
-        persistStorage(products, parties, updated, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-        setSelectedTransNames([]);
-        setStatusMsg({ text: `Successfully deleted ${selectedTransNames.length} transporter records from Firestore!`, isError: false });
-      } catch (err) {
-        console.error("Error deleting transporters:", err);
-        setStatusMsg({ text: "Error deleting transporters from Firestore. Please try again.", isError: true });
       }
-    }
+    });
   };
 
   // --- Client Demand Selection & Deletion ---
@@ -280,23 +318,29 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
     );
   };
 
-  const handleBatchDeleteDemands = async () => {
+  const handleBatchDeleteDemands = () => {
     if (selectedDemandIds.length === 0) return;
-    if (confirm(`Are you sure you want to permanently delete ${selectedDemandIds.length} selected monthly demand limits?`)) {
-      try {
-        for (const id of selectedDemandIds) {
-          await deleteThermocolDemandFromFirestore(id);
+    const comp = selectedCompany || 'AIL';
+    setActiveDeleteModal({
+      title: 'Batch Delete Client Demand Limits',
+      itemDescription: `Permanently delete ${selectedDemandIds.length} selected monthly demand quota records`,
+      company: comp,
+      action: async () => {
+        try {
+          for (const id of selectedDemandIds) {
+            await deleteThermocolDemandFromFirestore(id);
+          }
+          const updated = clientDemands.filter(d => !selectedDemandIds.includes(d.id));
+          setClientDemands(updated);
+          persistStorage(products, parties, transporters, updated, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setSelectedDemandIds([]);
+          setStatusMsg({ text: `Successfully deleted ${selectedDemandIds.length} client demand records with PIN authorization!`, isError: false });
+        } catch (err) {
+          console.error("Error deleting demands:", err);
+          setStatusMsg({ text: "Error deleting demands. Please try again.", isError: true });
         }
-        const updated = clientDemands.filter(d => !selectedDemandIds.includes(d.id));
-        setClientDemands(updated);
-        persistStorage(products, parties, transporters, updated, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-        setSelectedDemandIds([]);
-        setStatusMsg({ text: `Successfully deleted ${selectedDemandIds.length} client demand records from Firestore!`, isError: false });
-      } catch (err) {
-        console.error("Error deleting demands:", err);
-        setStatusMsg({ text: "Error deleting demands. Please try again.", isError: true });
       }
-    }
+    });
   };
 
   // --- Inward Log Selection & Deletion ---
@@ -314,43 +358,53 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
     );
   };
 
-  const handleBatchDeleteInwards = async () => {
+  const handleBatchDeleteInwards = () => {
     if (selectedInwardIds.length === 0) return;
-    if (confirm(`Are you sure you want to permanently delete ${selectedInwardIds.length} selected inward stock lot records?`)) {
-      try {
-        for (const id of selectedInwardIds) {
-          await deleteThermocolInwardFromFirestore(id);
+    const comp = selectedCompany || 'AIL';
+    setActiveDeleteModal({
+      title: 'Batch Delete Inward Stock Lots',
+      itemDescription: `Permanently delete ${selectedInwardIds.length} selected inward stock lot records`,
+      company: comp,
+      action: async () => {
+        try {
+          for (const id of selectedInwardIds) {
+            await deleteThermocolInwardFromFirestore(id);
+          }
+          const updated = inwards.filter(i => !selectedInwardIds.includes(i.id));
+          setInwards(updated);
+          persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setSelectedInwardIds([]);
+          setStatusMsg({ text: `Successfully deleted ${selectedInwardIds.length} inward log records with PIN authorization!`, isError: false });
+        } catch (err) {
+          console.error("Error deleting inward logs:", err);
+          setStatusMsg({ text: "Error deleting inward stock lots from Firestore. Please try again.", isError: true });
         }
-        const updated = inwards.filter(i => !selectedInwardIds.includes(i.id));
-        setInwards(updated);
-        persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-        setSelectedInwardIds([]);
-        setStatusMsg({ text: `Successfully deleted ${selectedInwardIds.length} inward log records from Firestore!`, isError: false });
-      } catch (err) {
-        console.error("Error deleting inward logs:", err);
-        setStatusMsg({ text: "Error deleting inward stock lots from Firestore. Please try again.", isError: true });
       }
-    }
+    });
   };
 
-  const handleDeleteSingleInward = async (id: string, grNo?: string) => {
-    if (!id) {
-      alert("अमान्य डॉक्यूमेंट आईडी!");
-      return;
-    }
-    if (confirm(`क्या आप इस इनवर्ड स्टॉक लॉट ${grNo ? `(GR: ${grNo})` : ''} को स्थायी रूप से हटाना चाहते हैं?`)) {
-      try {
-        await deleteThermocolInwardFromFirestore(id);
-        const updated = inwards.filter(i => i.id !== id);
-        setInwards(updated);
-        persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-        setSelectedInwardIds(prev => prev.filter(item => item !== id));
-        setStatusMsg({ text: `Inward stock lot ${grNo || id} deleted successfully from Firestore!`, isError: false });
-      } catch (err) {
-        console.error("Error deleting inward lot:", err);
-        setStatusMsg({ text: "Error deleting inward stock lot from Firestore.", isError: true });
+  const handleDeleteSingleInward = (id: string, grNo?: string) => {
+    if (!id) return;
+    const targetInw = inwards.find(i => i.id === id);
+    const comp = targetInw ? normalizeCompany(targetInw.company) : (selectedCompany || 'AIL');
+    setActiveDeleteModal({
+      title: 'Delete Inward Stock Lot Record',
+      itemDescription: `Inward Lot ID: ${id} ${grNo ? `(GR No: ${grNo})` : ''}`,
+      company: comp,
+      action: async () => {
+        try {
+          await deleteThermocolInwardFromFirestore(id);
+          const updated = inwards.filter(i => i.id !== id);
+          setInwards(updated);
+          persistStorage(products, parties, transporters, clientDemands, updated, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+          setSelectedInwardIds(prev => prev.filter(item => item !== id));
+          setStatusMsg({ text: `Inward stock lot ${grNo || id} deleted successfully with PIN authorization!`, isError: false });
+        } catch (err) {
+          console.error("Error deleting inward lot:", err);
+          setStatusMsg({ text: "Error deleting inward stock lot from Firestore.", isError: true });
+        }
       }
-    }
+    });
   };
 
   // --- Outward Invoice Selection & Deletion (with stock refund and audit logging) ---
@@ -370,51 +424,57 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
 
   const handleBatchDeleteInvoices = () => {
     if (selectedInvoiceNos.length === 0) return;
-    if (confirm(`Are you sure you want to permanently cancel/delete ${selectedInvoiceNos.length} selected outward invoices? Associated quantities will be refunded to inventory and audited.`)) {
-      let currentProducts = [...products];
-      const newAuditEntries: InvoiceAuditLog[] = [];
-      const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const comp = selectedCompany || 'AIL';
+    setActiveDeleteModal({
+      title: 'Batch Cancel & Delete Outward Invoices',
+      itemDescription: `Permanently cancel ${selectedInvoiceNos.length} selected outward invoices and refund quantities to active inventory`,
+      company: comp,
+      action: () => {
+        let currentProducts = [...products];
+        const newAuditEntries: InvoiceAuditLog[] = [];
+        const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
 
-      selectedInvoiceNos.forEach(invNo => {
-        deleteThermocolInvoiceFromFirestore(invNo);
-        const inv = invoices.find(i => i.invNo === invNo);
-        if (inv) {
-          inv.items.forEach(item => {
-            const prod = currentProducts.find(p => p.name === item.productName);
-            if (prod) {
-              prod.stock = (prod.stock || 0) + item.qty;
-            }
-            const invComp = (inv.company === 'HPL' || inv.invNo.includes('HPL') || inv.invNo.includes('AHPL')) ? 'HPL' : 'AIL';
-            newAuditEntries.push({
-              id: 'aud-' + Math.random().toString(36).substr(2, 9),
-              invNo: inv.invNo,
-              company: invComp,
-              action: 'CANCEL',
-              timestamp,
-              deletedAt: timestamp,
-              userName: 'Compliance Officer / Admin',
-              userRole: 'ADMIN',
-              partyName: inv.partyName,
-              productName: item.productName,
-              refundedQty: item.qty,
-              totalValue: inv.grandTotal,
-              details: `Batch cancelled outward invoice; refunded ${item.qty} pcs of ${item.productName} back to stock ledger`,
-              complianceChecksum: `CRC32-${Math.abs(inv.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
+        selectedInvoiceNos.forEach(invNo => {
+          deleteThermocolInvoiceFromFirestore(invNo);
+          const inv = invoices.find(i => i.invNo === invNo);
+          if (inv) {
+            inv.items.forEach(item => {
+              const prod = currentProducts.find(p => p.name === item.productName);
+              if (prod) {
+                prod.stock = (prod.stock || 0) + item.qty;
+              }
+              const invComp = (inv.company === 'HPL' || inv.invNo.includes('HPL') || inv.invNo.includes('AHPL')) ? 'HPL' : 'AIL';
+              newAuditEntries.push({
+                id: 'aud-' + Math.random().toString(36).substr(2, 9),
+                invNo: inv.invNo,
+                company: invComp,
+                action: 'CANCEL',
+                timestamp,
+                deletedAt: timestamp,
+                userName: 'Compliance Officer / Admin',
+                userRole: 'ADMIN',
+                partyName: inv.partyName,
+                productName: item.productName,
+                refundedQty: item.qty,
+                totalValue: inv.grandTotal,
+                details: `Batch cancelled outward invoice with PIN verification; refunded ${item.qty} pcs of ${item.productName} back to stock ledger`,
+                complianceChecksum: `CRC32-${Math.abs(inv.invNo.split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
+              });
             });
-          });
-        }
-      });
+          }
+        });
 
-      const updatedInvoices = invoices.filter(inv => !selectedInvoiceNos.includes(inv.invNo));
-      const updatedAudits = [...newAuditEntries, ...invoiceAudits];
+        const updatedInvoices = invoices.filter(inv => !selectedInvoiceNos.includes(inv.invNo));
+        const updatedAudits = [...newAuditEntries, ...invoiceAudits];
 
-      setInvoices(updatedInvoices);
-      setProducts(currentProducts);
-      setInvoiceAudits(updatedAudits);
-      persistStorage(currentProducts, parties, transporters, clientDemands, inwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
-      setSelectedInvoiceNos([]);
-      setStatusMsg({ text: `Successfully deleted ${selectedInvoiceNos.length} outward invoices and restored stock.`, isError: false });
-    }
+        setInvoices(updatedInvoices);
+        setProducts(currentProducts);
+        setInvoiceAudits(updatedAudits);
+        persistStorage(currentProducts, parties, transporters, clientDemands, inwards, updatedInvoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
+        setSelectedInvoiceNos([]);
+        setStatusMsg({ text: `Successfully deleted ${selectedInvoiceNos.length} outward invoices and restored stock with PIN verification.`, isError: false });
+      }
+    });
   };
 
   return (
@@ -983,6 +1043,18 @@ export const DataCleanupView: React.FC<DataCleanupViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Global Delete PIN Modal */}
+      {activeDeleteModal && (
+        <DeletePinModal
+          isOpen={!!activeDeleteModal}
+          title={activeDeleteModal.title}
+          itemDescription={activeDeleteModal.itemDescription}
+          company={activeDeleteModal.company}
+          onConfirm={activeDeleteModal.action}
+          onClose={() => setActiveDeleteModal(null)}
+        />
+      )}
     </div>
   );
 };
