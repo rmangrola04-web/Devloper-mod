@@ -186,6 +186,16 @@ export interface InvoiceAuditLog {
   complianceChecksum?: string;
 }
 
+export interface StockWriteOff {
+  id: string;
+  date: string;
+  qty: number;
+  reason: string;
+  userName?: string;
+  grNo?: string;
+  inwardInvNo?: string;
+}
+
 export interface ThermocolInward {
   id: string;
   company?: 'AIL' | 'HPL';
@@ -220,4 +230,5 @@ export interface ThermocolInward {
   supplierName?: string;
   transporter?: string;
   partyName?: string;
+  writeOffs?: StockWriteOff[];
 }

@@ -26,7 +26,8 @@ import {
   ShieldCheck,
   Printer,
   Package,
-  Calendar
+  Calendar,
+  History
 } from 'lucide-react';
 import { db, collection, addDoc, updateDoc, deleteDoc, doc } from '../firebase';
 import { 
@@ -40,7 +41,8 @@ import {
   InvoiceLineItem,
   ClientDemand,
   InvoiceAuditLog,
-  InvoiceFieldChange
+  InvoiceFieldChange,
+  StockWriteOff
 } from './thermocol/types';
 import { 
   DEFAULT_SENDER, 
@@ -72,6 +74,7 @@ import { TaxInvoiceModal, TaxInvoiceModalOverlay } from './thermocol/TaxInvoiceM
 import { DataCleanupView } from './thermocol/DataCleanupView';
 import { OutwardOrderEntryForm } from './thermocol/OutwardOrderEntryForm';
 import { InvoiceAuditLogView } from './thermocol/InvoiceAuditLogView';
+import { ProductHistoryModal } from './thermocol/ProductHistoryModal';
 import { SynchronizedTableScroll } from '../components/SynchronizedTableScroll';
 import { normalizeWmsDate } from '../utils/wmsDataEngine';
 import {
@@ -207,6 +210,68 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     setEditPackMultiple(String(prod.packSizeMultiple || 10));
     setEditWeight(String(prod.weight || 0.15));
     setEditCft(String(prod.cft || 0.02));
+  };
+
+  // Product Lifecycle & History Drill-down Modal State
+  const [historyProduct, setHistoryProduct] = useState<ThermocolProduct | null>(null);
+
+  const handleLogWriteOff = async (inwardId: string, qty: number, reason: string) => {
+    const inwardIndex = inwards.findIndex(i => i.id === inwardId);
+    if (inwardIndex === -1) return;
+
+    const targetInw = inwards[inwardIndex];
+    const newAvailQty = Math.max(0, (targetInw.availableQty || 0) - qty);
+    const newWriteOff: StockWriteOff = {
+      id: 'wo_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      date: new Date().toISOString(),
+      qty,
+      reason,
+      userName: currentUser?.name || 'Supervisor',
+      grNo: targetInw.grNo,
+      inwardInvNo: targetInw.invNo
+    };
+
+    const updatedWriteOffs = [...(targetInw.writeOffs || []), newWriteOff];
+    const updatedInward: ThermocolInward = {
+      ...targetInw,
+      availableQty: newAvailQty,
+      writeOffs: updatedWriteOffs,
+      updatedAt: new Date().toISOString()
+    };
+
+    const newInwards = [...inwards];
+    newInwards[inwardIndex] = updatedInward;
+
+    const timestamp = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const inwComp = normalizeCompany(targetInw.company);
+    const writeOffAudit: InvoiceAuditLog = {
+      id: 'aud_wo_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      invNo: targetInw.grNo || 'STOCK-WRITEOFF',
+      company: inwComp,
+      action: 'STOCK_ADJUSTMENT',
+      timestamp,
+      userName: currentUser?.name || 'Supervisor',
+      userRole: currentUser?.role || 'SUPERVISOR',
+      partyName: targetInw.supplyPlant || 'Inward Stock Ledger',
+      productName: targetInw.productName,
+      details: `Logged stock reduction/write-off of ${qty} pcs for product "${targetInw.productName}" (GR #${targetInw.grNo}). Reason: ${reason}. Remaining balance: ${newAvailQty} pcs`,
+      reason,
+      complianceChecksum: `CRC32-${Math.abs((targetInw.grNo || 'WO').split('').reduce((a, b) => ((a << 5) - a) + b.charCodeAt(0), 0)).toString(16).toUpperCase()}`
+    };
+
+    const updatedAudits = [writeOffAudit, ...invoiceAudits];
+    setInwards(newInwards);
+    setInvoiceAudits(updatedAudits);
+
+    persistStorage(products, parties, transporters, clientDemands, newInwards, invoices, invoiceSeqAIL, invoiceSeqHPL, updatedAudits);
+
+    try {
+      await saveThermocolInwardToFirestore(updatedInward);
+      await addThermocolAuditLog(writeOffAudit);
+      setCsvStatusMsg({ text: `Recorded stock write-off of ${qty} pcs for GR #${targetInw.grNo} successfully!`, isError: false });
+    } catch (e) {
+      console.warn('Error syncing stock write-off to Firestore:', e);
+    }
   };
 
   const activeInvoiceSeq = selectedCompany === 'HPL' ? invoiceSeqHPL : invoiceSeqAIL;
@@ -3378,7 +3443,17 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                                   {compName}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-3 font-extrabold text-slate-900">{prod.name}</td>
+                              <td className="py-2.5 px-3 font-extrabold text-slate-900">
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryProduct(prod)}
+                                  className="hover:underline text-blue-700 font-extrabold flex items-center gap-1.5 cursor-pointer text-left group"
+                                  title="Click to view complete product lifecycle and history drill-down"
+                                >
+                                  <span>{prod.name}</span>
+                                  <History className="w-3.5 h-3.5 text-blue-500 opacity-60 group-hover:opacity-100 transition shrink-0" />
+                                </button>
+                              </td>
                               <td className="py-2.5 px-3 font-mono text-slate-600">{prod.hsnCode || '39239090'}</td>
                               <td className="py-2.5 px-3 text-right font-mono font-bold text-blue-700">₹{prod.price.toFixed(2)}</td>
                               <td className="py-2.5 px-3 text-slate-600">{prod.packSize} (Mult: {prod.packSizeMultiple})</td>
@@ -3397,7 +3472,16 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                                 {totalWtKg} kg <span className="text-[10px] text-slate-500 font-normal">({totalWtMt} MT)</span>
                               </td>
                               <td className="py-2.5 px-3 text-right font-mono font-extrabold text-purple-700">{totalCftVol} CFT</td>
-                              <td className="py-2.5 px-3 text-center flex items-center justify-center gap-2">
+                              <td className="py-2.5 px-3 text-center flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => setHistoryProduct(prod)}
+                                  className="px-2 py-1 bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-700 rounded font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition border border-indigo-200"
+                                  title="Traceability & History Drill-down"
+                                >
+                                  <History className="w-3 h-3" />
+                                  <span>History</span>
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -3405,14 +3489,14 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                                     setEditQty(currentStock.toString());
                                     setEditRate(prod.price.toString());
                                   }}
-                                  className="text-blue-600 hover:text-blue-800"
+                                  className="px-2 py-1 bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-700 rounded font-bold text-[11px] cursor-pointer transition border border-blue-200"
                                 >
                                   Edit
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteProductStock(prod)}
-                                  className="text-red-600 hover:text-red-800"
+                                  className="px-2 py-1 bg-rose-50 hover:bg-rose-600 hover:text-white text-rose-700 rounded font-bold text-[11px] cursor-pointer transition border border-rose-200"
                                 >
                                   Delete
                                 </button>
@@ -3902,7 +3986,29 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
                               <td className="py-2 px-2.5 font-mono text-slate-700 font-bold">{inw.invNo}</td>
                               <td className="py-2 px-2.5 font-mono text-slate-600 font-semibold">{formatDateDDMMYYYY(inw.date || inw.recdDate || inw.receiveDate)}</td>
                               <td className="py-2 px-2.5 font-bold text-slate-900">
-                                {inw.productDescription || inw.productName}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const pName = inw.productDescription || inw.productName;
+                                    const matched = activeProducts.find(p => p.name === pName) || products.find(p => p.name === pName) || {
+                                      id: 'prod_' + inw.id,
+                                      name: pName,
+                                      company: inw.company,
+                                      hsnCode: inw.hsnCode || '39239090',
+                                      packSize: inw.pack || inw.packSize || 'Box of 10',
+                                      packSizeMultiple: 10,
+                                      price: inw.rate || inw.price || 0,
+                                      weight: 0.15,
+                                      cft: 0.02
+                                    };
+                                    setHistoryProduct(matched);
+                                  }}
+                                  className="hover:underline text-blue-700 font-extrabold flex items-center gap-1.5 cursor-pointer text-left group"
+                                  title="Click to view complete product lifecycle and history drill-down"
+                                >
+                                  <span>{inw.productDescription || inw.productName}</span>
+                                  <History className="w-3.5 h-3.5 text-blue-500 opacity-60 group-hover:opacity-100 transition shrink-0" />
+                                </button>
                               </td>
                               <td className="py-2 px-2.5 text-right font-mono font-bold text-slate-700">{q}</td>
                               <td className="py-2 px-2.5 text-right font-mono">
@@ -5245,6 +5351,23 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
             </div>
           </div>
         </div>
+      )}
+
+      {/* Product Traceability & History Drill-down Modal */}
+      {historyProduct && (
+        <ProductHistoryModal
+          product={historyProduct}
+          inwards={inwards}
+          invoices={invoices}
+          onClose={() => setHistoryProduct(null)}
+          onPreviewInvoice={(invNo) => {
+            setSelectedPreviewInv(invNo);
+            const inv = invoices.find(i => i.invNo === invNo);
+            if (inv) setModalPreviewInvoice(inv);
+            setActiveTab('previewPrintTab');
+          }}
+          onLogWriteOff={handleLogWriteOff}
+        />
       )}
     </div>
   );
