@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Scale, 
   ArrowRight, ShieldCheck, Box, Info, Lock,
   X, KeyRound, AlertTriangle, Check, MapPin, RotateCcw, Sparkles,
-  Loader2, Printer
+  Loader2, Printer, Eye, BarChart3
 } from 'lucide-react';
 import { 
   ThermocolProduct, 
@@ -375,6 +375,10 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
   const [authNotes, setAuthNotes] = useState<string>('Approved as operational exception to prevent production downtime.');
   const [authConfirmed, setAuthConfirmed] = useState<boolean>(false);
 
+  // Party & Location Demand & Dispatch Summary Pop-Up State
+  const [showDemandSummaryModal, setShowDemandSummaryModal] = useState<boolean>(false);
+  const [autoTriggeredKey, setAutoTriggeredKey] = useState<string>('');
+
   // Auto-fetch FIFO / Lowest Rate from available inward stock batches
   // "If a product has multiple inward entries with different rates/MRPs, the system must automatically prioritize and select the lowest rate/MRP stock first (FIFO principle)"
   const getProductBatches = (prod: ThermocolProduct) => {
@@ -459,6 +463,146 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
       setPinCode('');
     }
   }, [activeParty]);
+
+  // Real-Time Party & Location Demand & Dispatch Calculation Engine
+  const partyDemandSummary = useMemo(() => {
+    if (!selectedPartyName) {
+      return {
+        partyName: '',
+        location: '',
+        items: [],
+        totalDemandQty: 0,
+        totalDispatchedQty: 0,
+        totalPendingQty: 0,
+        totalDraftQty: 0,
+        hasDemandRecords: false
+      };
+    }
+
+    const currentLoc = destinationCity.trim() || selectedCity || (activeParty?.city ? activeParty.city : 'Indore');
+    const partyDemandsList = companyDemands.filter(
+      d => d.partyName.trim().toLowerCase() === selectedPartyName.trim().toLowerCase()
+    );
+
+    // Map of product names to demand limit
+    const demandMap = new Map<string, number>();
+    partyDemandsList.forEach(d => {
+      demandMap.set(d.productName.trim().toLowerCase(), d.monthlyLimit);
+    });
+
+    // Map of product names to historical dispatches (non-cancelled)
+    const dispatchedMap = new Map<string, number>();
+    invoices.forEach(inv => {
+      if (
+        !inv.isCancelled && 
+        normalizeCompany(inv.company) === targetCompany && 
+        inv.partyName.trim().toLowerCase() === selectedPartyName.trim().toLowerCase()
+      ) {
+        inv.items?.forEach(it => {
+          if (it.productName) {
+            const k = it.productName.trim().toLowerCase();
+            dispatchedMap.set(k, (dispatchedMap.get(k) || 0) + (Number(it.qty) || 0));
+          }
+        });
+      }
+    });
+
+    // Map of product names to current draft order lines
+    const draftMap = new Map<string, number>();
+    orderLines.forEach(l => {
+      const prod = companyProducts.find(p => p.id === l.productId) || 
+                   companyProducts.find(p => p.name === l.productId) || 
+                   SAFE_DEFAULT_PRODUCT;
+      if (prod && prod.name) {
+        const k = prod.name.trim().toLowerCase();
+        draftMap.set(k, (draftMap.get(k) || 0) + (Number(l.qty) || 0));
+      }
+    });
+
+    // Collect all relevant product keys
+    const allProductKeys = new Set<string>();
+    demandMap.forEach((_, k) => allProductKeys.add(k));
+    dispatchedMap.forEach((_, k) => allProductKeys.add(k));
+    draftMap.forEach((_, k) => allProductKeys.add(k));
+
+    if (allProductKeys.size === 0) {
+      companyProducts.forEach(p => {
+        if (p.name) allProductKeys.add(p.name.trim().toLowerCase());
+      });
+    }
+
+    let totalDemandQty = 0;
+    let totalDispatchedQty = 0;
+    let totalPendingQty = 0;
+    let totalDraftQty = 0;
+
+    const items = Array.from(allProductKeys).map(pKey => {
+      const prodObj = companyProducts.find(p => p.name.trim().toLowerCase() === pKey);
+      const displayName = prodObj ? prodObj.name : (pKey.charAt(0).toUpperCase() + pKey.slice(1));
+      
+      const totalDemand = demandMap.get(pKey) || 0;
+      const alreadyDispatched = dispatchedMap.get(pKey) || 0;
+      const pendingQty = Math.max(0, totalDemand - alreadyDispatched);
+      const currentDraftQty = draftMap.get(pKey) || 0;
+      const remAfterDraft = pendingQty - currentDraftQty;
+
+      totalDemandQty += totalDemand;
+      totalDispatchedQty += alreadyDispatched;
+      totalPendingQty += pendingQty;
+      totalDraftQty += currentDraftQty;
+
+      let statusLabel = 'PENDING';
+      let statusColor = 'bg-amber-100 text-amber-800 border-amber-300';
+
+      if (totalDemand === 0) {
+        statusLabel = 'NO DEMAND LIMIT';
+        statusColor = 'bg-slate-100 text-slate-700 border-slate-300';
+      } else if (alreadyDispatched >= totalDemand) {
+        statusLabel = 'FULFILLED (100%)';
+        statusColor = 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      } else if (alreadyDispatched + currentDraftQty > totalDemand) {
+        statusLabel = 'EXCEEDS LIMIT';
+        statusColor = 'bg-rose-100 text-rose-800 border-rose-300';
+      } else if (alreadyDispatched > 0) {
+        statusLabel = 'PARTIALLY DISPATCHED';
+        statusColor = 'bg-blue-100 text-blue-800 border-blue-300';
+      }
+
+      return {
+        productName: displayName,
+        totalDemand,
+        alreadyDispatched,
+        pendingQty,
+        currentDraftQty,
+        remAfterDraft,
+        statusLabel,
+        statusColor
+      };
+    }).sort((a, b) => b.totalDemand - a.totalDemand || a.productName.localeCompare(b.productName));
+
+    return {
+      partyName: selectedPartyName,
+      location: currentLoc,
+      items,
+      totalDemandQty,
+      totalDispatchedQty,
+      totalPendingQty,
+      totalDraftQty,
+      hasDemandRecords: partyDemandsList.length > 0
+    };
+  }, [selectedPartyName, destinationCity, selectedCity, activeParty, companyDemands, invoices, targetCompany, orderLines, companyProducts]);
+
+  // Trigger modal pop-up automatically upon selecting a party or party + location
+  useEffect(() => {
+    if (selectedPartyName) {
+      const currentLoc = destinationCity.trim() || selectedCity || (activeParty?.city ? activeParty.city : 'Indore');
+      const triggerKey = `${selectedPartyName}_${currentLoc}_${targetCompany}`;
+      if (autoTriggeredKey !== triggerKey) {
+        setAutoTriggeredKey(triggerKey);
+        setShowDemandSummaryModal(true);
+      }
+    }
+  }, [selectedPartyName, destinationCity, selectedCity, activeParty, targetCompany, autoTriggeredKey]);
 
   // Dynamic Tax Rule: Indore Destination (0% GST / Delivery Challan) vs Other States (18% IGST / Tax Invoice)
   const autoIsInterState = useMemo(() => {
@@ -1162,9 +1306,22 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
             STEP 1 & 2: INVOICE NUMBER, DATE, CITY FILTER & CLIENT SELECTION
             ========================================================== */}
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-700 pb-1 border-b border-slate-200">
-            <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">1</span>
-            <span>Invoice Series, City Filter & Sold To Party (Client)</span>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-black uppercase tracking-wider text-slate-700 pb-1 border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] flex items-center justify-center font-bold">1</span>
+              <span>Invoice Series, City Filter & Sold To Party (Client)</span>
+            </div>
+            {selectedPartyName && (
+              <button
+                type="button"
+                onClick={() => setShowDemandSummaryModal(true)}
+                className="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+                title="View Party & Location Demand & Dispatch Summary"
+              >
+                <Eye className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Demand & Dispatch Summary Pop-Up</span>
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2154,6 +2311,164 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
                 >
                   <Check className="w-4 h-4" />
                   <span>Approve & Authorize Excess Dispatch</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================================
+          PARTY & LOCATION DEMAND & DISPATCH SUMMARY POP-UP MODAL
+          ========================================================== */}
+      {showDemandSummaryModal && selectedPartyName && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-md">
+                  <BarChart3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-black text-white">
+                      Party & Location Demand & Dispatch Summary
+                    </h3>
+                    <span className="text-[10px] bg-blue-900 text-blue-200 border border-blue-700 px-2 py-0.5 rounded font-mono font-bold">
+                      {targetCompany === 'HPL' ? 'AHPL' : 'AIL'} Series
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Real-time demand tracking, historical dispatches, and pending stock reconciliation
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDemandSummaryModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                title="Close summary"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 text-xs max-h-[80vh] overflow-y-auto">
+              {/* Party & Location Metadata Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                <div className="space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">Sold To Party (Client)</span>
+                  <p className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span>{partyDemandSummary.partyName}</span>
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">Dispatch Destination Location</span>
+                  <p className="font-extrabold text-slate-900 text-xs flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>{partyDemandSummary.location}</span>
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">GSTIN / UIN</span>
+                  <p className="font-mono font-bold text-blue-900 text-xs">
+                    {activeParty?.gstin || '23UNREGISTERED'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Demand & Dispatch Quick KPI Counters */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-3 text-center space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-blue-700 block">Total Demand Limit</span>
+                  <span className="text-lg font-black font-mono text-blue-950">{partyDemandSummary.totalDemandQty} Pcs</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-600 block">Already Dispatched</span>
+                  <span className="text-lg font-black font-mono text-slate-900">{partyDemandSummary.totalDispatchedQty} Pcs</span>
+                </div>
+                <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-center space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 block">Pending to Dispatch</span>
+                  <span className="text-lg font-black font-mono text-emerald-900">{partyDemandSummary.totalPendingQty} Pcs</span>
+                </div>
+                <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3 text-center space-y-0.5">
+                  <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 block">Current Invoice Draft</span>
+                  <span className="text-lg font-black font-mono text-indigo-900">{partyDemandSummary.totalDraftQty} Pcs</span>
+                </div>
+              </div>
+
+              {/* SKU-Wise Demand & Dispatch Ledgers Table */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                    <Package className="w-4 h-4 text-blue-600" />
+                    <span>SKU-Wise Demand & Dispatch Real-Time Breakdown</span>
+                  </h4>
+                  <span className="text-[10px] text-slate-500 font-mono">
+                    {partyDemandSummary.items.length} SKUs Listed
+                  </span>
+                </div>
+
+                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-[11px]">
+                        <th className="py-2.5 px-3">SKU / Product Description</th>
+                        <th className="py-2.5 px-3 text-right">Total Demand</th>
+                        <th className="py-2.5 px-3 text-right text-slate-600">Already Dispatched</th>
+                        <th className="py-2.5 px-3 text-right text-emerald-700 font-extrabold">Pending Qty</th>
+                        <th className="py-2.5 px-3 text-right text-indigo-900">Current Draft</th>
+                        <th className="py-2.5 px-3 text-right font-bold">Balance After Draft</th>
+                        <th className="py-2.5 px-3 text-center">Quota Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white font-mono text-[11px]">
+                      {partyDemandSummary.items.map((it, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/80">
+                          <td className="py-2.5 px-3 font-sans font-bold text-slate-900">{it.productName}</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-slate-900">{it.totalDemand} Pcs</td>
+                          <td className="py-2.5 px-3 text-right text-slate-600">{it.alreadyDispatched} Pcs</td>
+                          <td className="py-2.5 px-3 text-right font-extrabold text-emerald-700 bg-emerald-50/30">
+                            {it.pendingQty} Pcs
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-bold text-indigo-900">{it.currentDraftQty} Pcs</td>
+                          <td className={`py-2.5 px-3 text-right font-black ${
+                            it.remAfterDraft < 0 ? 'text-rose-600 bg-rose-50/50' : 'text-slate-800'
+                          }`}>
+                            {it.remAfterDraft} Pcs
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-sans">
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border ${it.statusColor}`}>
+                              {it.statusLabel}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Information Note */}
+              <div className="p-3 bg-blue-50/60 border border-blue-200 rounded-xl text-[11px] text-blue-900 flex items-start gap-2">
+                <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <b>Real-Time Demand Reconciliation:</b> Historical dispatches are calculated dynamically from non-cancelled invoice ledgers. Pending quantity represents unfulfilled contractual demand. If current order exceeds pending balance, manager authorization will be prompted upon generation.
+                </p>
+              </div>
+
+              {/* Action Footer */}
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowDemandSummaryModal(false)}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer active:scale-95 flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>Acknowledge & Proceed to Invoice Entry</span>
                 </button>
               </div>
             </div>
