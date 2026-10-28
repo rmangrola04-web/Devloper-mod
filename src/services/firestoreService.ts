@@ -27,7 +27,8 @@ import {
   ThermocolParty,
   ThermocolTransporter,
   ClientDemand,
-  InvoiceAuditLog
+  InvoiceAuditLog,
+  DispatchPickList
 } from '../views/thermocol/types';
 
 export enum OperationType {
@@ -177,6 +178,8 @@ export const COLLECTIONS = {
   TH_DEMANDS: 'ich_th_demands',
   TH_AUDITS: 'ich_th_audits',
   TH_SEQUENCES: 'ich_th_sequences',
+  TH_PICKLISTS: 'ich_th_picklists',
+  PACKING_PICKLISTS: 'packing_picklists',
   THERMOCOL_PACKING: 'thermocol_packing',
 
   // Active Canonical Collections matching user schema
@@ -2266,6 +2269,89 @@ export const saveThermocolDemandsToFirestore = async (demands: ClientDemand[]): 
       batch.set(docRef, { ...d, id: safeId, updatedAt: new Date().toISOString() }, { merge: true });
     });
     await batch.commit();
+  }
+};
+
+// ==========================================
+// REAL-TIME PICK LIST FIRESTORE CRUD & SYNC
+// ==========================================
+
+export const subscribeToThermocolPickLists = (
+  callback: (pickLists: DispatchPickList[]) => void,
+  onError?: (err: any) => void
+) => {
+  const colRef = collection(db, COLLECTIONS.TH_PICKLISTS);
+  return onSnapshot(
+    colRef,
+    (snapshot) => {
+      const pickLists: DispatchPickList[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as DispatchPickList;
+        if (data && data.pickListNo) {
+          pickLists.push(data);
+        }
+      });
+      pickLists.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      callback(pickLists);
+    },
+    (err) => {
+      console.warn('[Firestore] Pick lists subscription error:', err);
+      if (onError) onError(err);
+    }
+  );
+};
+
+export const saveThermocolPickListToFirestore = async (pickList: DispatchPickList): Promise<void> => {
+  const docId = pickList.id || `pl_${Date.now()}`;
+  const safeId = docId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const nowIso = new Date().toISOString();
+  const cleanPayload = deepSanitizeForFirestore({
+    ...pickList,
+    id: safeId,
+    updatedAt: nowIso
+  });
+
+  try {
+    const batch = writeBatch(db);
+    batch.set(doc(db, COLLECTIONS.TH_PICKLISTS, safeId), cleanPayload, { merge: true });
+    batch.set(doc(db, COLLECTIONS.PACKING_PICKLISTS, safeId), cleanPayload, { merge: true });
+    batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, `pl_${safeId}`), cleanPayload, { merge: true });
+    await batch.commit();
+    console.log(`[Firestore Sync] Saved Pick List ${pickList.pickListNo} to Firestore.`);
+  } catch (err: any) {
+    handleFirestoreError(err, OperationType.WRITE, COLLECTIONS.TH_PICKLISTS);
+    throw err;
+  }
+};
+
+export const deleteThermocolPickListFromFirestore = async (pickListId: string): Promise<void> => {
+  const safeId = pickListId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  try {
+    const batch = writeBatch(db);
+    batch.delete(doc(db, COLLECTIONS.TH_PICKLISTS, safeId));
+    batch.delete(doc(db, COLLECTIONS.PACKING_PICKLISTS, safeId));
+    batch.delete(doc(db, COLLECTIONS.THERMOCOL_PACKING, `pl_${safeId}`));
+    await batch.commit();
+    console.log(`[Firestore Sync] Deleted Pick List ${pickListId} from Firestore.`);
+  } catch (err: any) {
+    handleFirestoreError(err, OperationType.DELETE, COLLECTIONS.TH_PICKLISTS);
+    throw err;
+  }
+};
+
+export const fetchPickListsWithGetDocs = async (): Promise<DispatchPickList[]> => {
+  try {
+    const snap = await getDocs(collection(db, COLLECTIONS.TH_PICKLISTS));
+    const list: DispatchPickList[] = [];
+    snap.forEach(docSnap => {
+      const d = docSnap.data() as DispatchPickList;
+      if (d && d.pickListNo) list.push(d);
+    });
+    list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    return list;
+  } catch (err) {
+    console.warn('[Firestore] Error fetching pick lists with getDocs:', err);
+    return [];
   }
 };
 

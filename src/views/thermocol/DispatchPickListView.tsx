@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   ClipboardList, 
   MapPin, 
@@ -13,6 +13,7 @@ import {
   Search, 
   Trash2, 
   Edit3, 
+  Edit2,
   ArrowRight, 
   FileText, 
   Building2, 
@@ -24,7 +25,10 @@ import {
   Check,
   ChevronRight,
   Send,
-  Eye
+  Eye,
+  Download,
+  Upload,
+  FileSpreadsheet
 } from 'lucide-react';
 import { 
   ThermocolProduct, 
@@ -63,6 +67,9 @@ interface DispatchPickListViewProps {
   onDeletePickList: (id: string) => void;
   onGenerateInvoiceFromPickList: (pickList: DispatchPickList) => void;
   onRequestDeletePin: (title: string, itemDesc: string, company: CompanyType, action: () => void) => void;
+  onUpdateDemand?: (partyName: string, productName: string, newLimit: number) => void;
+  onUploadDemandCsv?: (file: File) => void;
+  onDownloadSampleDemandCsv?: () => void;
 }
 
 export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
@@ -79,7 +86,10 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
   onUpdatePickListStatus,
   onDeletePickList,
   onGenerateInvoiceFromPickList,
-  onRequestDeletePin
+  onRequestDeletePin,
+  onUpdateDemand,
+  onUploadDemandCsv,
+  onDownloadSampleDemandCsv
 }) => {
   const targetCompany: CompanyType = normalizeCompany(company);
 
@@ -129,16 +139,12 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
       }
       if (city) set.add(city);
     });
-    if (set.size === 0) {
-      set.add('Indore');
-      set.add('Dewas');
-      set.add('Pithampur');
-    }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    const sorted = Array.from(set).sort((a, b) => a.localeCompare(b));
+    return ['ALL', ...sorted];
   }, [companyParties]);
 
   // Planning Form State
-  const [selectedCity, setSelectedCity] = useState<string>(availableCities[0] || 'Indore');
+  const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [planningDate, setPlanningDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [assignedTransporter, setAssignedTransporter] = useState<string>('');
   const [assignedVehicleNo, setAssignedVehicleNo] = useState<string>('');
@@ -146,8 +152,24 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
   const [planningRemarks, setPlanningRemarks] = useState<string>('');
 
   // Draft Planned Quantities state per line: key = `${partyName}_${productName}`
-  // value: number of cases
   const [plannedCasesMap, setPlannedCasesMap] = useState<Record<string, number>>({});
+
+  // Demand editing modal / inline state
+  const [editDemandTarget, setEditDemandTarget] = useState<{
+    partyName: string;
+    productName: string;
+    currentDemand: number;
+  } | null>(null);
+  const [newDemandValue, setNewDemandValue] = useState<string>('');
+
+  // Quick Add / Update Demand Modal state
+  const [showAddDemandModal, setShowAddDemandModal] = useState<boolean>(false);
+  const [addDemandParty, setAddDemandParty] = useState<string>('');
+  const [addDemandProduct, setAddDemandProduct] = useState<string>('');
+  const [addDemandQty, setAddDemandQty] = useState<string>('');
+
+  // CSV File Input Reference
+  const csvDemandFileRef = useRef<HTMLInputElement>(null);
 
   // Helper: Live Available Stock per product (MRP-wise aggregated)
   const getProductStock = (prodName: string): number => {
@@ -156,20 +178,39 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
       .reduce((sum, i) => sum + (Number(i.availableQty) || 0), 0);
   };
 
-  // Sourced Demand Rows for Selected City
+  // Sourced Demand Rows for Selected City / ALL
   const cityPlanningRows = useMemo(() => {
-    if (!selectedCity) return [];
-
-    const targetCityLower = selectedCity.trim().toLowerCase();
+    const isAll = !selectedCity || selectedCity === 'ALL';
+    const targetCityLower = (selectedCity || '').trim().toLowerCase();
     
-    // Find parties in this city
-    const cityParties = companyParties.filter(p => {
-      if (p.city && p.city.trim().toLowerCase() === targetCityLower) return true;
-      if (p.address && p.address.toLowerCase().includes(targetCityLower)) return true;
-      return false;
-    });
+    // Find parties in this city or ALL
+    const cityParties = isAll
+      ? companyParties
+      : companyParties.filter(p => {
+          if (p.city && p.city.trim().toLowerCase() === targetCityLower) return true;
+          if (p.address && p.address.toLowerCase().includes(targetCityLower)) return true;
+          return false;
+        });
 
-    const partyNamesSet = new Set(cityParties.map(p => p.name));
+    // Also include any partyName present in companyDemands if isAll
+    const partyMap = new Map<string, ThermocolParty>();
+    cityParties.forEach(p => partyMap.set(p.name.trim().toLowerCase(), p));
+
+    if (isAll) {
+      companyDemands.forEach(d => {
+        if (d.partyName && !partyMap.has(d.partyName.trim().toLowerCase())) {
+          partyMap.set(d.partyName.trim().toLowerCase(), {
+            name: d.partyName,
+            company: targetCompany,
+            address: 'Industrial Area',
+            gstin: '23UNREGISTERED',
+            city: 'Indore'
+          });
+        }
+      });
+    }
+
+    const targetPartiesList = Array.from(partyMap.values());
 
     // Calculate historical dispatches for non-cancelled invoices
     const dispatchedMap = new Map<string, number>(); // key: `${partyName}_${productName}` -> qty
@@ -185,7 +226,6 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
       }
     });
 
-    // Build planning line items for each party & product with active demands or stock
     const result: Array<{
       partyName: string;
       productId: string;
@@ -202,7 +242,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
       key: string;
     }> = [];
 
-    cityParties.forEach(party => {
+    targetPartiesList.forEach(party => {
       // Find client demands for this party
       const partyDemands = companyDemands.filter(
         d => d.partyName.trim().toLowerCase() === party.name.trim().toLowerCase()
@@ -319,7 +359,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
       }
     });
 
-    const cityShort = selectedCity.substring(0, 3).toUpperCase();
+    const cityShort = (selectedCity === 'ALL' ? 'ALL' : selectedCity.substring(0, 3)).toUpperCase();
     const plCount = companyPickLists.length + 1;
     const pickListNo = `PL-${targetCompany === 'HPL' ? 'AHPL' : 'AIL'}-${cityShort}-${String(plCount).padStart(3, '0')}`;
 
@@ -327,7 +367,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
       id: 'pl_' + Date.now(),
       pickListNo,
       company: targetCompany,
-      city: selectedCity,
+      city: selectedCity === 'ALL' ? 'Multi-City / ALL' : selectedCity,
       date: planningDate,
       status: 'PLANNED',
       transporterName: assignedTransporter || 'Direct Dispatch',
@@ -345,8 +385,40 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
     onSavePickList(newPickList);
     setPlannedCasesMap({});
     setPlanningRemarks('');
-    setStatusMsg({ text: `Pre-Planned Pick List ${pickListNo} generated successfully for ${selectedCity}!`, isError: false });
+    setStatusMsg({ text: `Pre-Planned Pick List ${pickListNo} generated successfully!`, isError: false });
     setActiveSubTab('pickListQueue');
+  };
+
+  // Handle single demand save
+  const handleSaveEditDemand = () => {
+    if (!editDemandTarget || !onUpdateDemand) return;
+    const newLim = Math.max(0, parseInt(newDemandValue, 10) || 0);
+    onUpdateDemand(editDemandTarget.partyName, editDemandTarget.productName, newLim);
+    setEditDemandTarget(null);
+    setNewDemandValue('');
+    setStatusMsg({ text: `Updated Total Demand Qty to ${newLim} pcs for ${editDemandTarget.partyName} (${editDemandTarget.productName})`, isError: false });
+  };
+
+  // Handle Quick Add / Update Demand Modal
+  const handleSaveQuickAddDemand = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addDemandParty || !addDemandProduct || !onUpdateDemand) return;
+    const lim = Math.max(0, parseInt(addDemandQty, 10) || 0);
+    onUpdateDemand(addDemandParty.trim(), addDemandProduct.trim(), lim);
+    setShowAddDemandModal(false);
+    setAddDemandParty('');
+    setAddDemandProduct('');
+    setAddDemandQty('');
+    setStatusMsg({ text: `Added/Updated demand limit of ${lim} pcs for ${addDemandParty} (${addDemandProduct})`, isError: false });
+  };
+
+  // Handle Demand CSV Upload Event
+  const handleCsvDemandFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onUploadDemandCsv) {
+      onUploadDemandCsv(file);
+      if (csvDemandFileRef.current) csvDemandFileRef.current.value = '';
+    }
   };
 
   // Preview Document Modal state
@@ -402,7 +474,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                 </span>
               </h1>
               <p className="text-xs text-slate-300">
-                City-wise demand aggregation, total CFT/Weight pre-allocation, go-down pick list handover & verified invoice auto-generation
+                City-wise demand aggregation, dynamic pending demand calculation, total CFT/Weight pre-allocation & verified pick lists
               </p>
             </div>
           </div>
@@ -469,10 +541,12 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                 <select
                   value={selectedCity}
                   onChange={(e) => setSelectedCity(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
                 >
                   {availableCities.map(city => (
-                    <option key={city} value={city}>{city}</option>
+                    <option key={city} value={city}>
+                      {city === 'ALL' ? '🌐 ALL Cities & Destinations' : city}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -496,7 +570,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                 <select
                   value={assignedTransporter}
                   onChange={(e) => setAssignedTransporter(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
                 >
                   <option value="">-- Direct Loading / Unassigned --</option>
                   {companyTransporters.map(t => (
@@ -522,16 +596,63 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
 
           {/* Planning Matrix Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+            <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center space-x-2">
                 <Box className="w-4 h-4 text-blue-400" />
                 <h3 className="text-xs font-extrabold uppercase tracking-wider">
-                  Active Client Demand Matrix for <span className="text-blue-300">{selectedCity}</span>
+                  Active Client Demand Matrix {selectedCity !== 'ALL' && <span>for <span className="text-blue-300">{selectedCity}</span></span>}
                 </h3>
               </div>
-              <span className="text-[11px] text-slate-300 font-mono">
-                {cityPlanningRows.length} active item requirements found
-              </span>
+
+              {/* Demand Quick Actions Bar */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="file"
+                  ref={csvDemandFileRef}
+                  accept=".csv"
+                  onChange={handleCsvDemandFileChange}
+                  className="hidden"
+                />
+
+                {onDownloadSampleDemandCsv && (
+                  <button
+                    type="button"
+                    onClick={onDownloadSampleDemandCsv}
+                    className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                    title="Download sample CSV format: Customer_Name, SKU_Description, Total_Demand_Qty"
+                  >
+                    <Download className="w-3.5 h-3.5 text-blue-400" />
+                    <span>Sample CSV</span>
+                  </button>
+                )}
+
+                {onUploadDemandCsv && (
+                  <button
+                    type="button"
+                    onClick={() => csvDemandFileRef.current?.click()}
+                    className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
+                    title="Upload demands CSV with columns: Customer_Name, SKU_Description, Total_Demand_Qty"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Demands CSV</span>
+                  </button>
+                )}
+
+                {onUpdateDemand && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddDemandModal(true)}
+                    className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Set Demand</span>
+                  </button>
+                )}
+
+                <span className="text-[11px] text-slate-300 font-mono pl-2 border-l border-slate-700">
+                  {cityPlanningRows.length} Requirements
+                </span>
+              </div>
             </div>
 
             {cityPlanningRows.length === 0 ? (
@@ -541,7 +662,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                   No registered clients or active inventory demands found for destination city "{selectedCity}".
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  Select a different city or add client demands in the Master Templates tab.
+                  Select a different city or click "+ Set Demand" above to define total demand limits.
                 </p>
               </div>
             ) : (
@@ -551,9 +672,11 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                     <tr className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px] tracking-wider border-b border-slate-200">
                       <th className="py-3 px-4 min-w-[150px]">Customer / Party Name</th>
                       <th className="py-3 px-4 min-w-[160px]">Product / SKU Description</th>
-                      <th className="py-3 px-4 text-center min-w-[110px]">Total Demand</th>
+                      <th className="py-3 px-4 text-center min-w-[120px]">Total Demand</th>
                       <th className="py-3 px-4 text-center min-w-[110px]">Already Dispatched</th>
-                      <th className="py-3 px-4 text-center min-w-[110px]">Pending Demand</th>
+                      <th className="py-3 px-4 text-center min-w-[120px] bg-amber-50/80 text-amber-950 font-black">
+                        Pending Demand <span className="block text-[9px] font-normal text-amber-800">(Demand - Dispatched)</span>
+                      </th>
                       <th className="py-3 px-4 text-center min-w-[120px] bg-emerald-50 text-emerald-900">Available Stock</th>
                       <th className="py-3 px-4 text-right min-w-[130px] bg-blue-50 text-blue-900">Planned Cases</th>
                       <th className="py-3 px-4 text-right min-w-[110px]">Planned Qty</th>
@@ -576,19 +699,44 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                             <div className="font-bold text-slate-900">{row.productName}</div>
                             <div className="text-[10px] text-slate-500 font-mono">Pack: {row.packSize}</div>
                           </td>
-                          <td className="py-3 px-4 text-center font-mono text-slate-600">
-                            <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200">
-                              {row.totalDemand > 0 ? `${row.totalDemand} pcs` : 'NO LIMIT'}
-                            </span>
+                          <td className="py-3 px-4 text-center font-mono text-slate-700">
+                            <div className="flex items-center justify-center space-x-1">
+                              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 font-bold">
+                                {row.totalDemand > 0 ? `${row.totalDemand} pcs` : 'NO LIMIT'}
+                              </span>
+                              {onUpdateDemand && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditDemandTarget({
+                                      partyName: row.partyName,
+                                      productName: row.productName,
+                                      currentDemand: row.totalDemand
+                                    });
+                                    setNewDemandValue(String(row.totalDemand));
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-blue-600 rounded hover:bg-slate-100 transition cursor-pointer"
+                                  title="Edit Total Demand Quantity"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </td>
                           <td className="py-3 px-4 text-center font-mono text-blue-800">
-                            <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200">
+                            <span className="px-2 py-0.5 rounded bg-blue-50 border border-blue-200 font-semibold">
                               {row.alreadyDispatched} pcs
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-center font-mono font-bold text-amber-800">
-                            <span className="px-2 py-0.5 rounded bg-amber-50 border border-amber-200">
-                              {row.pendingDemand} pcs
+                          <td className="py-3 px-4 text-center font-mono font-black text-amber-900 bg-amber-50/40">
+                            <span className={`px-2.5 py-1 rounded-md text-xs font-black border ${
+                              row.totalDemand === 0 
+                                ? 'bg-slate-100 text-slate-600 border-slate-200' 
+                                : row.pendingDemand > 0
+                                ? 'bg-amber-100 text-amber-900 border-amber-300'
+                                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                            }`}>
+                              {row.totalDemand > 0 ? `${row.pendingDemand} pcs` : '-'}
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center font-mono font-black text-emerald-900 bg-emerald-50/40">
@@ -826,6 +974,147 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
             )}
           </div>
 
+        </div>
+      )}
+
+      {/* Edit Single Demand Modal */}
+      {editDemandTarget && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-sm font-extrabold text-slate-900 uppercase flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-blue-600" />
+                Update Customer Demand Limit
+              </h3>
+              <button
+                onClick={() => setEditDemandTarget(null)}
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <span className="text-slate-500 font-bold block uppercase text-[10px]">Customer Name</span>
+                <span className="font-extrabold text-slate-900">{editDemandTarget.partyName}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 font-bold block uppercase text-[10px]">Product Description</span>
+                <span className="font-bold text-slate-800">{editDemandTarget.productName}</span>
+              </div>
+
+              <div>
+                <label className="text-slate-700 font-bold block mb-1">
+                  Total Demand Quantity (Monthly Limit in Pcs) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={newDemandValue}
+                  onChange={(e) => setNewDemandValue(e.target.value)}
+                  placeholder="Enter total demand limit"
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-mono font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200">
+              <button
+                onClick={() => setEditDemandTarget(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs cursor-pointer transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEditDemand}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-extrabold text-xs cursor-pointer transition shadow-xs"
+              >
+                Save Updated Demand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add / Update Demand Modal */}
+      {showAddDemandModal && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md overflow-hidden p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+              <h3 className="text-sm font-extrabold text-slate-900 uppercase flex items-center gap-2">
+                <Plus className="w-4 h-4 text-blue-600" />
+                Add / Set Customer Monthly Demand
+              </h3>
+              <button
+                onClick={() => setShowAddDemandModal(false)}
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold cursor-pointer"
+              >
+                &times;
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveQuickAddDemand} className="space-y-3 text-xs">
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Customer / Party *</label>
+                <select
+                  value={addDemandParty}
+                  onChange={(e) => setAddDemandParty(e.target.value)}
+                  required
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="">-- Select Customer --</option>
+                  {companyParties.map(p => (
+                    <option key={p.name} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Product / SKU *</label>
+                <select
+                  value={addDemandProduct}
+                  onChange={(e) => setAddDemandProduct(e.target.value)}
+                  required
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none cursor-pointer"
+                >
+                  <option value="">-- Select Product / SKU --</option>
+                  {companyProducts.map(p => (
+                    <option key={p.name} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="font-bold text-slate-700 block mb-1">Total Demand Quantity (Monthly Limit in Pcs) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  placeholder="e.g. 1500"
+                  value={addDemandQty}
+                  onChange={(e) => setAddDemandQty(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 font-mono font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowAddDemandModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-xs cursor-pointer transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-extrabold text-xs cursor-pointer transition shadow-xs"
+                >
+                  Save Demand Limit
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

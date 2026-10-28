@@ -126,6 +126,10 @@ import {
   syncThermocolPackingStateToFirestore,
   fetchIchOperationsWithGetDocs,
   fetchInvoicesFromIchOperations,
+  subscribeToThermocolPickLists,
+  saveThermocolPickListToFirestore,
+  deleteThermocolPickListFromFirestore,
+  fetchPickListsWithGetDocs,
   withTimeout,
   COLLECTIONS
 } from '../services/firestoreService';
@@ -228,44 +232,182 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     }
   };
 
-  const handleSavePickList = (newPL: DispatchPickList) => {
+  const handleSavePickList = async (newPL: DispatchPickList) => {
     const updated = [newPL, ...pickLists.filter(p => p.id !== newPL.id)];
     savePickLists(updated);
+    try {
+      await saveThermocolPickListToFirestore(newPL);
+    } catch (e) {
+      console.warn('Error saving pick list to Firestore:', e);
+    }
   };
 
-  const handleUpdatePickListStatus = (id: string, status: PickListStatus, loadedItems?: PickListItem[]) => {
+  const handleUpdatePickListStatus = async (id: string, status: PickListStatus, loadedItems?: PickListItem[]) => {
+    let targetPL: DispatchPickList | null = null;
     const updated = pickLists.map(pl => {
       if (pl.id === id) {
-        return {
+        targetPL = {
           ...pl,
           status,
           items: loadedItems || pl.items,
           updatedAt: new Date().toISOString()
         };
+        return targetPL;
       }
       return pl;
     });
     savePickLists(updated);
+    if (targetPL) {
+      try {
+        await saveThermocolPickListToFirestore(targetPL);
+      } catch (e) {
+        console.warn('Error updating pick list status in Firestore:', e);
+      }
+    }
   };
 
-  const handleDeletePickList = (id: string) => {
+  const handleDeletePickList = async (id: string) => {
     const updated = pickLists.filter(pl => pl.id !== id);
     savePickLists(updated);
+    try {
+      await deleteThermocolPickListFromFirestore(id);
+    } catch (e) {
+      console.warn('Error deleting pick list from Firestore:', e);
+    }
   };
 
-  const handleMarkPickListInvoiced = (id: string, invoiceNo: string) => {
+  const handleMarkPickListInvoiced = async (id: string, invoiceNo: string) => {
+    let targetPL: DispatchPickList | null = null;
     const updated = pickLists.map(pl => {
       if (pl.id === id) {
-        return {
+        targetPL = {
           ...pl,
           status: 'INVOICED' as PickListStatus,
           generatedInvoiceNo: invoiceNo,
           updatedAt: new Date().toISOString()
         };
+        return targetPL;
       }
       return pl;
     });
     savePickLists(updated);
+    if (targetPL) {
+      try {
+        await saveThermocolPickListToFirestore(targetPL);
+      } catch (e) {
+        console.warn('Error marking pick list invoiced in Firestore:', e);
+      }
+    }
+  };
+
+  const handleUpdateSingleDemand = async (partyName: string, productName: string, newLimit: number) => {
+    const normComp = selectedCompany;
+    const existingIndex = clientDemands.findIndex(
+      d => normalizeCompany(d.company) === normComp &&
+           d.partyName.trim().toLowerCase() === partyName.trim().toLowerCase() &&
+           d.productName.trim().toLowerCase() === productName.trim().toLowerCase()
+    );
+
+    let updatedList = [...clientDemands];
+    if (existingIndex !== -1) {
+      updatedList[existingIndex] = {
+        ...updatedList[existingIndex],
+        monthlyLimit: newLimit
+      };
+    } else {
+      updatedList.push({
+        id: 'dem_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+        company: normComp,
+        partyName,
+        productName,
+        monthlyLimit: newLimit
+      });
+    }
+
+    setClientDemands(updatedList);
+    persistStorage(products, parties, transporters, updatedList, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+    try {
+      await saveThermocolDemandsToFirestore(updatedList.filter(d => normalizeCompany(d.company) === normComp));
+    } catch (e) {
+      console.warn('Error saving updated demand to Firestore:', e);
+    }
+  };
+
+  const exportSampleDemandCsv = () => {
+    const csvContent = [
+      'Customer_Name,SKU_Description,Total_Demand_Qty',
+      'Abbott India Depot Indore,Standard EPS Corner Guard,1500',
+      'Abbott Healthcare Depot Dewas,Thermocol Box 15L,800',
+      'Abbott Healthcare Depot Pithampur,Coolant Gel Pack 500g,2000'
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'Sample_Client_Demands_Template.csv';
+    link.click();
+  };
+
+  const handleUploadDemandCsvDirect = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const text = e.target?.result as string;
+        if (!text) return;
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length === 0) return;
+
+        const demandMap = new Map<string, ClientDemand>();
+        clientDemands
+          .filter(d => normalizeCompany(d.company) === selectedCompany)
+          .forEach(d => {
+            const key = `${d.partyName.trim().toLowerCase()}_${d.productName.trim().toLowerCase()}`;
+            demandMap.set(key, d);
+          });
+
+        let parsedCount = 0;
+        for (const l of lines) {
+          const cols = parseCsvLine(l);
+          if (cols.length >= 3) {
+            const partyName = cols[0]?.replace(/"/g, '').trim();
+            const productName = cols[1]?.replace(/"/g, '').trim();
+            const rawLimitStr = cols[2]?.replace(/"/g, '').replace(/[^0-9]/g, '').trim();
+
+            if (!partyName || !productName) continue;
+            const pLower = partyName.toLowerCase();
+            const prodLower = productName.toLowerCase();
+            if (pLower.includes('customer') || pLower.includes('party') || prodLower.includes('sku') || prodLower.includes('product')) {
+              continue;
+            }
+
+            const limit = rawLimitStr !== '' ? (parseInt(rawLimitStr, 10) || 0) : 1000;
+            const key = `${pLower}_${prodLower}`;
+            demandMap.set(key, {
+              id: demandMap.get(key)?.id || ('dem_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
+              company: selectedCompany,
+              partyName,
+              productName,
+              monthlyLimit: limit
+            });
+            parsedCount++;
+          }
+        }
+
+        const companyUpdatedDemands = Array.from(demandMap.values());
+        await saveThermocolDemandsToFirestore(companyUpdatedDemands);
+
+        const otherCompaniesDemands = clientDemands.filter(d => normalizeCompany(d.company) !== selectedCompany);
+        const updated = [...companyUpdatedDemands, ...otherCompaniesDemands];
+        setClientDemands(updated);
+        persistStorage(products, parties, transporters, updated, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
+        setCsvStatusMsg({ text: `Uploaded & updated ${parsedCount} demands from CSV successfully!`, isError: false });
+      } catch (err: any) {
+        console.error('Demand CSV upload error:', err);
+        setCsvStatusMsg({ text: `Failed to parse demand CSV: ${err.message || 'Check CSV format'}`, isError: true });
+      }
+    };
+    reader.readAsText(file);
   };
   const [invoiceSeqAIL, setInvoiceSeqAIL] = useState<number>(406);
   const [invoiceSeqHPL, setInvoiceSeqHPL] = useState<number>(7);
@@ -375,9 +517,10 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
     const fetchExistingIchOperations = async () => {
       try {
         console.log('[Firestore Startup] Explicit getDocs fetching ich_operations in PackingMaterialView...');
-        const [res, directInvoices] = await Promise.all([
+        const [res, directInvoices, fetchedPickLists] = await Promise.all([
           fetchIchOperationsWithGetDocs(),
-          fetchInvoicesFromIchOperations()
+          fetchInvoicesFromIchOperations(),
+          fetchPickListsWithGetDocs()
         ]);
         if (!isMounted) return;
 
@@ -418,6 +561,9 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
         }
         if (res.demands && res.demands.length > 0) {
           setClientDemands(res.demands);
+        }
+        if (fetchedPickLists && fetchedPickLists.length > 0) {
+          setPickLists(fetchedPickLists);
         }
       } catch (err) {
         console.warn('[Firestore Startup] Error fetching ich_operations via getDocs in PackingMaterialView:', err);
@@ -492,6 +638,12 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       }
     });
 
+    const unsubPickLists = subscribeToThermocolPickLists((data) => {
+      if (data) {
+        setPickLists(data);
+      }
+    });
+
     const unsubSeqs = subscribeToThermocolSequences((seq) => {
       if (seq) {
         if (seq.seqAIL !== undefined) setInvoiceSeqAIL(seq.seqAIL);
@@ -515,6 +667,7 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
       unsubTrans();
       unsubDemands();
       unsubAudits();
+      unsubPickLists();
       unsubSeqs();
       unsubCompanyConfig();
     };
@@ -3204,42 +3357,59 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
           persistStorage(products, parties, updated, clientDemands, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
           setCsvStatusMsg({ text: `Imported & synced ${uniqueAdded.length} unique Transporters from CSV successfully!`, isError: false });
         } else if (csvType === 'demand') {
-          const addedDemands: ClientDemand[] = [];
+          const demandMap = new Map<string, ClientDemand>();
+          clientDemands
+            .filter(d => normalizeCompany(d.company) === selectedCompany)
+            .forEach(d => {
+              const key = `${d.partyName.trim().toLowerCase()}_${d.productName.trim().toLowerCase()}`;
+              demandMap.set(key, d);
+            });
+
           for (const l of dataRows) {
-            const cols = l.split(',');
+            const cols = parseCsvLine(l);
             if (cols.length >= 3) {
               const partyName = cols[0]?.replace(/"/g, '').trim();
               const productName = cols[1]?.replace(/"/g, '').trim();
-              const limit = parseInt(cols[2]) || 1000;
-              if (partyName && productName) {
-                addedDemands.push({
-                  id: 'dem_' + Date.now() + Math.random().toString(36).substring(2, 5),
-                  company: selectedCompany,
-                  partyName,
-                  productName,
-                  monthlyLimit: limit
-                });
-                count++;
+              const rawLimitStr = cols[2]?.replace(/"/g, '').replace(/[^0-9]/g, '').trim();
+
+              if (!partyName || !productName) continue;
+
+              const pLower = partyName.toLowerCase();
+              const prodLower = productName.toLowerCase();
+              if (
+                pLower.includes('customer') || 
+                pLower.includes('party') || 
+                prodLower.includes('sku') || 
+                prodLower.includes('product')
+              ) {
+                continue;
               }
+
+              const limit = rawLimitStr !== '' ? (parseInt(rawLimitStr, 10) || 0) : 1000;
+              const key = `${pLower}_${prodLower}`;
+
+              demandMap.set(key, {
+                id: demandMap.get(key)?.id || ('dem_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6)),
+                company: selectedCompany,
+                partyName,
+                productName,
+                monthlyLimit: limit
+              });
+              count++;
             }
           }
-          const uniqueMap = new Map<string, ClientDemand>();
-          addedDemands.forEach(d => {
-            if (d.partyName && d.productName) {
-              const key = `${d.partyName.trim().toLowerCase()}_${d.productName.trim().toLowerCase()}`;
-              if (!uniqueMap.has(key)) uniqueMap.set(key, d);
-            }
-          });
-          const uniqueAdded = Array.from(uniqueMap.values());
-          
-          // 4. Await direct Firestore bulk save for Demands
-          await saveThermocolDemandsToFirestore(uniqueAdded);
 
-          const remainingOtherCompanies = clientDemands.filter(d => normalizeCompany(d.company) !== selectedCompany);
-          const updated = [...uniqueAdded, ...remainingOtherCompanies];
+          const companyUpdatedDemands = Array.from(demandMap.values());
+          await saveThermocolDemandsToFirestore(companyUpdatedDemands);
+
+          const otherCompaniesDemands = clientDemands.filter(d => normalizeCompany(d.company) !== selectedCompany);
+          const updated = [...companyUpdatedDemands, ...otherCompaniesDemands];
           setClientDemands(updated);
           persistStorage(products, parties, transporters, updated, inwards, invoices, invoiceSeqAIL, invoiceSeqHPL, invoiceAudits);
-          setCsvStatusMsg({ text: `Imported & synced ${uniqueAdded.length} unique Client Demands successfully!`, isError: false });
+          setCsvStatusMsg({ 
+            text: `Imported & synced ${companyUpdatedDemands.length} Client Demands for ${selectedCompany === 'HPL' ? 'AHPL' : 'AIL'} successfully!`, 
+            isError: false 
+          });
         } else if (csvType === 'inward') {
           const addedInw: ThermocolInward[] = [];
           for (const l of dataRows) {
@@ -3502,6 +3672,9 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
             onSavePickList={handleSavePickList}
             onUpdatePickListStatus={handleUpdatePickListStatus}
             onDeletePickList={handleDeletePickList}
+            onUpdateDemand={handleUpdateSingleDemand}
+            onUploadDemandCsv={handleUploadDemandCsvDirect}
+            onDownloadSampleDemandCsv={exportSampleDemandCsv}
             onRequestDeletePin={(title, desc, comp, action) => {
               setActiveDeleteModal({
                 title,
