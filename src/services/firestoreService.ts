@@ -2280,25 +2280,87 @@ export const subscribeToThermocolPickLists = (
   callback: (pickLists: DispatchPickList[]) => void,
   onError?: (err: any) => void
 ) => {
-  const colRef = collection(db, COLLECTIONS.TH_PICKLISTS);
-  return onSnapshot(
-    colRef,
+  const colRefMain = collection(db, COLLECTIONS.TH_PICKLISTS);
+  const colRefPacking = collection(db, COLLECTIONS.PACKING_PICKLISTS);
+  const colRefOps = collection(db, COLLECTIONS.OPERATIONS);
+
+  let mainList: DispatchPickList[] = [];
+  let packingList: DispatchPickList[] = [];
+  let opsList: DispatchPickList[] = [];
+
+  const emitMerged = () => {
+    const map = new Map<string, DispatchPickList>();
+    [...packingList, ...opsList, ...mainList].forEach((pl) => {
+      if (pl && (pl.pickListNo || pl.id)) {
+        const key = pl.id || pl.pickListNo;
+        map.set(key, pl);
+      }
+    });
+    const result = Array.from(map.values());
+    result.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    callback(result);
+  };
+
+  const unsubMain = onSnapshot(
+    colRefMain,
     (snapshot) => {
-      const pickLists: DispatchPickList[] = [];
+      const list: DispatchPickList[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() as DispatchPickList;
-        if (data && data.pickListNo) {
-          pickLists.push(data);
+        if (data && (data.pickListNo || data.id)) {
+          list.push({ ...data, id: data.id || docSnap.id });
         }
       });
-      pickLists.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-      callback(pickLists);
+      mainList = list;
+      emitMerged();
     },
     (err) => {
-      console.warn('[Firestore] Pick lists subscription error:', err);
+      console.warn('[Firestore] Pick lists main subscription error:', err);
       if (onError) onError(err);
     }
   );
+
+  const unsubPacking = onSnapshot(
+    colRefPacking,
+    (snapshot) => {
+      const list: DispatchPickList[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as DispatchPickList;
+        if (data && (data.pickListNo || data.id)) {
+          list.push({ ...data, id: data.id || docSnap.id });
+        }
+      });
+      packingList = list;
+      emitMerged();
+    },
+    (err) => {
+      console.warn('[Firestore] Pick lists packing subscription error:', err);
+    }
+  );
+
+  const unsubOps = onSnapshot(
+    colRefOps,
+    (snapshot) => {
+      const list: DispatchPickList[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (data && (data.type === 'PICKLIST' || data.pickListNo) && data.items) {
+          list.push({ ...data as DispatchPickList, id: data.id || docSnap.id });
+        }
+      });
+      opsList = list;
+      emitMerged();
+    },
+    (err) => {
+      console.warn('[Firestore] Pick lists ops subscription error:', err);
+    }
+  );
+
+  return () => {
+    unsubMain();
+    unsubPacking();
+    unsubOps();
+  };
 };
 
 export const saveThermocolPickListToFirestore = async (pickList: DispatchPickList): Promise<void> => {
@@ -2308,6 +2370,7 @@ export const saveThermocolPickListToFirestore = async (pickList: DispatchPickLis
   const cleanPayload = deepSanitizeForFirestore({
     ...pickList,
     id: safeId,
+    type: 'PICKLIST',
     updatedAt: nowIso
   });
 
@@ -2315,9 +2378,10 @@ export const saveThermocolPickListToFirestore = async (pickList: DispatchPickLis
     const batch = writeBatch(db);
     batch.set(doc(db, COLLECTIONS.TH_PICKLISTS, safeId), cleanPayload, { merge: true });
     batch.set(doc(db, COLLECTIONS.PACKING_PICKLISTS, safeId), cleanPayload, { merge: true });
+    batch.set(doc(db, COLLECTIONS.OPERATIONS, `PL_${safeId}`), cleanPayload, { merge: true });
     batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, `pl_${safeId}`), cleanPayload, { merge: true });
     await batch.commit();
-    console.log(`[Firestore Sync] Saved Pick List ${pickList.pickListNo} to Firestore.`);
+    console.log(`[Firestore Sync] Saved Pick List ${pickList.pickListNo} to Firestore (collections: th_picklists, packing_picklists, ich_operations).`);
   } catch (err: any) {
     handleFirestoreError(err, OperationType.WRITE, COLLECTIONS.TH_PICKLISTS);
     throw err;
@@ -2330,6 +2394,8 @@ export const deleteThermocolPickListFromFirestore = async (pickListId: string): 
     const batch = writeBatch(db);
     batch.delete(doc(db, COLLECTIONS.TH_PICKLISTS, safeId));
     batch.delete(doc(db, COLLECTIONS.PACKING_PICKLISTS, safeId));
+    batch.delete(doc(db, COLLECTIONS.OPERATIONS, `PL_${safeId}`));
+    batch.delete(doc(db, COLLECTIONS.OPERATIONS, safeId));
     batch.delete(doc(db, COLLECTIONS.THERMOCOL_PACKING, `pl_${safeId}`));
     await batch.commit();
     console.log(`[Firestore Sync] Deleted Pick List ${pickListId} from Firestore.`);
@@ -2341,12 +2407,27 @@ export const deleteThermocolPickListFromFirestore = async (pickListId: string): 
 
 export const fetchPickListsWithGetDocs = async (): Promise<DispatchPickList[]> => {
   try {
-    const snap = await getDocs(collection(db, COLLECTIONS.TH_PICKLISTS));
-    const list: DispatchPickList[] = [];
-    snap.forEach(docSnap => {
+    const [snapMain, snapPacking, snapOps] = await Promise.all([
+      getDocs(collection(db, COLLECTIONS.TH_PICKLISTS)),
+      getDocs(collection(db, COLLECTIONS.PACKING_PICKLISTS)),
+      getDocs(collection(db, COLLECTIONS.OPERATIONS))
+    ]);
+    const map = new Map<string, DispatchPickList>();
+    snapPacking.forEach(docSnap => {
       const d = docSnap.data() as DispatchPickList;
-      if (d && d.pickListNo) list.push(d);
+      if (d && (d.pickListNo || d.id)) map.set(d.id || d.pickListNo, { ...d, id: d.id || docSnap.id });
     });
+    snapOps.forEach(docSnap => {
+      const d = docSnap.data();
+      if (d && (d.type === 'PICKLIST' || d.pickListNo) && d.items) {
+        map.set(d.id || d.pickListNo, { ...d as DispatchPickList, id: d.id || docSnap.id });
+      }
+    });
+    snapMain.forEach(docSnap => {
+      const d = docSnap.data() as DispatchPickList;
+      if (d && (d.pickListNo || d.id)) map.set(d.id || d.pickListNo, { ...d, id: d.id || docSnap.id });
+    });
+    const list = Array.from(map.values());
     list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     return list;
   } catch (err) {

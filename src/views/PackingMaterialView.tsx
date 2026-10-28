@@ -213,38 +213,22 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   const [inwards, setInwards] = useState<ThermocolInward[]>([]);
   const [invoices, setInvoices] = useState<ThermocolInvoice[]>([]);
 
-  // Pre-Planning Pick Lists State
-  const [pickLists, setPickLists] = useState<DispatchPickList[]>(() => {
-    try {
-      const saved = localStorage.getItem('thermocol_pick_lists');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const savePickLists = (newPickLists: DispatchPickList[]) => {
-    setPickLists(newPickLists);
-    try {
-      localStorage.setItem('thermocol_pick_lists', JSON.stringify(newPickLists));
-    } catch (e) {
-      console.warn('Failed saving pick lists to localStorage:', e);
-    }
-  };
+  // Pre-Planning Pick Lists State (100% Cloud Synced via Firebase Real-Time Firestore)
+  const [pickLists, setPickLists] = useState<DispatchPickList[]>([]);
 
   const handleSavePickList = async (newPL: DispatchPickList) => {
-    const updated = [newPL, ...pickLists.filter(p => p.id !== newPL.id)];
-    savePickLists(updated);
+    setPickLists(prev => [newPL, ...prev.filter(p => p.id !== newPL.id)]);
     try {
       await saveThermocolPickListToFirestore(newPL);
+      console.log('[Firestore Success] Pick list saved to cloud:', newPL.pickListNo);
     } catch (e) {
-      console.warn('Error saving pick list to Firestore:', e);
+      console.warn('Error saving pick list to Firestore cloud:', e);
     }
   };
 
   const handleUpdatePickListStatus = async (id: string, status: PickListStatus, loadedItems?: PickListItem[]) => {
     let targetPL: DispatchPickList | null = null;
-    const updated = pickLists.map(pl => {
+    setPickLists(prev => prev.map(pl => {
       if (pl.id === id) {
         targetPL = {
           ...pl,
@@ -255,30 +239,30 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
         return targetPL;
       }
       return pl;
-    });
-    savePickLists(updated);
+    }));
     if (targetPL) {
       try {
         await saveThermocolPickListToFirestore(targetPL);
+        console.log('[Firestore Success] Updated pick list status in cloud:', (targetPL as DispatchPickList).pickListNo);
       } catch (e) {
-        console.warn('Error updating pick list status in Firestore:', e);
+        console.warn('Error updating pick list status in Firestore cloud:', e);
       }
     }
   };
 
   const handleDeletePickList = async (id: string) => {
-    const updated = pickLists.filter(pl => pl.id !== id);
-    savePickLists(updated);
+    setPickLists(prev => prev.filter(pl => pl.id !== id));
     try {
       await deleteThermocolPickListFromFirestore(id);
+      console.log('[Firestore Success] Deleted pick list from cloud:', id);
     } catch (e) {
-      console.warn('Error deleting pick list from Firestore:', e);
+      console.warn('Error deleting pick list from Firestore cloud:', e);
     }
   };
 
   const handleMarkPickListInvoiced = async (id: string, invoiceNo: string) => {
     let targetPL: DispatchPickList | null = null;
-    const updated = pickLists.map(pl => {
+    setPickLists(prev => prev.map(pl => {
       if (pl.id === id) {
         targetPL = {
           ...pl,
@@ -289,13 +273,13 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
         return targetPL;
       }
       return pl;
-    });
-    savePickLists(updated);
+    }));
     if (targetPL) {
       try {
         await saveThermocolPickListToFirestore(targetPL);
+        console.log('[Firestore Success] Marked pick list INVOICED in cloud:', (targetPL as DispatchPickList).pickListNo);
       } catch (e) {
-        console.warn('Error marking pick list invoiced in Firestore:', e);
+        console.warn('Error marking pick list invoiced in Firestore cloud:', e);
       }
     }
   };
