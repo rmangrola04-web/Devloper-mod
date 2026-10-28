@@ -27,8 +27,22 @@ export const downloadPickListHtmlHelper = (pickList: DispatchPickList, sender?: 
   <style>
     @media print {
       @page { size: A4 portrait; margin: 10mm; }
-      body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-      tr { page-break-inside: avoid; }
+      html, body {
+        width: 210mm !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        color: black !important;
+        font-size: 10px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      table { width: 100% !important; border-collapse: collapse !important; font-size: 9.5px !important; }
+      tr { page-break-inside: avoid !important; }
+      thead { display: table-header-group !important; }
+      tfoot { display: table-footer-group !important; }
+      th, td { padding: 4px 6px !important; }
     }
   </style>
 </head>
@@ -174,13 +188,18 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
             size: A4 portrait;
             margin: 10mm;
           }
-          body {
-            background: white !important;
-            color: black !important;
+          html, body {
+            width: 210mm !important;
+            height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
+            background: white !important;
+            color: black !important;
+            font-size: 10px !important;
+            line-height: 1.3 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
+            overflow: visible !important;
           }
           /* Hide screen UI elements */
           .print\\:hidden {
@@ -194,24 +213,40 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
             border: none !important;
             width: 100% !important;
             max-width: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+          }
+          table {
+            width: 100% !important;
+            border-collapse: collapse !important;
+            page-break-inside: auto !important;
+            font-size: 9.5px !important;
           }
           tr {
-            page-break-inside: avoid;
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
           }
           thead {
-            display: table-header-group;
+            display: table-header-group !important;
           }
           tfoot {
-            display: table-footer-group;
+            display: table-footer-group !important;
+          }
+          th, td {
+            padding: 4px 6px !important;
+            border-color: #cbd5e1 !important;
+          }
+          .no-break {
+            page-break-inside: avoid !important;
           }
         }
       `}</style>
 
       {/* Modal Container */}
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl overflow-hidden my-8 print:modal-container">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl overflow-hidden my-auto max-h-[90vh] flex flex-col print:modal-container print:max-h-none print:my-0">
         
-        {/* Top Screen Toolbar - Hidden during print */}
-        <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between print:hidden">
+        {/* Sticky Top Screen Toolbar - Fixed at top, hidden during print */}
+        <div className="sticky top-0 z-20 bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3 shrink-0 shadow-md border-b border-slate-800 print:hidden">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-600/30 rounded-lg text-blue-400 border border-blue-500/30">
               <FileSpreadsheet className="w-5 h-5" />
@@ -254,8 +289,8 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
           </div>
         </div>
 
-        {/* Printable A4 Document Body */}
-        <div className="p-8 print:p-4 bg-white text-slate-900 text-xs font-sans space-y-6">
+        {/* Printable A4 Document Body - Internal Scrollable Container on Screen */}
+        <div className="p-8 print:p-4 bg-white text-slate-900 text-xs font-sans space-y-6 overflow-y-auto max-h-[calc(90vh-80px)] print:max-h-none print:overflow-visible">
           
           {/* Document Header */}
           <div className="border-b-2 border-slate-800 pb-4 flex items-start justify-between">
