@@ -9,33 +9,15 @@ interface PickListDocModalProps {
   onClose: () => void;
 }
 
-export const PickListDocModal: React.FC<PickListDocModalProps> = ({
-  pickList,
-  sender,
-  onClose
-}) => {
-  if (!pickList) return null;
-
+export const downloadPickListHtmlHelper = (pickList: DispatchPickList, sender?: SenderConfig) => {
+  if (!pickList) return;
   const compConfig = pickList.company === 'HPL' ? COMPANY_CONFIGS.HPL : COMPANY_CONFIGS.AIL;
   const activeSender = sender?.name ? sender : compConfig.defaultSender;
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const totalLoadedQty = pickList.items.reduce((s, it) => s + (it.loadedQty ?? it.plannedQty), 0);
-  const totalLoadedCases = pickList.items.reduce((s, it) => {
-    const mult = it.packSizeMultiple || 1;
-    const qty = it.loadedQty ?? it.plannedQty;
-    return s + (mult > 0 ? Math.ceil(qty / mult) : 0);
-  }, 0);
-
   const totalPlannedCases = pickList.items.reduce((s, it) => s + (it.plannedCases || 0), 0);
 
-  const handleDownloadHtml = () => {
-    if (!pickList) return;
-
-    const htmlContent = `<!DOCTYPE html>
+  const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -147,13 +129,40 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
 </body>
 </html>`;
 
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${pickList.pickListNo.replace(/[^a-zA-Z0-9_-]/g, '_')}_Document.html`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${pickList.pickListNo.replace(/[^a-zA-Z0-9_-]/g, '_')}_Document.html`;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+export const PickListDocModal: React.FC<PickListDocModalProps> = ({
+  pickList,
+  sender,
+  onClose
+}) => {
+  if (!pickList) return null;
+
+  const compConfig = pickList.company === 'HPL' ? COMPANY_CONFIGS.HPL : COMPANY_CONFIGS.AIL;
+  const activeSender = sender?.name ? sender : compConfig.defaultSender;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const totalLoadedQty = pickList.items.reduce((s, it) => s + (it.loadedQty ?? it.plannedQty), 0);
+  const totalLoadedCases = pickList.items.reduce((s, it) => {
+    const mult = it.packSizeMultiple || 1;
+    const qty = it.loadedQty ?? it.plannedQty;
+    return s + (mult > 0 ? Math.ceil(qty / mult) : 0);
+  }, 0);
+
+  const totalPlannedCases = pickList.items.reduce((s, it) => s + (it.plannedCases || 0), 0);
+
+  const handleDownloadHtml = () => {
+    downloadPickListHtmlHelper(pickList, sender);
   };
 
   return (

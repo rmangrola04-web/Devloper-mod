@@ -50,7 +50,7 @@ import {
   DEFAULT_SENDER,
   DEFAULT_HPL_SENDER
 } from './utils';
-import { PickListDocModal } from './PickListDocModal';
+import { PickListDocModal, downloadPickListHtmlHelper } from './PickListDocModal';
 import { saveThermocolPickListToFirestore, deleteThermocolPickListFromFirestore } from '../../services/firestoreService';
 
 interface DispatchPickListViewProps {
@@ -923,13 +923,24 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                           <td className="py-3 px-4 text-center">
                             <div className="flex items-center justify-center space-x-2">
                               
+                              {/* Download HTML Button */}
+                              <button
+                                onClick={() => downloadPickListHtmlHelper(pl, sender)}
+                                title="Download Standalone HTML Document"
+                                className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg transition cursor-pointer border border-blue-200 flex items-center gap-1 text-[11px] font-bold"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">HTML</span>
+                              </button>
+
                               {/* Print Pick List Button */}
                               <button
                                 onClick={() => setDocModalPickList(pl)}
                                 title="Print Formal Pick List Document"
-                                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer"
+                                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition cursor-pointer flex items-center gap-1 text-[11px] font-bold"
                               >
-                                <Printer className="w-4 h-4" />
+                                <Printer className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Print</span>
                               </button>
 
                               {/* Go-Down Verify Loaded Quantities */}
