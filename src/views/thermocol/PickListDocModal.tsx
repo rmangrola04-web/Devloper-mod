@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Printer, CheckCircle2, Truck, Box, Scale, Layers, AlertCircle, Building2, MapPin, Calendar, FileSpreadsheet } from 'lucide-react';
+import { X, Printer, Download, CheckCircle2, Truck, Box, Scale, Layers, AlertCircle, Building2, MapPin, Calendar, FileSpreadsheet } from 'lucide-react';
 import { DispatchPickList, SenderConfig } from './types';
 import { DEFAULT_SENDER, DEFAULT_HPL_SENDER, COMPANY_CONFIGS } from './utils';
 
@@ -32,10 +32,174 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
 
   const totalPlannedCases = pickList.items.reduce((s, it) => s + (it.plannedCases || 0), 0);
 
+  const handleDownloadHtml = () => {
+    if (!pickList) return;
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pick List Document - ${pickList.pickListNo}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @media print {
+      @page { size: A4 portrait; margin: 10mm; }
+      body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+      tr { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 p-6 font-sans text-slate-900">
+  <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+    <!-- Document Header -->
+    <div class="border-b-2 border-slate-800 pb-4 flex justify-between items-start">
+      <div class="space-y-1">
+        <h1 class="text-xl font-black text-slate-900 uppercase">${activeSender.name}</h1>
+        <p class="text-xs text-slate-600 leading-relaxed font-medium">${activeSender.address}</p>
+        <p class="text-xs font-mono pt-1">GSTIN: <strong>${activeSender.gstin}</strong> ${activeSender.pan ? `| PAN: <strong>${activeSender.pan}</strong>` : ''} ${activeSender.contact ? `| Tel: ${activeSender.contact}` : ''}</p>
+      </div>
+      <div class="text-right space-y-1 min-w-[200px]">
+        <div class="inline-block px-3 py-1 bg-slate-900 text-white text-xs font-black rounded uppercase tracking-wider">GO-DOWN PICK LIST</div>
+        <div class="text-base font-black text-slate-900 font-mono mt-1">${pickList.pickListNo}</div>
+        <div class="text-xs text-slate-500">Date: <strong>${pickList.date}</strong> | Hub: <strong class="uppercase text-blue-800">${pickList.city}</strong></div>
+      </div>
+    </div>
+
+    <!-- Metadata Grid -->
+    <div class="grid grid-cols-4 gap-3 bg-slate-50 p-3 rounded-lg border border-slate-200 my-4 text-xs">
+      <div><span class="text-slate-500 font-bold block text-[10px] uppercase">Destination</span><strong>${pickList.city}</strong></div>
+      <div><span class="text-slate-500 font-bold block text-[10px] uppercase">Transporter</span><strong>${pickList.transporterName || 'Direct Loading'}</strong></div>
+      <div><span class="text-slate-500 font-bold block text-[10px] uppercase">Vehicle No</span><strong class="font-mono">${pickList.vehicleNo || 'TBD'}</strong></div>
+      <div><span class="text-slate-500 font-bold block text-[10px] uppercase">Status</span><strong>${pickList.status.replace(/_/g, ' ')}</strong></div>
+    </div>
+
+    <!-- Summary KPIs -->
+    <div class="grid grid-cols-5 gap-3 text-center my-4 text-xs font-bold">
+      <div class="p-2 bg-blue-50 border border-blue-200 rounded">Total SKUs: <span class="text-blue-900 font-extrabold">${pickList.items.length}</span></div>
+      <div class="p-2 bg-slate-100 border border-slate-200 rounded">Cases: <span class="text-slate-900 font-extrabold">${totalPlannedCases}</span></div>
+      <div class="p-2 bg-indigo-50 border border-indigo-200 rounded">Planned Qty: <span class="text-indigo-900 font-extrabold">${pickList.totalPlannedQty} pcs</span></div>
+      <div class="p-2 bg-amber-50 border border-amber-200 rounded">Weight: <span class="text-amber-900 font-extrabold">${pickList.totalWeightKg} kg</span></div>
+      <div class="p-2 bg-emerald-50 border border-emerald-200 rounded">Volume: <span class="text-emerald-900 font-extrabold">${pickList.totalCft} CFT</span></div>
+    </div>
+
+    <!-- Items Table -->
+    <table class="w-full text-left border-collapse border border-slate-300 my-4 text-xs">
+      <thead>
+        <tr class="bg-slate-900 text-white font-bold uppercase text-[10px] tracking-wider">
+          <th class="p-2 border border-slate-700 text-center w-10">S.No</th>
+          <th class="p-2 border border-slate-700">Customer Name</th>
+          <th class="p-2 border border-slate-700">Material Description</th>
+          <th class="p-2 border border-slate-700 text-center">Pack Size</th>
+          <th class="p-2 border border-slate-700 text-right">Planned Cases</th>
+          <th class="p-2 border border-slate-700 text-right">Planned Qty</th>
+          <th class="p-2 border border-slate-700 text-right">Actual Loaded</th>
+          <th class="p-2 border border-slate-700 text-center">Batch</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-200 font-medium">
+        ${pickList.items.map((item, idx) => `
+          <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}">
+            <td class="p-2 border border-slate-200 text-center font-mono text-slate-500">${idx + 1}</td>
+            <td class="p-2 border border-slate-200 font-semibold text-slate-900">${item.partyName}</td>
+            <td class="p-2 border border-slate-200 font-bold">${item.productName}</td>
+            <td class="p-2 border border-slate-200 text-center font-mono">${item.packSize || '-'}</td>
+            <td class="p-2 border border-slate-200 text-right font-mono font-bold text-blue-900">${item.plannedCases}</td>
+            <td class="p-2 border border-slate-200 text-right font-mono font-black text-blue-950">${item.plannedQty} pcs</td>
+            <td class="p-2 border border-slate-200 text-right font-mono font-black text-emerald-900">${item.loadedQty !== undefined ? item.loadedQty + ' pcs' : '[ ___ pcs ]'}</td>
+            <td class="p-2 border border-slate-200 text-center font-mono">${item.batch || 'DEFAULT'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+      <tfoot>
+        <tr class="bg-slate-900 text-white font-bold text-xs">
+          <td colspan="4" class="p-2 text-right uppercase">Total Pre-Planned Manifest Quantities:</td>
+          <td class="p-2 text-right font-mono text-blue-300">${totalPlannedCases}</td>
+          <td class="p-2 text-right font-mono text-blue-300">${pickList.totalPlannedQty} pcs</td>
+          <td class="p-2 text-right font-mono text-emerald-400">${totalLoadedQty} pcs</td>
+          <td class="p-2 text-center text-[10px] font-mono">Vol: ${pickList.totalCft} CFT</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- Operational Instructions -->
+    <div class="bg-amber-50 border border-amber-200 p-3 rounded-lg text-[11px] text-amber-900 my-4">
+      <strong>Go-Down Physical Verification Instructions:</strong>
+      <ul class="list-disc list-inside space-y-0.5 text-slate-700 mt-1">
+        <li>Inspect item condition, outer thermocol box seal, and coolant gel temperature prior to truck loading.</li>
+        <li>Record actual physical loaded cases/quantities. Any deviation must be immediately flagged to Dispatch Supervisor.</li>
+        <li>Obtain driver signature on physical handover completion before releasing transport vehicle.</li>
+      </ul>
+    </div>
+
+    <!-- Signatures -->
+    <div class="pt-6 grid grid-cols-4 gap-4 text-center text-[10px] font-bold text-slate-700 mt-8">
+      <div class="border-t border-slate-400 pt-2">Go-Down Operator</div>
+      <div class="border-t border-slate-400 pt-2">Go-Down Supervisor</div>
+      <div class="border-t border-slate-400 pt-2">Transporter Driver</div>
+      <div class="border-t border-slate-400 pt-2">Dispatch Officer</div>
+    </div>
+
+    <div class="pt-4 border-t border-slate-200 text-center text-[9px] text-slate-400 font-mono mt-6">
+      Generated via SAP-Style WMS Traceability Engine | Ref: ${pickList.pickListNo}
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${pickList.pickListNo.replace(/[^a-zA-Z0-9_-]/g, '_')}_Document.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:inset-auto">
+      {/* Strict Print CSS for A4 Formatting */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 10mm;
+          }
+          body {
+            background: white !important;
+            color: black !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          /* Hide screen UI elements */
+          .print\\:hidden {
+            display: none !important;
+          }
+          /* Expand preview container for full A4 sheet */
+          .print\\:modal-container {
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+            width: 100% !important;
+            max-width: none !important;
+          }
+          tr {
+            page-break-inside: avoid;
+          }
+          thead {
+            display: table-header-group;
+          }
+          tfoot {
+            display: table-footer-group;
+          }
+        }
+      `}</style>
+
       {/* Modal Container */}
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl overflow-hidden my-8 print:my-0 print:border-none print:shadow-none print:w-full print:max-w-none">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-5xl overflow-hidden my-8 print:modal-container">
         
         {/* Top Screen Toolbar - Hidden during print */}
         <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between print:hidden">
@@ -57,7 +221,16 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
           </div>
           <div className="flex items-center space-x-3">
             <button
+              onClick={handleDownloadHtml}
+              title="Download standalone HTML document"
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-blue-900/30 cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              Download HTML
+            </button>
+            <button
               onClick={handlePrint}
+              title="Print formal A4 Pick List document"
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-emerald-900/30 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
@@ -73,7 +246,7 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
         </div>
 
         {/* Printable A4 Document Body */}
-        <div className="p-8 print:p-6 bg-white text-slate-900 text-xs font-sans space-y-6">
+        <div className="p-8 print:p-4 bg-white text-slate-900 text-xs font-sans space-y-6">
           
           {/* Document Header */}
           <div className="border-b-2 border-slate-800 pb-4 flex items-start justify-between">
