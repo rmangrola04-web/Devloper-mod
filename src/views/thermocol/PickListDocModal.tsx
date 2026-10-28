@@ -28,21 +28,29 @@ export const downloadPickListHtmlHelper = (pickList: DispatchPickList, sender?: 
     @media print {
       @page { size: A4 portrait; margin: 10mm; }
       html, body {
-        width: 210mm !important;
+        width: 100% !important;
         height: auto !important;
         margin: 0 !important;
         padding: 0 !important;
         background: white !important;
         color: black !important;
-        font-size: 10px !important;
+        font-size: 11px !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      table { width: 100% !important; border-collapse: collapse !important; font-size: 9.5px !important; }
+      .max-w-4xl {
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      table { width: 100% !important; min-width: 100% !important; border-collapse: collapse !important; font-size: 10.5px !important; }
       tr { page-break-inside: avoid !important; }
       thead { display: table-header-group !important; }
       tfoot { display: table-footer-group !important; }
-      th, td { padding: 4px 6px !important; }
+      th, td { padding: 6px 8px !important; }
     }
   </style>
 </head>
@@ -181,7 +189,7 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 print:p-0 print:bg-white print:static print:inset-auto">
-      {/* Strict Print CSS for A4 Formatting */}
+      {/* Strict Print CSS for Full A4 Page Coverage */}
       <style>{`
         @media print {
           @page {
@@ -189,14 +197,16 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
             margin: 10mm;
           }
           html, body {
-            width: 210mm !important;
+            width: 100% !important;
+            min-width: 100% !important;
+            max-width: 100% !important;
             height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             background: white !important;
             color: black !important;
-            font-size: 10px !important;
-            line-height: 1.3 !important;
+            font-size: 11px !important;
+            line-height: 1.4 !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             overflow: visible !important;
@@ -205,22 +215,30 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
           .print\\:hidden {
             display: none !important;
           }
-          /* Expand preview container for full A4 sheet */
+          /* Stretch preview container to 100% full A4 canvas width */
           .print\\:modal-container {
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
             border: none !important;
             width: 100% !important;
-            max-width: none !important;
+            max-width: 100% !important;
             max-height: none !important;
             overflow: visible !important;
           }
+          /* Full A4 Width Document Body */
+          .print\\:doc-body {
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          /* Expand Table & Padding to fill A4 sheet cleanly */
           table {
             width: 100% !important;
+            min-width: 100% !important;
             border-collapse: collapse !important;
             page-break-inside: auto !important;
-            font-size: 9.5px !important;
+            font-size: 10.5px !important;
           }
           tr {
             page-break-inside: avoid !important;
@@ -233,7 +251,7 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
             display: table-footer-group !important;
           }
           th, td {
-            padding: 4px 6px !important;
+            padding: 6px 8px !important;
             border-color: #cbd5e1 !important;
           }
           .no-break {
@@ -289,8 +307,8 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
           </div>
         </div>
 
-        {/* Printable A4 Document Body - Internal Scrollable Container on Screen */}
-        <div className="p-8 print:p-4 bg-white text-slate-900 text-xs font-sans space-y-6 overflow-y-auto max-h-[calc(90vh-80px)] print:max-h-none print:overflow-visible">
+        {/* Printable A4 Document Body - Stretches 100% full width in print mode */}
+        <div className="p-8 print:p-0 print:doc-body bg-white text-slate-900 text-xs font-sans space-y-6 overflow-y-auto max-h-[calc(90vh-80px)] print:max-h-none print:overflow-visible print:w-full print:max-w-none">
           
           {/* Document Header */}
           <div className="border-b-2 border-slate-800 pb-4 flex items-start justify-between">
