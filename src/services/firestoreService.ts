@@ -2292,7 +2292,7 @@ export const subscribeToThermocolPickLists = (
     const map = new Map<string, DispatchPickList>();
     [...packingList, ...opsList, ...mainList].forEach((pl) => {
       if (pl && (pl.pickListNo || pl.id)) {
-        const key = pl.id || pl.pickListNo;
+        const key = pl.pickListNo || pl.id;
         map.set(key, pl);
       }
     });
@@ -2378,6 +2378,7 @@ export const saveThermocolPickListToFirestore = async (pickList: DispatchPickLis
     const batch = writeBatch(db);
     batch.set(doc(db, COLLECTIONS.TH_PICKLISTS, safeId), cleanPayload, { merge: true });
     batch.set(doc(db, COLLECTIONS.PACKING_PICKLISTS, safeId), cleanPayload, { merge: true });
+    batch.set(doc(db, COLLECTIONS.OPERATIONS, safeId), cleanPayload, { merge: true });
     batch.set(doc(db, COLLECTIONS.OPERATIONS, `PL_${safeId}`), cleanPayload, { merge: true });
     batch.set(doc(db, COLLECTIONS.THERMOCOL_PACKING, `pl_${safeId}`), cleanPayload, { merge: true });
     await batch.commit();

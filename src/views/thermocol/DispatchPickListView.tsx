@@ -51,6 +51,7 @@ import {
   DEFAULT_HPL_SENDER
 } from './utils';
 import { PickListDocModal } from './PickListDocModal';
+import { saveThermocolPickListToFirestore, deleteThermocolPickListFromFirestore } from '../../services/firestoreService';
 
 interface DispatchPickListViewProps {
   products: ThermocolProduct[];
@@ -96,29 +97,34 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
   // Active Tab: 'createPlanning' vs 'pickListQueue'
   const [activeSubTab, setActiveSubTab] = useState<'createPlanning' | 'pickListQueue'>('createPlanning');
 
-  // Filter Company Master Data
+  // Filter Company Master Data with resilient fallbacks
   const companyParties = useMemo(() => {
-    return (parties || []).filter(p => normalizeCompany(p.company) === targetCompany);
+    const filtered = (parties || []).filter(p => !p.company || normalizeCompany(p.company) === targetCompany);
+    return filtered.length > 0 ? filtered : (parties || []);
   }, [parties, targetCompany]);
 
   const companyProducts = useMemo(() => {
-    return (products || []).filter(p => normalizeCompany(p.company) === targetCompany);
+    const filtered = (products || []).filter(p => !p.company || normalizeCompany(p.company) === targetCompany);
+    return filtered.length > 0 ? filtered : (products || []);
   }, [products, targetCompany]);
 
   const companyInwards = useMemo(() => {
-    return (inwards || []).filter(i => normalizeCompany(i.company) === targetCompany);
+    const filtered = (inwards || []).filter(i => !i.company || normalizeCompany(i.company) === targetCompany);
+    return filtered.length > 0 ? filtered : (inwards || []);
   }, [inwards, targetCompany]);
 
   const companyDemands = useMemo(() => {
-    return (clientDemands || []).filter(d => normalizeCompany(d.company) === targetCompany);
+    const filtered = (clientDemands || []).filter(d => !d.company || normalizeCompany(d.company) === targetCompany);
+    return filtered.length > 0 ? filtered : (clientDemands || []);
   }, [clientDemands, targetCompany]);
 
   const companyTransporters = useMemo(() => {
-    return (transporters || []).filter(t => !t.company || normalizeCompany(t.company) === targetCompany);
+    const filtered = (transporters || []).filter(t => !t.company || normalizeCompany(t.company) === targetCompany);
+    return filtered.length > 0 ? filtered : (transporters || []);
   }, [transporters, targetCompany]);
 
   const companyPickLists = useMemo(() => {
-    return (pickLists || []).filter(pl => normalizeCompany(pl.company) === targetCompany);
+    return (pickLists || []).filter(pl => !pl.company || normalizeCompany(pl.company) === targetCompany);
   }, [pickLists, targetCompany]);
 
   // Available Destination Cities from Customer Master
@@ -248,12 +254,8 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
         d => d.partyName.trim().toLowerCase() === party.name.trim().toLowerCase()
       );
 
-      // Collect products to show (either with explicit demand or all company products)
-      const targetProds = companyProducts.filter(prod => {
-        const hasStock = getProductStock(prod.name) > 0;
-        const hasDemand = partyDemands.some(d => d.productName.trim().toLowerCase() === prod.name.trim().toLowerCase());
-        return hasStock || hasDemand;
-      });
+      // Collect all company products so user can punch pre-planned quantities for any SKU
+      const targetProds = companyProducts.length > 0 ? companyProducts : (products || []);
 
       targetProds.forEach(prod => {
         const demandObj = partyDemands.find(d => d.productName.trim().toLowerCase() === prod.name.trim().toLowerCase());
@@ -325,8 +327,8 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
   // Notification state
   const [statusMsg, setStatusMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
-  // Submit and Save Pre-Planned Pick List
-  const handleCreatePickList = () => {
+  // Submit and Save Pre-Planned Pick List directly to Firebase Real-Time Cloud
+  const handleCreatePickList = async () => {
     if (planCalculations.totalPlannedQty <= 0) {
       setStatusMsg({ text: 'Please enter a positive planned quantity for at least one item before generating a pick list.', isError: true });
       return;
@@ -382,11 +384,18 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
       remarks: planningRemarks
     };
 
-    onSavePickList(newPickList);
-    setPlannedCasesMap({});
-    setPlanningRemarks('');
-    setStatusMsg({ text: `Pre-Planned Pick List ${pickListNo} generated successfully!`, isError: false });
-    setActiveSubTab('pickListQueue');
+    try {
+      await saveThermocolPickListToFirestore(newPickList);
+      await onSavePickList(newPickList);
+      console.log(`[Firebase Success] Direct write for Pick List ${pickListNo} executed successfully!`);
+      setStatusMsg({ text: `Pre-Planned Pick List ${pickListNo} generated & saved directly to cloud successfully!`, isError: false });
+      setPlannedCasesMap({});
+      setPlanningRemarks('');
+      setActiveSubTab('pickListQueue');
+    } catch (err: any) {
+      console.error('Error saving pick list directly to Firebase:', err);
+      setStatusMsg({ text: `Failed to save Pick List ${pickListNo} to Firebase: ${err?.message || 'Permission or network error'}`, isError: true });
+    }
   };
 
   // Handle single demand save

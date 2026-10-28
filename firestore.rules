@@ -78,6 +78,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /ich_th_picklists/{pickListId} {
+      allow read, write: if true;
+    }
+
+    match /packing_picklists/{pickListId} {
+      allow read, write: if true;
+    }
+
     match /thermocol_packing/{docId} {
       allow read, write: if true;
     }
