@@ -6,7 +6,7 @@ import {
   CheckCircle2, AlertCircle, Plus, Trash2, Scale, 
   ArrowRight, ShieldCheck, Box, Info, Lock,
   X, KeyRound, AlertTriangle, Check, MapPin, RotateCcw, Sparkles,
-  Loader2, Printer, Eye, BarChart3
+  Loader2, Printer, Eye, BarChart3, ClipboardList
 } from 'lucide-react';
 import { 
   ThermocolProduct, 
@@ -16,7 +16,8 @@ import {
   ThermocolInward, 
   ThermocolInvoice, 
   SenderConfig,
-  InvoiceLineItem
+  InvoiceLineItem,
+  DispatchPickList
 } from './types';
 import { 
   numberToWords, 
@@ -123,6 +124,7 @@ interface OutwardOrderEntryFormProps {
   clientDemands: ClientDemand[];
   inwards: ThermocolInward[];
   invoices: ThermocolInvoice[];
+  pickLists?: DispatchPickList[];
   invoiceSeq: number;
   challanSeq: number;
   sender: SenderConfig;
@@ -134,6 +136,7 @@ interface OutwardOrderEntryFormProps {
     nextSeq: number,
     isChallan: boolean
   ) => void;
+  onMarkPickListInvoiced?: (pickListId: string, invoiceNo: string) => void;
   onNavigateToInward?: () => void;
   onNavigateToMasters?: () => void;
   onNavigateToPreview?: (invNo: string) => void;
@@ -165,11 +168,13 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
   clientDemands,
   inwards,
   invoices,
+  pickLists = [],
   invoiceSeq,
   challanSeq,
   sender,
   company = 'AIL',
   onSaveInvoice,
+  onMarkPickListInvoiced,
   onNavigateToInward,
   onNavigateToMasters,
   onNavigateToPreview,
@@ -364,6 +369,7 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
   const [formMsg, setFormMsg] = useState<{ text: string; isError: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [justCreatedInvoice, setJustCreatedInvoice] = useState<ThermocolInvoice | null>(null);
+  const [loadedPickListId, setLoadedPickListId] = useState<string>('');
 
   // Demand Authorization State
   const [demandAuth, setDemandAuth] = useState<DemandAuthorizationState | null>(null);
@@ -1155,6 +1161,10 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
       // 1. Instant local state synchronization across parent UI components (stock deducted, demand quota updated, sequence advanced)
       // Note: handleSaveInvoiceFromForm already calls incrementInvoiceSequenceAndSave which handles the Firestore write atomically.
       onSaveInvoice(newInvoice, updatedInwards, updatedDemands, 0, isChallan);
+      if (loadedPickListId && onMarkPickListInvoiced) {
+        onMarkPickListInvoiced(loadedPickListId, newInvoice.invNo);
+        setLoadedPickListId('');
+      }
       resetFormFieldsAfterSave();
       
       // 2. Instant success feedback with generated Invoice Number
@@ -1233,6 +1243,75 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
       </div>
 
       <div className="p-5 md:p-6 space-y-6">
+        {/* Verified Pick List Auto-Fill Selector */}
+        {pickLists && pickLists.filter(pl => pl.company === targetCompany && pl.status !== 'INVOICED').length > 0 && (
+          <div className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-900 text-white rounded-xl p-4 flex flex-wrap items-center justify-between gap-3 shadow-md border border-indigo-700/50">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-indigo-500/20 text-indigo-300 rounded-lg border border-indigo-400/30">
+                <ClipboardList className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-indigo-200">
+                  Load Go-Down Verified Pick List
+                </h4>
+                <p className="text-[11px] text-slate-300">
+                  Fetch verified physical loaded quantities from pre-planning go-down manifest directly
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <select
+                value={loadedPickListId}
+                onChange={(e) => {
+                  const plId = e.target.value;
+                  setLoadedPickListId(plId);
+                  if (plId) {
+                    const pl = pickLists.find(p => p.id === plId);
+                    if (pl) {
+                      if (pl.items.length > 0) {
+                        setSelectedPartyName(pl.items[0].partyName);
+                      }
+                      if (pl.city) {
+                        setSelectedCity(pl.city);
+                        setDestinationCity(pl.city);
+                      }
+                      if (pl.transporterName) setTransName(pl.transporterName);
+                      if (pl.vehicleNo) setVehicleNo(pl.vehicleNo);
+                      
+                      const newLines: DraftLineItem[] = pl.items.map((it, idx) => {
+                        const qty = it.loadedQty !== undefined ? it.loadedQty : it.plannedQty;
+                        const mult = it.packSizeMultiple || 1;
+                        const cases = mult > 0 ? Math.ceil(qty / mult) : 1;
+                        return {
+                          id: 'line_' + Date.now() + '_' + idx,
+                          productId: it.productId,
+                          cases,
+                          qty,
+                          batch: it.batch || 'DEFAULT',
+                          exp: it.exp || ''
+                        };
+                      });
+                      if (newLines.length > 0) {
+                        setOrderLines(newLines);
+                      }
+                    }
+                  }
+                }}
+                className="bg-slate-800 text-white border border-indigo-500/50 text-xs font-bold font-mono rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-400 focus:outline-none cursor-pointer"
+              >
+                <option value="">-- Select Go-Down Pick List to Auto-Fill --</option>
+                {pickLists
+                  .filter(pl => pl.company === targetCompany && pl.status !== 'INVOICED')
+                  .map(pl => (
+                    <option key={pl.id} value={pl.id}>
+                      {pl.pickListNo} ({pl.city} - {pl.status.replace(/_/g, ' ')}) [{pl.totalPlannedQty} pcs]
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+          </div>
+        )}
         {/* ==========================================================
             ZERO-STOCK & EMPTY MASTER ADVISORIES
             ========================================================== */}
@@ -1663,55 +1742,121 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
                     <tr key={line.id || idx} className={calc?.isInvalidMultiple ? 'bg-red-50/40' : 'hover:bg-slate-50/70'}>
                       {/* Product Selector (Only stock > 0 items displayed) */}
                       <td className="py-2.5 px-3 min-w-[240px]">
-                        <SearchableSelect
-                          options={inStockProducts.map(p => ({
-                            label: p.name,
-                            value: p.id
-                          }))}
-                          value={line.productId || ''}
-                          onChange={(newId) => {
-                            const newP = companyProducts.find(p => p.id === newId) || null;
-                            const isCoolantNew = newP && (newP.name.toLowerCase().includes('coolant pack') || newP.name.toLowerCase().includes('coolant'));
-                            const newMultiple = newP?.packSizeMultiple || 1;
-                            const currentCases = line.cases !== undefined && line.cases !== '' ? Number(line.cases) : '';
-                            const computedQty = currentCases !== '' ? Number(currentCases) * newMultiple : '';
-                            setOrderLines(prev => prev.map(l => l.id === line.id ? {
-                              ...l,
-                              productId: newId,
-                              cases: currentCases,
-                              qty: computedQty,
-                              batch: isCoolantNew ? (l.batch === 'N/A' ? '' : l.batch) : 'N/A'
-                            } : l));
-                            setDemandAuth(null);
-                          }}
-                          placeholder="-- Select In-Stock Product * --"
-                        />
-                        {prod ? (
-                          <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-slate-500 font-mono">
-                            <span>Pack: <b>{prod.packSize}</b></span>
-                            <span>·</span>
-                            <span>Multiple: <b>×{multiple}</b></span>
-                            <span>·</span>
-                            <span className="text-emerald-700 font-bold">Stock: {availableStock} Pcs</span>
-                          </div>
-                        ) : (
-                          <span className="text-[10px] text-slate-400 block mt-1">Please select an in-stock product</span>
-                        )}
+                        {(() => {
+                          const lineDemandRule = prod && selectedPartyName
+                            ? companyDemands.find(d => d.partyName === selectedPartyName && d.productName === prod.name)
+                            : null;
+                          const lineTotalDemand = lineDemandRule ? lineDemandRule.monthlyLimit : 0;
+                          const lineDispatched = prod && selectedPartyName
+                            ? invoices
+                                .filter(inv => !inv.isCancelled && normalizeCompany(inv.company) === targetCompany && inv.partyName?.trim().toLowerCase() === selectedPartyName.trim().toLowerCase())
+                                .reduce((sum, inv) => sum + (inv.items?.filter(it => it.productName?.trim().toLowerCase() === prod.name.trim().toLowerCase()).reduce((s, it) => s + (Number(it.qty) || 0), 0) || 0), 0)
+                            : 0;
+                          const linePendingDemand = lineDemandRule ? Math.max(0, lineTotalDemand - lineDispatched) : 0;
 
-                        {/* FIFO Multi-Lot Split Callout */}
-                        {isMultiSplit && (
-                          <div className="mt-2 p-2 bg-amber-50/90 border border-amber-300 rounded-lg text-[10px] text-amber-950 font-mono space-y-1">
-                            <div className="font-extrabold flex items-center gap-1 text-amber-900 border-b border-amber-200 pb-0.5">
-                              <span>⚡ Auto FIFO Stock Split ({lineCalcs.length} Line Rows):</span>
-                            </div>
-                            {lineCalcs.map((sc, sidx) => (
-                              <div key={sidx} className="flex justify-between items-center gap-2 font-semibold">
-                                <span>Row {sidx + 1}: <b>{sc.qty} Pcs</b> @ ₹{sc.rate.toFixed(2)} ({sc.batch})</span>
-                                <span className="font-bold text-amber-900">₹{sc.taxableValue.toFixed(2)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                          const mrpLotsMap = new Map<number, number>();
+                          if (prod) {
+                            companyInwards
+                              .filter(i => i.productName === prod.name && i.availableQty > 0)
+                              .forEach(i => {
+                                const m = Number(i.price) || prod.price || 0;
+                                mrpLotsMap.set(m, (mrpLotsMap.get(m) || 0) + Number(i.availableQty));
+                              });
+                          }
+                          const mrpLots = Array.from(mrpLotsMap.entries());
+
+                          return (
+                            <>
+                              <SearchableSelect
+                                options={inStockProducts.map(p => ({
+                                  label: p.name,
+                                  value: p.id
+                                }))}
+                                value={line.productId || ''}
+                                onChange={(newId) => {
+                                  const newP = companyProducts.find(p => p.id === newId) || null;
+                                  const isCoolantNew = newP && (newP.name.toLowerCase().includes('coolant pack') || newP.name.toLowerCase().includes('coolant'));
+                                  const newMultiple = newP?.packSizeMultiple || 1;
+                                  const currentCases = line.cases !== undefined && line.cases !== '' ? Number(line.cases) : '';
+                                  const computedQty = currentCases !== '' ? Number(currentCases) * newMultiple : '';
+                                  setOrderLines(prev => prev.map(l => l.id === line.id ? {
+                                    ...l,
+                                    productId: newId,
+                                    cases: currentCases,
+                                    qty: computedQty,
+                                    batch: isCoolantNew ? (l.batch === 'N/A' ? '' : l.batch) : 'N/A'
+                                  } : l));
+                                  setDemandAuth(null);
+                                }}
+                                placeholder="-- Select In-Stock Product * --"
+                              />
+                              {prod ? (
+                                <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-slate-500 font-mono">
+                                  <span>Pack: <b>{prod.packSize}</b></span>
+                                  <span>·</span>
+                                  <span>Multiple: <b>×{multiple}</b></span>
+                                  <span>·</span>
+                                  <span className="text-emerald-700 font-bold">Stock: {availableStock} Pcs</span>
+                                </div>
+                              ) : (
+                                <span className="text-[10px] text-slate-400 block mt-1">Please select an in-stock product</span>
+                              )}
+
+                              {/* Live Item-Level Summary during Quantity Entry */}
+                              {prod && (
+                                <div className="mt-2 p-2 bg-[#f8fafc] border border-blue-200/80 rounded-lg text-[10px] space-y-1 font-sans shadow-2xs">
+                                  <div className="flex items-center justify-between font-extrabold text-slate-800 border-b border-slate-200 pb-1">
+                                    <span className="flex items-center gap-1 text-blue-700">
+                                      <Sparkles className="w-3 h-3 text-blue-600" />
+                                      <span>Live Item Summary</span>
+                                    </span>
+                                    <span className={`px-1.5 py-0.2 rounded font-mono text-[9px] ${
+                                      lineDemandRule 
+                                        ? (lineDispatched >= lineTotalDemand ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold' : 'bg-blue-100 text-blue-800 border border-blue-300 font-bold')
+                                        : 'bg-slate-100 text-slate-600 border border-slate-300'
+                                    }`}>
+                                      {lineDemandRule ? (linePendingDemand > 0 ? `Pending: ${linePendingDemand} Pcs` : 'Quota Fulfilled') : 'No Limit'}
+                                    </span>
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] font-mono pt-0.5">
+                                    <div>
+                                      <span className="text-slate-500 font-sans block text-[9px]">Total Demand:</span>
+                                      <span className="font-bold text-slate-900">{lineDemandRule ? `${lineTotalDemand} Pcs` : 'Unrestricted'}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-500 font-sans block text-[9px]">Already Dispatched:</span>
+                                      <span className="font-bold text-blue-700">{lineDispatched} Pcs</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-500 font-sans block text-[9px]">Pending Demand:</span>
+                                      <span className={`font-bold ${linePendingDemand === 0 && lineDemandRule ? 'text-emerald-600' : 'text-amber-700'}`}>
+                                        {lineDemandRule ? `${linePendingDemand} Pcs` : 'N/A'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-500 font-sans block text-[9px]">Available Stock:</span>
+                                      <span className={`font-bold ${availableStock > 0 ? 'text-emerald-700' : 'text-rose-600'}`}>
+                                        {availableStock} Pcs
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {mrpLots.length > 0 && (
+                                    <div className="pt-1 border-t border-slate-200/80 flex flex-wrap items-center gap-1 text-[9px] font-mono">
+                                      <span className="text-slate-500 font-sans font-medium">MRP Breakdown:</span>
+                                      {mrpLots.map(([mrp, qty], mIdx) => (
+                                        <span key={mIdx} className="bg-white border border-slate-200 px-1.5 py-0.2 rounded font-bold text-slate-700 shadow-2xs">
+                                          ₹{mrp}: <span className="text-emerald-700">{qty} pcs</span>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </td>
 
                       {/* HSN Code */}

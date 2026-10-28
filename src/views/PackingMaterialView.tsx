@@ -47,7 +47,10 @@ import {
   InvoiceFieldChange,
   StockWriteOff,
   PendingStockQueueItem,
-  QueueStatus
+  QueueStatus,
+  DispatchPickList,
+  PickListItem,
+  PickListStatus
 } from './thermocol/types';
 import { 
   DEFAULT_SENDER, 
@@ -82,6 +85,7 @@ import { InvoiceAuditLogView } from './thermocol/InvoiceAuditLogView';
 import { ProductHistoryModal } from './thermocol/ProductHistoryModal';
 import { InvoiceCancellationQueueView } from './thermocol/InvoiceCancellationQueueView';
 import { DeletePinModal } from './thermocol/DeletePinModal';
+import { DispatchPickListView } from './thermocol/DispatchPickListView';
 
 import { SynchronizedTableScroll } from '../components/SynchronizedTableScroll';
 import { normalizeWmsDate } from '../utils/wmsDataEngine';
@@ -133,7 +137,7 @@ interface PackingMaterialViewProps {
 export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ currentUser }) => {
   // Navigation Tabs: Dedicated and cleanly separated
   const [activeTab, setActiveTab] = useState<
-    'orderTab' | 'previewPrintTab' | 'editInvoiceTab' | 'cancellationQueueTab' | 'auditLogTab' | 'reportTab' | 'inwardTab' | 'masterTab'
+    'orderTab' | 'pickListTab' | 'previewPrintTab' | 'editInvoiceTab' | 'cancellationQueueTab' | 'auditLogTab' | 'reportTab' | 'inwardTab' | 'masterTab'
   >('orderTab');
 
   // Pending Stock Queue state for PIN-gated cancellation stock reconciliation
@@ -204,6 +208,65 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
   const [clientDemands, setClientDemands] = useState<ClientDemand[]>([]);
   const [inwards, setInwards] = useState<ThermocolInward[]>([]);
   const [invoices, setInvoices] = useState<ThermocolInvoice[]>([]);
+
+  // Pre-Planning Pick Lists State
+  const [pickLists, setPickLists] = useState<DispatchPickList[]>(() => {
+    try {
+      const saved = localStorage.getItem('thermocol_pick_lists');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const savePickLists = (newPickLists: DispatchPickList[]) => {
+    setPickLists(newPickLists);
+    try {
+      localStorage.setItem('thermocol_pick_lists', JSON.stringify(newPickLists));
+    } catch (e) {
+      console.warn('Failed saving pick lists to localStorage:', e);
+    }
+  };
+
+  const handleSavePickList = (newPL: DispatchPickList) => {
+    const updated = [newPL, ...pickLists.filter(p => p.id !== newPL.id)];
+    savePickLists(updated);
+  };
+
+  const handleUpdatePickListStatus = (id: string, status: PickListStatus, loadedItems?: PickListItem[]) => {
+    const updated = pickLists.map(pl => {
+      if (pl.id === id) {
+        return {
+          ...pl,
+          status,
+          items: loadedItems || pl.items,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return pl;
+    });
+    savePickLists(updated);
+  };
+
+  const handleDeletePickList = (id: string) => {
+    const updated = pickLists.filter(pl => pl.id !== id);
+    savePickLists(updated);
+  };
+
+  const handleMarkPickListInvoiced = (id: string, invoiceNo: string) => {
+    const updated = pickLists.map(pl => {
+      if (pl.id === id) {
+        return {
+          ...pl,
+          status: 'INVOICED' as PickListStatus,
+          generatedInvoiceNo: invoiceNo,
+          updatedAt: new Date().toISOString()
+        };
+      }
+      return pl;
+    });
+    savePickLists(updated);
+  };
   const [invoiceSeqAIL, setInvoiceSeqAIL] = useState<number>(406);
   const [invoiceSeqHPL, setInvoiceSeqHPL] = useState<number>(7);
   const [challanSeqAIL, setChallanSeqAIL] = useState<number>(1);
@@ -3298,6 +3361,21 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
           </button>
 
           <button
+            onClick={() => setActiveTab('pickListTab')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'pickListTab' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+          >
+            <ClipboardList className="w-4 h-4 text-sky-300" />
+            <span>📋 Pre-Planning & Pick Lists</span>
+            {pickLists.filter(p => normalizeCompany(p.company) === selectedCompany && p.status !== 'INVOICED').length > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 bg-sky-500 text-white text-[10px] rounded-full font-mono font-bold">
+                {pickLists.filter(p => normalizeCompany(p.company) === selectedCompany && p.status !== 'INVOICED').length}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => setActiveTab('previewPrintTab')}
             className={`px-3.5 py-2 rounded-lg text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'previewPrintTab' ? 'bg-blue-600 text-white shadow-xs' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -3390,11 +3468,13 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
             clientDemands={activeClientDemands}
             inwards={activeInwards}
             invoices={activeInvoices}
+            pickLists={pickLists}
             invoiceSeq={activeInvoiceSeq}
             challanSeq={activeChallanSeq}
             sender={activeSender}
             company={selectedCompany}
             onSaveInvoice={handleSaveInvoiceFromForm}
+            onMarkPickListInvoiced={handleMarkPickListInvoiced}
             onNavigateToInward={() => setActiveTab('inwardTab')}
             onNavigateToMasters={() => setActiveTab('masterTab')}
             onNavigateToPreview={(invNo) => {
@@ -3402,6 +3482,38 @@ export const PackingMaterialView: React.FC<PackingMaterialViewProps> = ({ curren
               setActiveTab('previewPrintTab');
             }}
             onResetForm={handleOpenNewOutwardInvoice}
+          />
+        )}
+
+        {/* ========================================================
+            MODULE: DISPATCH PRE-PLANNING & PICK LIST ENGINE
+            ======================================================== */}
+        {activeTab === 'pickListTab' && (
+          <DispatchPickListView
+            products={activeProducts}
+            parties={activeParties}
+            transporters={transporters}
+            clientDemands={activeClientDemands}
+            inwards={activeInwards}
+            invoices={activeInvoices}
+            pickLists={pickLists}
+            company={selectedCompany}
+            sender={activeSender}
+            onSavePickList={handleSavePickList}
+            onUpdatePickListStatus={handleUpdatePickListStatus}
+            onDeletePickList={handleDeletePickList}
+            onRequestDeletePin={(title, desc, comp, action) => {
+              setActiveDeleteModal({
+                title,
+                itemDescription: desc,
+                company: comp,
+                action
+              });
+            }}
+            onGenerateInvoiceFromPickList={(pl) => {
+              handleOpenNewOutwardInvoice();
+              setActiveTab('orderTab');
+            }}
           />
         )}
 

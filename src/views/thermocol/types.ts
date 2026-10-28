@@ -262,3 +262,53 @@ export interface PendingStockQueueItem {
   pinVerified: boolean;
 }
 
+export type PickListStatus = 'PLANNED' | 'GO_DOWN_PICKING' | 'LOADED_VERIFIED' | 'INVOICED' | 'CANCELLED';
+
+export interface PickListItem {
+  id: string;
+  partyName: string;
+  productId: string;
+  productName: string;
+  hsnCode?: string;
+  packSize: string;
+  packSizeMultiple: number;
+  totalDemand: number;
+  alreadyDispatched: number;
+  pendingDemand: number;
+  availableStock: number;
+  plannedCases: number;
+  plannedQty: number;
+  loadedCases?: number;
+  loadedQty?: number;
+  weight: number;
+  cft: number;
+  mrp?: number;
+  batch?: string;
+  exp?: string;
+  notes?: string;
+}
+
+export interface DispatchPickList {
+  id: string;
+  pickListNo: string;
+  company: 'AIL' | 'HPL';
+  city: string;
+  date: string;
+  status: PickListStatus;
+  transporterName?: string;
+  vehicleNo?: string;
+  driverName?: string;
+  totalPlannedQty: number;
+  totalLoadedQty: number;
+  totalWeightKg: number;
+  totalCft: number;
+  items: PickListItem[];
+  createdAt: string;
+  updatedAt?: string;
+  createdByName?: string;
+  verifiedByName?: string;
+  generatedInvoiceNo?: string;
+  remarks?: string;
+}
+
+
