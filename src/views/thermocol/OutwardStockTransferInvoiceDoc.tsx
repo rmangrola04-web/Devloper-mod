@@ -124,29 +124,29 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
   const roundOff = Number((grandTotalNum - subTotalBeforeRounding).toFixed(2));
   const amountWords = numberToWords(grandTotalNum);
 
-  // Dynamic content-based page capacity for A4 Landscape (without artificial empty grid row padding)
-  const MAX_ITEMS_SINGLE_PAGE = 11; // Max items on a single page along with full summary footer
-  const MAX_ITEMS_CONTINUATION_PAGE = 15; // Max items on a continuation page (no summary footer)
+  // Dynamic content-based page capacity for A4 Landscape (ensures zero vertical compression or squishing)
+  const MAX_ITEMS_FINAL_PAGE = 7; // Max items on final page containing full summary section
+  const MAX_ITEMS_CONTINUATION_PAGE = 10; // Max items on non-final continuation pages (no summary section)
 
   const pageChunks: typeof processedItems[] = [];
   if (processedItems.length === 0) {
     pageChunks.push([]);
-  } else if (processedItems.length <= MAX_ITEMS_SINGLE_PAGE) {
-    // All items fit cleanly on 1 single page along with full summary footer!
+  } else if (processedItems.length <= MAX_ITEMS_FINAL_PAGE) {
+    // Fits on 1 single page with summary section
     pageChunks.push(processedItems);
   } else {
-    // Multi-page invoice: distribute items gracefully across pages to avoid single stranded items
+    // Multi-page invoice: chunk items into balanced pages that never overflow printable height
     let remaining = [...processedItems];
     while (remaining.length > 0) {
-      if (remaining.length <= MAX_ITEMS_SINGLE_PAGE) {
+      if (remaining.length <= MAX_ITEMS_FINAL_PAGE) {
         pageChunks.push(remaining);
         break;
       } else {
-        const idealChunkSize = Math.min(
-          MAX_ITEMS_CONTINUATION_PAGE,
-          Math.max(Math.ceil(remaining.length / 2), remaining.length - MAX_ITEMS_SINGLE_PAGE)
-        );
-        const chunkSize = Math.max(1, idealChunkSize);
+        let chunkSize = Math.min(MAX_ITEMS_CONTINUATION_PAGE, Math.ceil(remaining.length / 2));
+        if (remaining.length - chunkSize > MAX_ITEMS_CONTINUATION_PAGE) {
+          chunkSize = MAX_ITEMS_CONTINUATION_PAGE;
+        }
+        chunkSize = Math.max(1, chunkSize);
         pageChunks.push(remaining.slice(0, chunkSize));
         remaining = remaining.slice(chunkSize);
       }
@@ -176,12 +176,10 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
           .tax-invoice-page, .invoice-page {
             page-break-after: always !important;
             break-after: page !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
             margin: 0 auto !important;
             width: 297mm !important;
             max-width: 297mm !important;
-            min-height: 192mm !important;
+            min-height: 190mm !important;
             height: auto !important;
             box-sizing: border-box !important;
             box-shadow: none !important;

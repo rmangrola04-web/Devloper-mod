@@ -227,7 +227,7 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             .invoice-page {
                 width: 297mm !important;
                 max-width: 297mm !important;
-                min-height: 192mm !important;
+                min-height: 190mm !important;
                 height: auto !important;
                 margin: 0 auto !important;
                 box-shadow: none !important;
@@ -235,7 +235,6 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
                 padding: 5mm 8mm !important;
                 page-break-after: always !important;
                 break-after: page !important;
-                page-break-inside: avoid !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: space-between !important;
