@@ -598,14 +598,13 @@ export const OutwardOrderEntryFormContent: React.FC<OutwardOrderEntryFormProps> 
     };
   }, [selectedPartyName, destinationCity, selectedCity, activeParty, companyDemands, invoices, targetCompany, orderLines, companyProducts]);
 
-  // Trigger modal pop-up automatically upon selecting a party or party + location
+  // Party & Location Demand & Dispatch calculation tracking (Auto popup disabled; available via manual button)
   useEffect(() => {
     if (selectedPartyName) {
       const currentLoc = destinationCity.trim() || selectedCity || (activeParty?.city ? activeParty.city : 'Indore');
       const triggerKey = `${selectedPartyName}_${currentLoc}_${targetCompany}`;
       if (autoTriggeredKey !== triggerKey) {
         setAutoTriggeredKey(triggerKey);
-        setShowDemandSummaryModal(true);
       }
     }
   }, [selectedPartyName, destinationCity, selectedCity, activeParty, targetCompany, autoTriggeredKey]);

@@ -278,7 +278,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                             letterSpacing: '0.5px'
                           }}
                         >
-                          {docTitle}
+                          {docTitle}{pageIdx > 0 ? ` - CONTINUED (PAGE ${pageNumber} OF ${totalPages})` : ''}
                         </div>
                         <table style={{ width: '100%', borderCollapse: 'collapse', border: 'none', fontSize: '10px' }}>
                           <tbody>
@@ -386,8 +386,8 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                         })
                       )}
                     </tbody>
-                    {isLastPage && (
-                      <tfoot>
+                    <tfoot>
+                      {isLastPage ? (
                         <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9.5px]">
                           <td colSpan={3} className="border border-[#b0b0b0] p-[5px] text-right uppercase">
                             Total:
@@ -400,8 +400,17 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>
-                      </tfoot>
-                    )}
+                      ) : (
+                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9.5px]">
+                          <td colSpan={8} className="border border-[#b0b0b0] p-[5px] text-right uppercase text-[#316599] italic font-semibold">
+                            (To be continued on Page {pageNumber + 1} of {totalPages}...)
+                          </td>
+                          <td colSpan={2} className="border border-[#b0b0b0] p-[5px] text-right font-mono font-extrabold text-[#316599]">
+                            Continued...
+                          </td>
+                        </tr>
+                      )}
+                    </tfoot>
                   </table>
                 ) : (
                   <table className="w-full text-left border-collapse text-[10px] mb-[2px]">
@@ -466,8 +475,8 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                         })
                       )}
                     </tbody>
-                    {isLastPage && (
-                      <tfoot>
+                    <tfoot>
+                      {isLastPage ? (
                         <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9.5px]">
                           <td colSpan={3} className="border border-[#b0b0b0] p-[5px] text-right uppercase">
                             Total:
@@ -483,8 +492,17 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                             ₹{grandTotalNum.toFixed(2)}
                           </td>
                         </tr>
-                      </tfoot>
-                    )}
+                      ) : (
+                        <tr className="bg-[#f0f4f8] font-bold border-t-2 border-[#b0b0b0] text-[9.5px]">
+                          <td colSpan={11} className="border border-[#b0b0b0] p-[5px] text-right uppercase text-[#316599] italic font-semibold">
+                            (To be continued on Page {pageNumber + 1} of {totalPages}...)
+                          </td>
+                          <td colSpan={2} className="border border-[#b0b0b0] p-[5px] text-right font-mono font-extrabold text-[#316599]">
+                            Continued...
+                          </td>
+                        </tr>
+                      )}
+                    </tfoot>
                   </table>
                 )}
               </div>
