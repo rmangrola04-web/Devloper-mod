@@ -124,28 +124,29 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
   const roundOff = Number((grandTotalNum - subTotalBeforeRounding).toFixed(2));
   const amountWords = numberToWords(grandTotalNum);
 
-  // Natural dynamic content-based page capacity for A4 Landscape
-  // When the full Summary Section (totals, words, transporter, metrics, signature) is on the page:
-  // comfortably fits up to 7 items without any overflow.
-  // When continuation page (no summary): comfortably fits up to 12 items.
-  const MAX_ITEMS_ON_FINAL_PAGE = 7;
-  const MAX_ITEMS_ON_CONTINUATION_PAGE = 12;
+  // Dynamic content-based page capacity for A4 Landscape (without artificial empty grid row padding)
+  const MAX_ITEMS_SINGLE_PAGE = 11; // Max items on a single page along with full summary footer
+  const MAX_ITEMS_CONTINUATION_PAGE = 15; // Max items on a continuation page (no summary footer)
 
   const pageChunks: typeof processedItems[] = [];
   if (processedItems.length === 0) {
     pageChunks.push([]);
-  } else if (processedItems.length <= MAX_ITEMS_ON_FINAL_PAGE) {
-    // Natural single-page invoice: all items & full summary fit completely on 1 page!
+  } else if (processedItems.length <= MAX_ITEMS_SINGLE_PAGE) {
+    // All items fit cleanly on 1 single page along with full summary footer!
     pageChunks.push(processedItems);
   } else {
-    // Multi-page invoice: fill continuation pages naturally, reserving remainder for final page with summary
+    // Multi-page invoice: distribute items gracefully across pages to avoid single stranded items
     let remaining = [...processedItems];
     while (remaining.length > 0) {
-      if (remaining.length <= MAX_ITEMS_ON_FINAL_PAGE) {
+      if (remaining.length <= MAX_ITEMS_SINGLE_PAGE) {
         pageChunks.push(remaining);
         break;
       } else {
-        const chunkSize = Math.min(MAX_ITEMS_ON_CONTINUATION_PAGE, remaining.length - 1);
+        const idealChunkSize = Math.min(
+          MAX_ITEMS_CONTINUATION_PAGE,
+          Math.max(Math.ceil(remaining.length / 2), remaining.length - MAX_ITEMS_SINGLE_PAGE)
+        );
+        const chunkSize = Math.max(1, idealChunkSize);
         pageChunks.push(remaining.slice(0, chunkSize));
         remaining = remaining.slice(chunkSize);
       }
@@ -220,14 +221,26 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
+          tr, tbody tr, tfoot tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          thead {
+            display: table-header-group !important;
+          }
+          tfoot {
+            display: table-footer-group !important;
+          }
+          .company-header, .section-box, .bottom-section, .declaration {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         }
       `}</style>
 
       {pageChunks.map((pageItems, pageIdx) => {
         const pageNumber = pageIdx + 1;
         const isLastPage = pageIdx === totalPages - 1;
-        const targetRows = isLastPage ? 7 : 12;
-        const blankRowsCount = Math.max(0, targetRows - pageItems.length);
 
         return (
           <div
@@ -372,21 +385,6 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           );
                         })
                       )}
-                      {/* Blank Row Padding for Short Invoices to Maintain Uniform Full Page Height */}
-                      {Array.from({ length: blankRowsCount }).map((_, bIdx) => (
-                        <tr key={`blank-${bIdx}`} className="h-[22px] text-[10px]">
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px]">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
-                        </tr>
-                      ))}
                     </tbody>
                     {isLastPage && (
                       <tfoot>
@@ -467,24 +465,6 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
                           );
                         })
                       )}
-                      {/* Blank Row Padding for Short Invoices to Maintain Uniform Full Page Height */}
-                      {Array.from({ length: blankRowsCount }).map((_, bIdx) => (
-                        <tr key={`blank-${bIdx}`} className="h-[22px] text-[10px]">
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px]">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-center">&nbsp;</td>
-                          <td className="border border-[#b0b0b0] p-[5px] text-right">&nbsp;</td>
-                        </tr>
-                      ))}
                     </tbody>
                     {isLastPage && (
                       <tfoot>

@@ -240,8 +240,9 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
             page-break-inside: auto !important;
             font-size: 10.5px !important;
           }
-          tr {
+          tr, tbody tr, tfoot tr {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
             page-break-after: auto !important;
           }
           thead {
@@ -256,6 +257,7 @@ export const PickListDocModal: React.FC<PickListDocModalProps> = ({
           }
           .no-break {
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
         }
       `}</style>

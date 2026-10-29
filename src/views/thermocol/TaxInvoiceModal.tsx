@@ -278,6 +278,24 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
+
+            tr, tbody tr, tfoot tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            thead {
+                display: table-header-group !important;
+            }
+
+            tfoot {
+                display: table-footer-group !important;
+            }
+
+            .company-header, .section-box, .bottom-section, .declaration {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
         }
     </style>
 </head>
