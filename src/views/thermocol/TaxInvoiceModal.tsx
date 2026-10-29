@@ -196,15 +196,6 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
             justify-content: space-between;
         }
 
-        .continuation-notice {
-            text-align: right;
-            font-weight: bold;
-            font-style: italic;
-            font-size: 9.5px;
-            color: #316599;
-            margin-top: 3px;
-        }
-
         /* --- PDF & Print Media Query --- */
         @media print {
             @page {

@@ -28,7 +28,8 @@ import {
   Eye,
   Download,
   Upload,
-  FileSpreadsheet
+  FileSpreadsheet,
+  X
 } from 'lucide-react';
 import { 
   ThermocolProduct, 
@@ -286,6 +287,19 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
 
     return result;
   }, [selectedCity, companyParties, companyDemands, companyProducts, invoices, companyInwards, targetCompany]);
+
+  // Quick Search & Real-Time Filter for Active Client Demand Matrix
+  const [matrixSearchQuery, setMatrixSearchQuery] = useState<string>('');
+
+  const filteredPlanningRows = useMemo(() => {
+    if (!matrixSearchQuery.trim()) return cityPlanningRows;
+    const q = matrixSearchQuery.trim().toLowerCase();
+    return cityPlanningRows.filter(row => 
+      row.partyName.toLowerCase().includes(q) ||
+      row.productName.toLowerCase().includes(q) ||
+      (row.packSize && row.packSize.toLowerCase().includes(q))
+    );
+  }, [cityPlanningRows, matrixSearchQuery]);
 
   // Handle quantity change in cases
   const handleCaseChange = (key: string, casesVal: string) => {
@@ -603,6 +617,58 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
             </div>
           </div>
 
+          {/* Sticky Summary Bar with Weight & CFT (Locks at top when scrolling down) */}
+          <div className="sticky top-0 z-20 bg-slate-900/95 backdrop-blur-md text-white p-3.5 px-5 rounded-2xl shadow-xl border border-slate-800 flex flex-wrap items-center justify-between gap-4 transition-all">
+            <div className="flex items-center space-x-3">
+              <div className="p-2.5 bg-blue-600/30 rounded-xl text-blue-400 border border-blue-500/30 shrink-0">
+                <Scale className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-extrabold text-slate-400 block tracking-wider">
+                  Live Pre-Planned Summary Totals
+                </span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono pt-0.5">
+                  <span>Active SKUs: <strong className="text-blue-300 font-bold">{planCalculations.activeItemsCount}</strong></span>
+                  <span>Cases: <strong className="text-white font-bold">{planCalculations.totalPlannedCases} cs</strong></span>
+                  <span>Planned Qty: <strong className="text-indigo-300 font-bold">{planCalculations.totalPlannedQty} pcs</strong></span>
+                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30 font-bold">
+                    Est. Weight: <strong>{planCalculations.totalWeightKg} kg</strong>
+                  </span>
+                  <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30 font-bold">
+                    Est. Volume: <strong>{planCalculations.totalCft} CFT</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              {planCalculations.totalPlannedQty > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPlannedCasesMap({})}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer border border-slate-700"
+                  title="Reset all planned case quantities to 0"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleCreatePickList}
+                disabled={planCalculations.totalPlannedQty <= 0}
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-lg ${
+                  planCalculations.totalPlannedQty > 0 
+                    ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-blue-900/30 active:scale-95' 
+                    : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700'
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Generate Pick List ({planCalculations.totalPlannedQty} pcs)</span>
+              </button>
+            </div>
+          </div>
+
           {/* Planning Matrix Table */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
@@ -664,6 +730,35 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
               </div>
             </div>
 
+            {/* Quick Search & Real-Time Filter Option */}
+            <div className="p-3 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
+              <div className="relative flex-1 min-w-[260px]">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Quick search by Customer Name, Product / SKU Description, or Pack Size..."
+                  value={matrixSearchQuery}
+                  onChange={(e) => setMatrixSearchQuery(e.target.value)}
+                  className="w-full bg-slate-900/90 border border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs text-white placeholder-slate-400 focus:bg-slate-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+                {matrixSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setMatrixSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-white rounded-full hover:bg-slate-800 transition cursor-pointer"
+                    title="Clear Search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="text-[11px] text-slate-300 font-mono flex items-center gap-2 shrink-0">
+                <span className="px-2.5 py-1 bg-slate-900 rounded-lg border border-slate-700">
+                  Showing <strong>{filteredPlanningRows.length}</strong> of <strong>{cityPlanningRows.length}</strong> Requirements
+                </span>
+              </div>
+            </div>
+
             {cityPlanningRows.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <Info className="w-8 h-8 text-slate-400 mx-auto" />
@@ -673,6 +768,20 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                 <p className="text-[11px] text-slate-400">
                   Select a different city or click "+ Set Demand" above to define total demand limits.
                 </p>
+              </div>
+            ) : filteredPlanningRows.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <Search className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-xs font-bold text-slate-600">
+                  No requirements found matching "{matrixSearchQuery}".
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setMatrixSearchQuery('')}
+                  className="text-xs text-blue-600 font-bold hover:underline cursor-pointer"
+                >
+                  Clear search filter
+                </button>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -693,7 +802,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                    {cityPlanningRows.map((row) => {
+                    {filteredPlanningRows.map((row) => {
                       const cases = plannedCasesMap[row.key] || 0;
                       const plannedQty = cases * row.packSizeMultiple;
                       const estWeight = (plannedQty * row.weightUnit).toFixed(1);
