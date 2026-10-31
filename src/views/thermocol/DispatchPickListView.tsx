@@ -301,6 +301,25 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
     );
   }, [cityPlanningRows, matrixSearchQuery]);
 
+  // Date & Keyword Filter for Pick List Queue Sub-Tab
+  const [queueDateFilter, setQueueDateFilter] = useState<string>('');
+  const [queueSearchQuery, setQueueSearchQuery] = useState<string>('');
+
+  const filteredPickLists = useMemo(() => {
+    return companyPickLists.filter(pl => {
+      const matchesDate = !queueDateFilter || pl.date === queueDateFilter;
+      const q = queueSearchQuery.trim().toLowerCase();
+      const matchesQuery = !q || (
+        pl.pickListNo.toLowerCase().includes(q) ||
+        pl.city.toLowerCase().includes(q) ||
+        (pl.transporterName && pl.transporterName.toLowerCase().includes(q)) ||
+        (pl.vehicleNo && pl.vehicleNo.toLowerCase().includes(q)) ||
+        (pl.generatedInvoiceNo && pl.generatedInvoiceNo.toLowerCase().includes(q))
+      );
+      return matchesDate && matchesQuery;
+    });
+  }, [companyPickLists, queueDateFilter, queueSearchQuery]);
+
   // Handle quantity change in cases
   const handleCaseChange = (key: string, casesVal: string) => {
     const cases = Math.max(0, parseInt(casesVal, 10) || 0);
@@ -959,6 +978,60 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
               </span>
             </div>
 
+            {/* Pick List Queue Date & Keyword Filter Bar */}
+            <div className="p-3.5 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[280px]">
+                {/* Date Filter Input */}
+                <div className="flex items-center space-x-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="text-[10px] font-bold uppercase text-slate-400">Filter Date:</span>
+                  <input
+                    type="date"
+                    value={queueDateFilter}
+                    onChange={(e) => setQueueDateFilter(e.target.value)}
+                    className="bg-transparent text-white font-mono text-xs font-bold focus:outline-none cursor-pointer"
+                  />
+                  {queueDateFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setQueueDateFilter('')}
+                      className="text-[10px] bg-slate-800 hover:bg-slate-700 text-blue-300 font-bold px-1.5 py-0.5 rounded cursor-pointer transition"
+                      title="Show All Dates"
+                    >
+                      Show All
+                    </button>
+                  )}
+                </div>
+
+                {/* Keyword Search Input */}
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    placeholder="Search by Pick List No, City, Transporter, or Vehicle..."
+                    value={queueSearchQuery}
+                    onChange={(e) => setQueueSearchQuery(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl pl-8 pr-7 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+                  />
+                  {queueSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setQueueSearchQuery('')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white cursor-pointer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-300 font-mono shrink-0">
+                <span className="px-2.5 py-1 bg-slate-900 rounded-lg border border-slate-700">
+                  Showing <strong>{filteredPickLists.length}</strong> of <strong>{companyPickLists.length}</strong> Pick Lists
+                </span>
+              </div>
+            </div>
+
             {companyPickLists.length === 0 ? (
               <div className="p-12 text-center space-y-3">
                 <ClipboardList className="w-8 h-8 text-slate-400 mx-auto" />
@@ -968,6 +1041,33 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                 <p className="text-[11px] text-slate-400">
                   Switch to "Create Pre-Planned Dispatch" tab to generate a new pick list schedule.
                 </p>
+              </div>
+            ) : filteredPickLists.length === 0 ? (
+              <div className="p-12 text-center space-y-3">
+                <Search className="w-8 h-8 text-slate-400 mx-auto" />
+                <p className="text-xs font-bold text-slate-600">
+                  No pick lists found matching the selected filter {queueDateFilter ? `for date ${queueDateFilter}` : ''}.
+                </p>
+                <div className="flex justify-center gap-2 pt-1">
+                  {queueDateFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setQueueDateFilter('')}
+                      className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs font-bold hover:bg-blue-100 transition cursor-pointer"
+                    >
+                      Show All Dates
+                    </button>
+                  )}
+                  {queueSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setQueueSearchQuery('')}
+                      className="px-3 py-1 bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-bold hover:bg-slate-200 transition cursor-pointer"
+                    >
+                      Clear Search
+                    </button>
+                  )}
+                </div>
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -985,7 +1085,7 @@ export const DispatchPickListView: React.FC<DispatchPickListViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
-                    {companyPickLists.map((pl) => {
+                    {filteredPickLists.map((pl) => {
                       const totalLoaded = pl.items.reduce((s, i) => s + (i.loadedQty ?? i.plannedQty), 0);
 
                       return (

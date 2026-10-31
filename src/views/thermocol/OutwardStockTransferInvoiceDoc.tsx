@@ -153,11 +153,60 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
     }
   }
   const totalPages = pageChunks.length;
+  const isSinglePage = totalPages === 1;
 
   return (
     <div id="taxInvoicePrintArea" className="space-y-6 print:space-y-0">
       {/* Dynamic Print CSS for Strict A4 Landscape Format & Soft Professional Palette */}
       <style>{`
+        /* Screen & Base Optimizations for Single-Page Invoices (ensures 7-item invoices fit cleanly on 1 page) */
+        .single-page-invoice {
+          padding: 3mm 6mm !important;
+          gap: 3px !important;
+        }
+        .single-page-invoice .company-header {
+          padding: 4px 8px !important;
+          margin-bottom: 2px !important;
+        }
+        .single-page-invoice .company-header table {
+          margin-bottom: 2px !important;
+        }
+        .single-page-invoice .section-box {
+          margin-bottom: 2px !important;
+        }
+        .single-page-invoice .details-col {
+          padding: 4px 6px !important;
+          font-size: 9.5px !important;
+          line-height: 1.25 !important;
+        }
+        .single-page-invoice table {
+          margin-bottom: 2px !important;
+        }
+        .single-page-invoice th, 
+        .single-page-invoice td {
+          padding: 3px 4px !important;
+          font-size: 9px !important;
+          line-height: 1.2 !important;
+        }
+        .single-page-invoice tbody tr {
+          height: 19px !important;
+        }
+        .single-page-invoice .bottom-section {
+          margin-top: 2px !important;
+          gap: 4px !important;
+        }
+        .single-page-invoice .amount-words-box,
+        .single-page-invoice .transporter-box,
+        .single-page-invoice .summary-box {
+          padding: 3px 6px !important;
+          font-size: 8.5px !important;
+        }
+        .single-page-invoice .declaration {
+          margin-top: 2px !important;
+          padding-top: 2px !important;
+          font-size: 7.5px !important;
+        }
+
         @media print {
           @page {
             size: A4 landscape;
@@ -233,6 +282,63 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
             page-break-inside: avoid !important;
             break-inside: avoid !important;
           }
+
+          /* STRICT SINGLE-PAGE A4 FIT OPTIMIZATION (@media print) */
+          /* Prevents browser print preview from spilling footer or terms onto a 2nd page */
+          .single-page-invoice {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+            min-height: 0 !important;
+            height: auto !important;
+            max-height: 198mm !important;
+            padding: 2.5mm 6mm !important;
+            gap: 2px !important;
+            box-sizing: border-box !important;
+          }
+          .single-page-invoice .company-header {
+            padding: 4px 8px !important;
+            margin-bottom: 2px !important;
+          }
+          .single-page-invoice .company-header table {
+            margin-bottom: 2px !important;
+          }
+          .single-page-invoice .section-box {
+            margin-bottom: 2px !important;
+          }
+          .single-page-invoice .details-col {
+            padding: 3px 5px !important;
+            font-size: 9px !important;
+            line-height: 1.2 !important;
+          }
+          .single-page-invoice table {
+            margin-bottom: 2px !important;
+          }
+          .single-page-invoice th, 
+          .single-page-invoice td {
+            padding: 2.5px 4px !important;
+            font-size: 8.5px !important;
+            line-height: 1.15 !important;
+          }
+          .single-page-invoice tbody tr {
+            height: 18px !important;
+          }
+          .single-page-invoice .bottom-section {
+            margin-top: 2px !important;
+            gap: 4px !important;
+          }
+          .single-page-invoice .amount-words-box,
+          .single-page-invoice .transporter-box,
+          .single-page-invoice .summary-box {
+            padding: 3px 5px !important;
+            font-size: 8px !important;
+          }
+          .single-page-invoice .declaration {
+            margin-top: 2px !important;
+            padding-top: 2px !important;
+            font-size: 7px !important;
+          }
         }
       `}</style>
 
@@ -243,7 +349,7 @@ export const OutwardStockTransferInvoiceDoc: React.FC<Props> = ({ invoice }) => 
         return (
           <div
             key={pageIdx}
-            className="tax-invoice-page invoice-page bg-white w-[297mm] max-w-[297mm] min-h-[192mm] mx-auto p-[5mm_8mm] text-[#333333] font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-[#b0b0b0] print:p-[5mm_8mm] print:w-full print:min-h-[192mm] print:h-auto print:m-0 mb-6 print:mb-0 flex flex-col justify-between gap-[5px]"
+            className={`tax-invoice-page invoice-page ${isSinglePage ? 'single-page-invoice' : 'multi-page-invoice'} bg-white w-[297mm] max-w-[297mm] ${isSinglePage ? 'min-h-0 print:min-h-0' : 'min-h-[192mm] print:min-h-[192mm]'} mx-auto ${isSinglePage ? 'p-[3mm_6mm] print:p-[2.5mm_6mm]' : 'p-[5mm_8mm] print:p-[5mm_8mm]'} text-[#333333] font-sans text-[8.5pt] leading-tight border border-[#b0b0b0] shadow-xl print:shadow-none print:border print:border-[#b0b0b0] print:w-full print:h-auto print:m-0 mb-6 print:mb-0 flex flex-col justify-between ${isSinglePage ? 'gap-[3px] print:gap-[2px]' : 'gap-[5px]'}`}
             style={{ fontFamily: 'Arial, sans-serif' }}
           >
             {/* TOP & MIDDLE CONTENT WRAPPER */}

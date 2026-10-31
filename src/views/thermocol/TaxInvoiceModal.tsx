@@ -286,6 +286,62 @@ export const TaxInvoiceModal: React.FC<Props> = ({ invoice, onClose, isInline = 
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
+
+            /* Single-Page A4 Fit Optimization (@media print) */
+            .single-page-invoice {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+                page-break-before: avoid !important;
+                break-before: avoid !important;
+                min-height: 0 !important;
+                height: auto !important;
+                max-height: 198mm !important;
+                padding: 2.5mm 6mm !important;
+                gap: 2px !important;
+                box-sizing: border-box !important;
+            }
+            .single-page-invoice .company-header {
+                padding: 4px 8px !important;
+                margin-bottom: 2px !important;
+            }
+            .single-page-invoice .company-header table {
+                margin-bottom: 2px !important;
+            }
+            .single-page-invoice .section-box {
+                margin-bottom: 2px !important;
+            }
+            .single-page-invoice .details-col {
+                padding: 3px 5px !important;
+                font-size: 9px !important;
+                line-height: 1.2 !important;
+            }
+            .single-page-invoice table {
+                margin-bottom: 2px !important;
+            }
+            .single-page-invoice th, 
+            .single-page-invoice td {
+                padding: 2.5px 4px !important;
+                font-size: 8.5px !important;
+                line-height: 1.15 !important;
+            }
+            .single-page-invoice tbody tr {
+                height: 18px !important;
+            }
+            .single-page-invoice .bottom-section {
+                margin-top: 2px !important;
+                gap: 4px !important;
+            }
+            .single-page-invoice .amount-words-box,
+            .single-page-invoice .transporter-box,
+            .single-page-invoice .summary-box {
+                padding: 3px 5px !important;
+                font-size: 8px !important;
+            }
+            .single-page-invoice .declaration {
+                margin-top: 2px !important;
+                padding-top: 2px !important;
+                font-size: 7px !important;
+            }
         }
     </style>
 </head>
